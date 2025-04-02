@@ -1,7 +1,9 @@
 const express = require('express');
 const database = require ('./config/database');
-const register = require('./controllers/controleur');
-const login = require('./controllers/authControler');
+const record = require('./routes/record');
+const code = require('./routes/code');
+const getEth = require('./routes/getEth');
+
 require('dotenv').config();
 const PORT = process.env.PORT;
 
@@ -18,8 +20,9 @@ database.authenticate()
 database.sync()
     .then (()=>console.log('Base de sonnée créé!'));
 
-app.use('/api/register', register);
-app.post('/api/login', login)
+app.use('/record', record);
+app.post('/code', code);
+app.get('/getEth', getEth);
 
 app.listen(PORT, () => {
   console.log(`Le server tourne sur le port ${PORT}`);

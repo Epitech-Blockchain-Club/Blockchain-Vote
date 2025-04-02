@@ -6,3 +6,5 @@ const transporter = mailer.createTransport({
         pass: process.env.SENDER_PASS,
     }
 });
+
+module.exports = transporter
