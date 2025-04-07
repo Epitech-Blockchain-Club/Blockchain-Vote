@@ -1,9 +1,9 @@
 const User = require('../models/User');
-const {Wallet} = require('ethers');
+//const {Wallet} = require('ethers');
 
 // Route pour vérifier le code de vérification
-exports.verifyCode = async (req, res) => {
-    const {email, code} = req.body;
+const verifyCode = async (req, res) => {
+    const {email, code, address} = req.body;
 
     try {
         const user = await User.findOne({ where: {email}});
@@ -16,17 +16,14 @@ exports.verifyCode = async (req, res) => {
             return res.status(400).json({message: 'Code incorrect'});
         }
 
-        // Génération un wallet
-        const wallet = Wallet.createRandom();
-        const privateKey = wallet.privateKey;
-        const address = wallet.address;
-
         // Mise à jour l'utilisateur avec l'adresse et la clé privée
-        await user.update({ address, privateKey });
+        await user.update({address});
 
-        return res.status(200).json({ message: 'Code vérifié', address, privateKey });
+        return res.status(200).json({message: 'Code vérifié'});
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Erreur du serveur' });
     }
 };
+
+module.exports = verifyCode;

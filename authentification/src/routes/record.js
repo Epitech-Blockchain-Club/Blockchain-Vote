@@ -4,7 +4,7 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 // Route pour enregistrer l'email
-exports.recordEmail = async (req, res) => {
+const recordEmail = async (req, res) => {
     const {email} = req.body;
 
     try {

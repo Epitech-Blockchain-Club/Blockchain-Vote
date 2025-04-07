@@ -2,7 +2,7 @@ const express = require('express');
 const database = require ('./config/database');
 const record = require('./routes/record');
 const code = require('./routes/code');
-const getEth = require('./routes/getEth');
+const getgitEth = require('./routes/getEth');
 
 require('dotenv').config();
 const PORT = process.env.PORT;
