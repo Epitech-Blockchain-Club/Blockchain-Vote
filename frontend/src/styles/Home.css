@@ -1,0 +1,23 @@
+/* branding-specific overrides */
+.Home-container {
+  padding: 0; /* handled by header component */
+  background: linear-gradient(135deg, #1a237e 0%, #4a148c 100%);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* improved card look for elections */
+.election-card {
+  background: rgba(17, 24, 39, 0.85);
+  color: #fff;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  transition: transform 0.2s;
+}
+.election-card:hover {
+  transform: translateY(-4px);
+}
