@@ -10,7 +10,7 @@ const CreateElectionForm = () => {
   const { id } = useParams()
   const { elections, addElection, updateElection } = useElections()
   const navigate = useNavigate()
-  
+
   const existingElection = id ? elections.find(e => e.id === id) : null
 
   const [formData, setFormData] = useState({
@@ -20,7 +20,8 @@ const CreateElectionForm = () => {
     country: existingElection?.country || '',
     startDate: existingElection?.startDate?.split('T')[0] || '',
     endDate: existingElection?.endDate?.split('T')[0] || '',
-    candidates: existingElection?.candidates || [{ id: Date.now(), name: '', bio: '' }]
+    candidates: existingElection?.candidates || [{ id: Date.now(), name: '', bio: '' }],
+    moderators: existingElection?.moderators || [{ id: Date.now(), address: '', role: 'Modérateur' }]
   })
 
   const handleChange = (e) => {
@@ -46,6 +47,28 @@ const CreateElectionForm = () => {
       setFormData(prev => ({
         ...prev,
         candidates: prev.candidates.filter((_, i) => i !== index)
+      }))
+    }
+  }
+
+  const handleModeratorChange = (index, field, value) => {
+    const updatedModerators = [...formData.moderators]
+    updatedModerators[index] = { ...updatedModerators[index], [field]: value }
+    setFormData(prev => ({ ...prev, moderators: updatedModerators }))
+  }
+
+  const addModerator = () => {
+    setFormData(prev => ({
+      ...prev,
+      moderators: [...prev.moderators, { id: Date.now(), address: '', role: 'Modérateur' }]
+    }))
+  }
+
+  const removeModerator = (index) => {
+    if (formData.moderators.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        moderators: prev.moderators.filter((_, i) => i !== index)
       }))
     }
   }
@@ -79,7 +102,7 @@ const CreateElectionForm = () => {
       <form onSubmit={handleSubmit}>
         <Card className="mb-6">
           <h2 className="text-xl font-semibold text-white mb-4">Informations générales</h2>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">
@@ -182,6 +205,55 @@ const CreateElectionForm = () => {
           </div>
         </Card>
 
+        {/* Section Modérateurs */}
+        <Card className="mb-6 border-l-4 border-indigo-500">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Modérateurs de l'Élection</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Ils pourront surveiller le bon déroulement, mais ne pourront en aucun cas modifier les votes (Inaltérabilité Blockchain).
+              </p>
+            </div>
+            <Button type="button" onClick={addModerator} size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+              <PlusIcon className="h-4 w-4 mr-1" />
+              Ajouter
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {formData.moderators.map((moderator, index) => (
+              <div key={moderator.id} className="flex gap-2 items-start">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={moderator.address}
+                    onChange={(e) => handleModeratorChange(index, 'address', e.target.value)}
+                    placeholder="Adresse Ethereum (0x...)"
+                    required
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                  <input
+                    type="text"
+                    value={moderator.role}
+                    onChange={(e) => handleModeratorChange(index, 'role', e.target.value)}
+                    placeholder="Rôle (ex: Modérateur, Superviseur)"
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                {formData.moderators.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeModerator(index)}
+                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+
         <Card className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-white">Candidats</h2>
@@ -225,11 +297,27 @@ const CreateElectionForm = () => {
           </div>
         </Card>
 
+        <div className="mb-6 p-4 bg-gray-800/50 border border-green-500/30 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-500/20 rounded-full">
+              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-green-400">Garantie d'Inaltérabilité (Blockchain)</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                En tant que superadmin, un Smart Contract scelle définitivement les paramètres de cette élection dès sa création. Il vous est impossible, ainsi qu'à quiconque, de truquer ou d'altérer les résultats des votes une fois émis.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-4">
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20">
             {existingElection ? 'Mettre à jour' : 'Créer'} l'élection
           </Button>
-          <Button type="button" variant="outline" size="lg" onClick={() => navigate('/admin')}>
+          <Button type="button" variant="outline" size="lg" onClick={() => navigate('/admin')} className="w-full">
             Annuler
           </Button>
         </div>

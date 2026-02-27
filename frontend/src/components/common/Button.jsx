@@ -1,30 +1,30 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 
-const Button = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
-  onClick, 
+const Button = ({
+  children,
+  variant = 'primary',
+  size = 'md',
+  onClick,
   disabled = false,
   loading = false,
   type = 'button',
   className = '',
-  ...props 
+  ...props
 }) => {
-  const baseClasses = 'font-semibold rounded-lg transition duration-200 inline-flex items-center justify-center'
-  
+  const baseClasses = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 shadow-lg outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 overflow-hidden relative group'
+
   const variants = {
-    primary: 'bg-primary-600 hover:bg-primary-700 text-white disabled:bg-primary-300',
-    secondary: 'bg-secondary-500 hover:bg-secondary-600 text-white disabled:bg-secondary-300',
-    outline: 'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 disabled:border-primary-300 disabled:text-primary-300',
-    danger: 'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300'
+    primary: 'btn-primary',
+    secondary: 'btn-secondary',
+    outline: 'bg-transparent border-2 border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-800/20 px-6 py-2.5',
+    danger: 'bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white shadow-red-500/20 px-6 py-2.5'
   }
-  
+
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg'
+    sm: 'px-3.5 py-1.5 text-xs',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-8 py-4 text-base tracking-wide'
   }
 
   return (
