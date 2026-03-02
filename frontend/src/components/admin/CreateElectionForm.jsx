@@ -1,27 +1,41 @@
 import React, { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useElections } from '../../contexts/ElectionContext'
+import { Link, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import {
+  XMarkIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  DocumentArrowUpIcon,
+  QrCodeIcon,
+  LinkIcon,
+  CheckCircleIcon,
+  CameraIcon
+} from '@heroicons/react/24/outline'
 import Button from '../common/Button'
 import Card from '../common/Card'
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useElections } from '../../contexts/ElectionContext'
 import { COUNTRIES } from '../../constants/countries'
 
 const CreateElectionForm = () => {
-  const { id } = useParams()
-  const { elections, addElection, updateElection } = useElections()
   const navigate = useNavigate()
-
-  const existingElection = id ? elections.find(e => e.id === id) : null
+  const { addElection } = useElections()
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [generatedLink, setGeneratedLink] = useState('')
 
   const [formData, setFormData] = useState({
-    title: existingElection?.title || '',
-    description: existingElection?.description || '',
-    type: existingElection?.type || 'local',
-    country: existingElection?.country || '',
-    startDate: existingElection?.startDate?.split('T')[0] || '',
-    endDate: existingElection?.endDate?.split('T')[0] || '',
-    candidates: existingElection?.candidates || [{ id: Date.now(), name: '', bio: '' }],
-    moderators: existingElection?.moderators || [{ id: Date.now(), address: '', role: 'Modérateur' }]
+    title: '',
+    description: '',
+    scope: 'international',
+    country: '',
+    timingMode: 'manual', // 'manual' | 'scheduled'
+    startDate: '',
+    endDate: '',
+    moderators: [''], // Array of emails
+    voterCount: 0,
+    votersFile: null,
+    parts: [
+      { id: Date.now(), title: '', description: '', imageUrl: '' }
+    ]
   })
 
   const handleChange = (e) => {
@@ -29,298 +43,323 @@ const CreateElectionForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleCandidateChange = (index, field, value) => {
-    const updatedCandidates = [...formData.candidates]
-    updatedCandidates[index] = { ...updatedCandidates[index], [field]: value }
-    setFormData(prev => ({ ...prev, candidates: updatedCandidates }))
+  // --- Moderators ---
+  const handleModeratorChange = (index, value) => {
+    const newMods = [...formData.moderators]
+    newMods[index] = value
+    setFormData(prev => ({ ...prev, moderators: newMods }))
   }
-
-  const addCandidate = () => {
-    setFormData(prev => ({
-      ...prev,
-      candidates: [...prev.candidates, { id: Date.now(), name: '', bio: '' }]
-    }))
-  }
-
-  const removeCandidate = (index) => {
-    if (formData.candidates.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        candidates: prev.candidates.filter((_, i) => i !== index)
-      }))
-    }
-  }
-
-  const handleModeratorChange = (index, field, value) => {
-    const updatedModerators = [...formData.moderators]
-    updatedModerators[index] = { ...updatedModerators[index], [field]: value }
-    setFormData(prev => ({ ...prev, moderators: updatedModerators }))
-  }
-
-  const addModerator = () => {
-    setFormData(prev => ({
-      ...prev,
-      moderators: [...prev.moderators, { id: Date.now(), address: '', role: 'Modérateur' }]
-    }))
-  }
-
+  const addModerator = () => setFormData(prev => ({ ...prev, moderators: [...prev.moderators, ''] }))
   const removeModerator = (index) => {
     if (formData.moderators.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        moderators: prev.moderators.filter((_, i) => i !== index)
-      }))
+      setFormData(prev => ({ ...prev, moderators: prev.moderators.filter((_, i) => i !== index) }))
     }
   }
 
+  // --- Voting Parts ---
+  const handlePartChange = (index, field, value) => {
+    const newParts = [...formData.parts]
+    newParts[index] = { ...newParts[index], [field]: value }
+    setFormData(prev => ({ ...prev, parts: newParts }))
+  }
+
+  const handlePartPhoto = (index, e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image trop volumineuse (> 2Mo)')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        handlePartChange(index, 'imageUrl', reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+  const addPart = () => setFormData(prev => ({
+    ...prev, parts: [...prev.parts, { id: Date.now(), title: '', description: '', imageUrl: '' }]
+  }))
+  const removePart = (index) => {
+    if (formData.parts.length > 1) {
+      setFormData(prev => ({ ...prev, parts: prev.parts.filter((_, i) => i !== index) }))
+    }
+  }
+
+  // --- Submit ---
   const handleSubmit = (e) => {
     e.preventDefault()
 
-    const electionData = {
-      ...formData,
-      startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString(),
-      votes: existingElection?.votes || {},
-      voters: existingElection?.voters || []
-    }
+    // Process creation (mock)
+    const newElectionId = `elec_${Date.now()}`
 
-    if (existingElection) {
-      updateElection(id, electionData)
-    } else {
-      addElection(electionData)
-    }
+    // Simulate API call and QR Generation
+    setTimeout(() => {
+      setGeneratedLink(`https://vote.epitech.eu/election/${newElectionId}`)
+      setIsSubmitted(true)
+    }, 1000)
+  }
 
-    navigate('/admin')
+  if (isSubmitted) {
+    return (
+      <div className="max-w-3xl mx-auto py-12">
+        <Card className="text-center p-12 bg-white shadow-2xl border-slate-100 rounded-[40px]">
+          <div className="w-24 h-24 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-8">
+            <CheckCircleIcon className="w-12 h-12 text-primary-600" />
+          </div>
+          <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter">VoteChain : Scrutin Configuré</h2>
+          <p className="text-slate-500 font-medium mb-10 max-w-xl mx-auto">
+            Votre session de vote est maintenant prête. Les modérateurs ont été notifiés pour validation.
+            Une fois approuvé, le lien ci-dessous sera actif pour tous les électeurs.
+          </p>
+
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-10">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Liens d'accès (Votants)</h3>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 w-full">
+                <LinkIcon className="w-6 h-6 text-slate-400" />
+                <input type="text" readOnly value={generatedLink} className="flex-1 bg-transparent border-none text-slate-600 font-medium focus:ring-0 text-sm" />
+                <Button size="sm" variant="outline">Copier</Button>
+              </div>
+              <div className="w-32 h-32 bg-white border-4 border-slate-50 rounded-3xl flex flex-col items-center justify-center p-2 shadow-xl">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatedLink)}`}
+                  alt="QR Code"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+            <p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Scannez pour accéder au vote</p>
+          </div>
+
+          <Button size="lg" onClick={() => navigate('/admin')} className="h-14 px-12 rounded-2xl">
+            Retour au Dashboard
+          </Button>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-white mb-8">
-        {existingElection ? 'Modifier' : 'Créer'} une élection
-      </h1>
+    <div className="max-w-4xl mx-auto animate-fade-in pb-20">
+      <div className="flex items-center space-x-6 mb-10">
+        <Link to="/admin" className="p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm">
+          <XMarkIcon className="h-6 w-6 text-slate-600" />
+        </Link>
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Nouveau Scrutin</h1>
+          <p className="text-slate-500 font-medium">Définissez les paramètres de gouvernance (Modérateurs, Votants, Options).</p>
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <Card className="mb-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Informations générales</h2>
+      <form onSubmit={handleSubmit} className="space-y-8">
 
-          <div className="space-y-4">
+        {/* 1. Base Info */}
+        <Card className="bg-white border-slate-100 shadow-sm p-8">
+          <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">1. Informations Essentielles</h2>
+          <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Titre de l'élection
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="Ex: Élection du Bureau des Alumni"
-              />
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Titre du scrutin</label>
+              <input type="text" name="title" required value={formData.title} onChange={handleChange} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900" placeholder="Ex: Élection BDE 2024" />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows="3"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="Décrivez l'élection..."
-              />
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Description</label>
+              <textarea name="description" rows="3" value={formData.description} onChange={handleChange} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900" placeholder="Contexte et objectifs du vote..." />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Type d'élection
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Portée / Scope</label>
+              <div className="flex gap-4">
+                <label className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.scope === 'national' ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                  <input type="radio" name="scope" value="national" checked={formData.scope === 'national'} onChange={handleChange} className="hidden" />
+                  <span className={`font-bold ${formData.scope === 'national' ? 'text-primary-700' : 'text-slate-600'}`}>National</span>
                 </label>
+                <label className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.scope === 'international' ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                  <input type="radio" name="scope" value="international" checked={formData.scope === 'international'} onChange={handleChange} className="hidden" />
+                  <span className={`font-bold ${formData.scope === 'international' ? 'text-primary-700' : 'text-slate-600'}`}>International</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.scope === 'national' && (
+              <div className="animate-fade-in">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Choisir le pays concerné</label>
                 <select
-                  name="type"
-                  value={formData.type}
+                  name="country"
+                  required
+                  value={formData.country}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 appearance-none"
                 >
-                  <option value="local">Locale</option>
-                  <option value="international">Internationale</option>
+                  <option value="">Sélectionnez un pays...</option>
+                  {COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
                 </select>
               </div>
+            )}
+          </div>
+        </Card>
 
-              {formData.type === 'local' && (
+        {/* 2. Timing */}
+        <Card className="bg-white border-slate-100 shadow-sm p-8">
+          <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">2. Pilotage Temporel</h2>
+          <div className="space-y-5">
+            <div className="flex gap-4 mb-4">
+              <label className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.timingMode === 'manual' ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                <input type="radio" name="timingMode" value="manual" checked={formData.timingMode === 'manual'} onChange={handleChange} className="hidden" />
+                <span className={`font-bold block ${formData.timingMode === 'manual' ? 'text-primary-700' : 'text-slate-600'}`}>Manuel</span>
+                <span className="text-xs text-slate-500 font-medium">Ouverture et fermeture par le panneau admin.</span>
+              </label>
+              <label className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.timingMode === 'scheduled' ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                <input type="radio" name="timingMode" value="scheduled" checked={formData.timingMode === 'scheduled'} onChange={handleChange} className="hidden" />
+                <span className={`font-bold block ${formData.timingMode === 'scheduled' ? 'text-primary-700' : 'text-slate-600'}`}>Programmé</span>
+                <span className="text-xs text-slate-500 font-medium">Dates définies à l'avance.</span>
+              </label>
+            </div>
+            {formData.timingMode === 'scheduled' && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Pays
-                  </label>
-                  <select
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    required={formData.type === 'local'}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  >
-                    <option value="">Sélectionnez un pays</option>
-                    {COUNTRIES.map(country => (
-                      <option key={country.code} value={country.code}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Début</label>
+                  <input type="datetime-local" name="startDate" value={formData.startDate} onChange={handleChange} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium" />
                 </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Date de début
-                </label>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={formData.startDate}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Fin</label>
+                  <input type="datetime-local" name="endDate" value={formData.endDate} onChange={handleChange} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium" />
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Date de fin
-                </label>
-                <input
-                  type="date"
-                  name="endDate"
-                  value={formData.endDate}
-                  onChange={handleChange}
-                  required
-                  min={formData.startDate}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-              </div>
-            </div>
+            )}
           </div>
         </Card>
 
-        {/* Section Modérateurs */}
-        <Card className="mb-6 border-l-4 border-indigo-500">
-          <div className="flex justify-between items-center mb-4">
+        {/* 3. Moderators */}
+        <Card className="bg-white border-slate-100 shadow-sm p-8 border-l-4 border-l-secondary-500">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-white">Modérateurs de l'Élection</h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Ils pourront surveiller le bon déroulement, mais ne pourront en aucun cas modifier les votes (Inaltérabilité Blockchain).
+              <h2 className="text-xs font-black text-secondary-600 uppercase tracking-[0.2em] mb-2">3. Modérateurs (Validateurs)</h2>
+              <p className="text-sm text-slate-500 font-medium max-w-xl">
+                Ces emails recevront les paramètres du vote. Un consensus de <span className="font-black text-secondary-600">100%</span> est OBLIGATOIRE pour valider et ouvrir le scrutin. Un seul refus annule tout.
               </p>
             </div>
-            <Button type="button" onClick={addModerator} size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Ajouter
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" className="border-secondary-200 text-secondary-600 hover:bg-secondary-50">
+                <DocumentArrowUpIcon className="w-4 h-4 mr-2" /> CSV
+              </Button>
+              <Button type="button" onClick={addModerator} size="sm" variant="outline" className="border-secondary-200 text-secondary-600 hover:bg-secondary-50">
+                <PlusIcon className="w-4 h-4 mr-2" /> Ajouter
+              </Button>
+            </div>
           </div>
-
-          <div className="space-y-4">
-            {formData.moderators.map((moderator, index) => (
-              <div key={moderator.id} className="flex gap-2 items-start">
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={moderator.address}
-                    onChange={(e) => handleModeratorChange(index, 'address', e.target.value)}
-                    placeholder="Adresse Ethereum (0x...)"
-                    required
-                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                  <input
-                    type="text"
-                    value={moderator.role}
-                    onChange={(e) => handleModeratorChange(index, 'role', e.target.value)}
-                    placeholder="Rôle (ex: Modérateur, Superviseur)"
-                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                </div>
+          <div className="space-y-3">
+            {formData.moderators.map((email, index) => (
+              <div key={index} className="flex gap-2">
+                <input type="email" required placeholder="Email institutionnel du modérateur" value={email} onChange={(e) => handleModeratorChange(index, e.target.value)} className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-secondary-500 font-medium" />
                 {formData.moderators.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeModerator(index)}
-                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
+                  <button type="button" onClick={() => removeModerator(index)} className="p-3 text-red-400 hover:text-red-500 bg-slate-50 rounded-2xl border border-slate-100"><XMarkIcon className="w-6 h-6" /></button>
                 )}
               </div>
             ))}
           </div>
         </Card>
 
-        <Card className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-white">Candidats</h2>
-            <Button type="button" onClick={addCandidate} size="sm">
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Ajouter
+        {/* 4. Voters */}
+        <Card className="bg-white border-slate-100 shadow-sm p-8">
+          <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">4. Gestion des Électeurs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Taille du collège électoral</label>
+              <input type="number" name="voterCount" placeholder="0" min="0" value={formData.voterCount} onChange={handleChange} className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-black text-2xl text-slate-900" />
+              <p className="text-xs text-slate-500 font-medium mt-2">Nombre total estimé pour calculer les taux de participation.</p>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Autorisation des Votants</label>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div className="h-24 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 p-4 hover:bg-primary-50 transition-colors cursor-pointer group">
+                  <DocumentArrowUpIcon className="w-8 h-8 text-slate-400 group-hover:text-primary-600 mb-2 transition-colors" />
+                  <span className="text-[10px] font-bold text-slate-600 group-hover:text-primary-600 transition-colors uppercase">CSV des votants</span>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-slate-100"></div>
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase font-black text-slate-400">
+                    <span className="bg-white px-2">Ou Saisie Directe</span>
+                  </div>
+                </div>
+
+                <textarea
+                  rows="3"
+                  placeholder="Collez ici la liste des emails séparés par des virgules ou retours à la ligne..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-primary-500"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* 5. Voting Parts (Candidates) */}
+        <Card className="bg-white border-slate-100 shadow-sm p-8">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-2">5. Options de Vote (Parts)</h2>
+              <p className="text-sm text-slate-500 font-medium">Définissez les choix possibles pour les électeurs.</p>
+            </div>
+            <Button type="button" onClick={addPart} size="sm" variant="outline" className="border-primary-200 text-primary-600 hover:bg-primary-50">
+              <PlusIcon className="w-4 h-4 mr-2" /> Ajouter une option
             </Button>
           </div>
 
-          <div className="space-y-4">
-            {formData.candidates.map((candidate, index) => (
-              <div key={candidate.id} className="flex gap-2 items-start">
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={candidate.name}
-                    onChange={(e) => handleCandidateChange(index, 'name', e.target.value)}
-                    placeholder="Nom du candidat"
-                    required
-                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                  <input
-                    type="text"
-                    value={candidate.bio}
-                    onChange={(e) => handleCandidateChange(index, 'bio', e.target.value)}
-                    placeholder="Biographie (optionnel)"
-                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                </div>
-                {formData.candidates.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeCandidate(index)}
-                    className="p-2 text-red-400 hover:text-red-300"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
+          <div className="space-y-6">
+            {formData.parts.map((part, index) => (
+              <div key={part.id} className="p-6 border border-slate-100 bg-slate-50/50 rounded-3xl relative">
+                {formData.parts.length > 1 && (
+                  <button type="button" onClick={() => removePart(index)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500"><XMarkIcon className="w-6 h-6" /></button>
                 )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-end gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Titre de l'option / Liste</label>
+                      <input type="text" required value={part.title} onChange={(e) => handlePartChange(index, 'title', e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold" />
+                    </div>
+                    <div className="relative group">
+                      <div className="h-12 w-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
+                        {part.imageUrl ? (
+                          <img src={part.imageUrl} alt="Part Preview" className="h-full w-full object-cover" />
+                        ) : (
+                          <CameraIcon className="w-6 h-6 text-slate-300" />
+                        )}
+                      </div>
+                      <label className="absolute -bottom-2 -right-2 h-6 w-6 bg-primary-600 rounded-lg flex items-center justify-center cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
+                        <PlusIcon className="w-4 h-4 text-white" />
+                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePartPhoto(index, e)} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Description & Membres (Optionnel)</label>
+                  <textarea rows="2" value={part.description} onChange={(e) => handlePartChange(index, 'description', e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl" placeholder="Noms des membres, programme..." />
+                </div>
               </div>
             ))}
           </div>
         </Card>
 
-        <div className="mb-6 p-4 bg-gray-800/50 border border-green-500/30 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-500/20 rounded-full">
-              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
+        {/* Security Alert & Submit */}
+        <div className="p-6 bg-slate-900 rounded-[32px] flex flex-col md:flex-row items-center gap-6 justify-between shadow-2xl">
+          <div className="flex items-center gap-4">
+            <ShieldCheckIcon className="w-12 h-12 text-primary-500 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-medium text-green-400">Garantie d'Inaltérabilité (Blockchain)</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                En tant que superadmin, un Smart Contract scelle définitivement les paramètres de cette élection dès sa création. Il vous est impossible, ainsi qu'à quiconque, de truquer ou d'altérer les résultats des votes une fois émis.
-              </p>
+              <h4 className="text-white font-black text-lg tracking-tight">Hachage Blockchain</h4>
+              <p className="text-slate-400 text-sm font-medium">Une fois soumis, les <b>modérateurs</b> doivent approuver. Le contrat intelligent sera alors scellé.</p>
             </div>
           </div>
+          <Button type="submit" size="lg" className="h-14 px-10 rounded-2xl w-full md:w-auto font-black shadow-lg shadow-primary-500/30 whitespace-nowrap">
+            Générer le Scrutin
+          </Button>
         </div>
 
-        <div className="flex gap-4">
-          <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20">
-            {existingElection ? 'Mettre à jour' : 'Créer'} l'élection
-          </Button>
-          <Button type="button" variant="outline" size="lg" onClick={() => navigate('/admin')} className="w-full">
-            Annuler
-          </Button>
-        </div>
       </form>
     </div>
   )

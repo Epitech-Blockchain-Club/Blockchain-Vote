@@ -60,7 +60,7 @@ export function ElectionProvider({ children }) {
     setElections(prev => {
       const updated = prev.map(election => {
         if (election.id !== electionId) return election
-        
+
         // Vérifier si l'utilisateur a déjà voté
         if (election.voters.includes(email)) {
           toast.error('Vous avez déjà voté pour cette élection')
@@ -74,7 +74,7 @@ export function ElectionProvider({ children }) {
         }
 
         toast.success('Vote enregistré avec succès')
-        
+
         return {
           ...election,
           votes: {
@@ -84,7 +84,7 @@ export function ElectionProvider({ children }) {
           voters: [...election.voters, email]
         }
       })
-      
+
       localStorage.setItem('elections', JSON.stringify(updated))
       return updated
     })
@@ -97,14 +97,14 @@ export function ElectionProvider({ children }) {
       votes: {},
       voters: []
     }
-    
+
     setElections(prev => {
       const updated = [...prev, electionWithId]
       localStorage.setItem('elections', JSON.stringify(updated))
       toast.success('Élection créée avec succès')
       return updated
     })
-    
+
     return electionWithId
   }
 

@@ -27,76 +27,76 @@ const LoginForm = () => {
 
   return (
     <div className="max-w-md w-full mx-auto px-4">
-      <div className="text-center mb-8">
-        <div className="inline-block p-4 bg-slate-800/50 rounded-3xl mb-4 border border-slate-700/50 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-indigo-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+      <div className="text-center mb-10">
+        <div className="inline-flex items-center justify-center p-5 bg-white rounded-3xl mb-8 border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-primary-50 -translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
           <img src={epitechLogo} alt="Epitech Logo" className="h-16 w-auto relative z-10" />
         </div>
-        <h1 className="text-3xl font-black text-white tracking-tighter">AUTHENTIFICATION</h1>
-        <p className="text-slate-400 font-medium">Accédez à votre espace de vote sécurisé</p>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">IDENTIFICATION</h1>
+        <p className="text-slate-500 font-medium">Portail de gouvernance décentralisée</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card p-10 ring-1 ring-white/5">
-        <h2 className="text-xl font-bold text-white mb-8 border-b border-slate-800 pb-4 flex items-center">
-          <ShieldCheckIcon className="h-5 w-5 mr-2 text-indigo-400" />
-          Connexion Blockchain
+      <form onSubmit={handleSubmit} className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-2xl shadow-slate-200/50 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-500 to-secondary-500"></div>
+        <h2 className="text-base font-black text-slate-900 mb-8 flex items-center uppercase tracking-widest">
+          <ShieldCheckIcon className="h-5 w-5 mr-3 text-primary-600" />
+          Certifié Blockchain
         </h2>
 
         <div className="space-y-6">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-              Email Professionnel
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+              Courriel de l'organisation
             </label>
             <div className="relative group">
-              <EnvelopeIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+              <EnvelopeIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-primary-600 transition-colors" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="input pl-12"
-                placeholder="nom@epitech.eu"
+                className="w-full h-14 pl-12 pr-6 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-medium"
+                placeholder="votre-nom@epitech.eu"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-              Clef Secrète
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+              Token de sécurité
             </label>
             <div className="relative group">
-              <LockClosedIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+              <LockClosedIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-primary-600 transition-colors" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input pl-12"
+                className="w-full h-14 pl-12 pr-6 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-mono"
                 placeholder="••••••••••••"
                 required
               />
             </div>
           </div>
 
-          <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800/50 space-y-2">
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-1">Comptes de test</p>
-            <div className="flex justify-between items-center text-xs text-slate-400">
-              <span>Admin:</span>
-              <span className="text-slate-300 font-mono">admin@epitech.com</span>
+          <div className="bg-primary-50/50 rounded-2xl p-5 border border-primary-100/50 space-y-3">
+            <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-1">Identifiants pré-configurés</p>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-400 font-bold uppercase tracking-tighter">Administrateur:</span>
+              <span className="text-slate-900 font-black">admin@epitech.com</span>
             </div>
-            <div className="flex justify-between items-center text-xs text-slate-400">
-              <span>Votant:</span>
-              <span className="text-slate-300 font-mono">voter@epitech.com</span>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-400 font-bold uppercase tracking-tighter">Électeur:</span>
+              <span className="text-slate-900 font-black">voter@epitech.com</span>
             </div>
           </div>
 
           <Button
             type="submit"
-            variant="primary"
             size="lg"
             loading={loading}
-            className="w-full py-4 text-base font-black shadow-indigo-500/10 shadow-xl"
+            className="w-full h-16 text-sm font-black shadow-primary-500/20 shadow-xl tracking-widest uppercase"
           >
-            S'IDENTIFIER SUR LE SC
+            Se connecter au Scrutin
           </Button>
 
           <p className="text-center text-xs text-slate-500 font-medium">

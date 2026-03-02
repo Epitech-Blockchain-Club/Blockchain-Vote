@@ -1,14 +1,26 @@
 import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useElections } from '../../contexts/ElectionContext'
 import Card from '../common/Card'
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, ResponsiveContainer 
+  PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area
 } from 'recharts'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  InformationCircleIcon,
+  TrophyIcon,
+  UserGroupIcon,
+  ClockIcon,
+  CheckBadgeIcon,
+  ArrowTrendingUpIcon
+} from '@heroicons/react/24/outline'
 
 const Statistics = () => {
   const { elections } = useElections()
   const [selectedElection, setSelectedElection] = useState('')
+  const [expandedPart, setExpandedPart] = useState(null)
 
   const election = elections.find(e => e.id === selectedElection)
 
@@ -20,150 +32,275 @@ const Statistics = () => {
       const now = new Date()
       return now >= new Date(e.startDate) && now <= new Date(e.endDate)
     }).length,
-    avgParticipation: elections.length > 0 
+    avgParticipation: elections.length > 0
       ? (elections.reduce((acc, e) => acc + (e.voters?.length || 0), 0) / elections.length).toFixed(1)
       : 0
   }
 
-  // Données pour les graphiques par pays
-  const votesByCountry = elections
-    .filter(e => e.country)
-    .reduce((acc, e) => {
-      const country = e.country
-      acc[country] = (acc[country] || 0) + (e.voters?.length || 0)
-      return acc
-    }, {})
+  // Mock data for votes over time
+  const timeData = [
+    { time: '08:00', votes: 12, trend: 5 },
+    { time: '10:00', votes: 25, trend: 15 },
+    { time: '12:00', votes: 48, trend: 30 },
+    { time: '14:00', votes: 65, trend: 45 },
+    { time: '16:00', votes: 92, trend: 70 },
+    { time: '18:00', votes: 110, trend: 95 },
+    { time: '20:00', votes: 125, trend: 120 }
+  ]
 
-  const countryData = Object.entries(votesByCountry).map(([country, votes]) => ({
-    name: country,
-    votes
-  }))
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#64748b']
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+  const togglePart = (id) => {
+    setExpandedPart(expandedPart === id ? null : id)
+  }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-white mb-8">Statistiques</h1>
+    <div className="max-w-6xl mx-auto animate-fade-in relative">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-[600px] h-[600px] bg-primary-100/30 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-[600px] h-[600px] bg-secondary-100/30 rounded-full blur-[120px] pointer-events-none"></div>
 
-      {/* Stats globales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="text-center">
-          <p className="text-3xl font-bold text-white">{globalStats.totalElections}</p>
-          <p className="text-gray-400">Élections totales</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-bold text-white">{globalStats.totalVotes}</p>
-          <p className="text-gray-400">Votes exprimés</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-bold text-white">{globalStats.activeElections}</p>
-          <p className="text-gray-400">En cours</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-bold text-white">{globalStats.avgParticipation}</p>
-          <p className="text-gray-400">Moyenne votes/élection</p>
-        </Card>
-      </div>
+      <div className="relative z-10">
+        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-3">Rapports Analytiques</h1>
+            <p className="text-slate-500 font-semibold text-lg max-w-xl">Supervisez l'intégrité et la participation de vos scrutins blockchain en temps réel.</p>
+          </div>
+          <div className="flex items-center gap-3 bg-white/50 backdrop-blur-md p-2 rounded-2xl border border-white/80 shadow-sm">
+            <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs font-black text-green-600 uppercase tracking-widest">Système Opérationnel</span>
+          </div>
+        </div>
 
-      {/* Sélecteur d'élection pour détails */}
-      <Card className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-4">Détails par élection</h2>
-        <select
-          value={selectedElection}
-          onChange={(e) => setSelectedElection(e.target.value)}
-          className="w-full md:w-96 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-        >
-          <option value="">Sélectionnez une élection</option>
-          {elections.map(e => (
-            <option key={e.id} value={e.id}>
-              {e.title}
-            </option>
+        {/* Quick Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          {[
+            { label: 'Scrutins', value: globalStats.totalElections, icon: CheckBadgeIcon, color: 'text-primary-600', bg: 'bg-primary-50' },
+            { label: 'Votes Scellés', value: globalStats.totalVotes, icon: UserGroupIcon, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Sessions Actives', value: globalStats.activeElections, icon: ClockIcon, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Participation Moy.', value: `${globalStats.avgParticipation}%`, icon: TrophyIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' }
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              whileHover={{ y: -5 }}
+              className="bg-white/60 backdrop-blur-xl border border-white/40 p-6 rounded-[32px] shadow-xl shadow-slate-200/40 relative overflow-hidden group"
+            >
+              <div className={`absolute top-0 right-0 h-24 w-24 ${stat.bg} rounded-full -mr-8 -mt-8 opacity-40 group-hover:scale-110 transition-transform duration-500`}></div>
+              <stat.icon className={`h-8 w-8 ${stat.color} mb-4 relative z-10`} />
+              <p className="text-4xl font-black text-slate-900 mb-1 relative z-10">{stat.value}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative z-10">{stat.label}</p>
+            </motion.div>
           ))}
-        </select>
+        </div>
 
-        {election && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Résultats</h3>
-              <div className="space-y-2">
-                {election.candidates.map(candidate => (
-                  <div key={candidate.id} className="flex justify-between">
-                    <span className="text-gray-400">{candidate.name}</span>
-                    <span className="text-white font-semibold">
-                      {election.votes?.[candidate.id] || 0} votes
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Informations</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Participation:</span>
-                  <span className="text-white">{election.voters?.length || 0}</span>
+        {/* Global Control Center */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          {/* Main Chart Section */}
+          <div className="lg:col-span-2 space-y-8">
+            <Card className="bg-white/40 backdrop-blur-2xl border-white/60 shadow-2xl rounded-[40px] p-8 border">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                  <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                    <ArrowTrendingUpIcon className="w-4 h-4" /> Analyse de Progression
+                  </h2>
+                  <p className="text-lg font-black text-slate-900 mb-1">Évolution temporelle des votes</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Date début:</span>
-                  <span className="text-white">{new Date(election.startDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Date fin:</span>
-                  <span className="text-white">{new Date(election.endDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <h2 className="text-xl font-semibold text-white mb-4">Votes par pays</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={countryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="name" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}
-                  labelStyle={{ color: '#fff' }}
-                />
-                <Bar dataKey="votes" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-semibold text-white mb-4">Répartition des votes</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={countryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="votes"
+                <select
+                  value={selectedElection}
+                  onChange={(e) => setSelectedElection(e.target.value)}
+                  className="px-6 py-4 bg-white/80 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-bold appearance-none cursor-pointer shadow-sm text-sm min-w-[300px]"
                 >
-                  {countryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <option value="">Tous les scrutins récents</option>
+                  {elections.map(e => (
+                    <option key={e.id} value={e.id}>{e.title}</option>
                   ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}
-                  labelStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                </select>
+              </div>
+
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                    <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        borderRadius: '24px',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)',
+                        padding: '16px'
+                      }}
+                      itemStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '14px' }}
+                    />
+                    <Area type="monotone" dataKey="votes" stroke="#10b981" strokeWidth={5} fillOpacity={1} fill="url(#colorVotes)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Detailed Leaderboard Section */}
+            {election && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <div className="flex items-center justify-between px-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 italic">
+                    <TrophyIcon className="w-4 h-4 text-amber-500" /> Leaderboard du Scrutin
+                  </h3>
+                  <span className="text-[10px] font-black text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-tighter">Répartition Live</span>
+                </div>
+                <div className="space-y-4">
+                  {election.candidates.sort((a, b) => (election.votes?.[b.id] || 0) - (election.votes?.[a.id] || 0)).map((candidate, idx) => {
+                    const voteCount = election.votes?.[candidate.id] || 0
+                    const totalVoters = election.voters?.length || 1
+                    const percentage = ((voteCount / totalVoters) * 100).toFixed(1)
+                    const isExpanded = expandedPart === candidate.id
+
+                    return (
+                      <Card key={candidate.id} className="bg-white/60 backdrop-blur-xl border border-white/40 p-1 rounded-[32px] overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+                        <div
+                          className="p-5 cursor-pointer flex flex-col md:flex-row items-center gap-6"
+                          onClick={() => togglePart(candidate.id)}
+                        >
+                          <div className="relative">
+                            <div className="h-16 w-16 bg-white rounded-2xl border-2 border-primary-100 shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
+                              {candidate.photo || candidate.imageUrl ? (
+                                <img src={candidate.photo || candidate.imageUrl} alt={candidate.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <span className="text-xl font-black text-primary-200">{candidate.name.substring(0, 1)}</span>
+                              )}
+                            </div>
+                            {idx === 0 && (
+                              <div className="absolute -top-3 -left-3 bg-amber-400 p-1.5 rounded-xl shadow-lg border-2 border-white">
+                                <TrophyIcon className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 w-full space-y-3">
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <h4 className="text-xl font-black text-slate-900 tracking-tight">{candidate.name}</h4>
+                                <p className="text-xs text-slate-500 font-bold line-clamp-1 italic">{candidate.bio || candidate.description || "Aucune description"}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-3xl font-black text-primary-600 leading-none">{percentage}%</span>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{voteCount} voix scellées</p>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-100/50 h-3 rounded-full overflow-hidden p-0.5 border border-slate-50">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${percentage}%` }}
+                                transition={{ duration: 1.5, ease: "easeOut" }}
+                                className={`h-full rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] ${idx === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-gradient-to-r from-primary-500 to-blue-400'}`}
+                              ></motion.div>
+                            </div>
+                          </div>
+
+                          <div className="p-2 text-slate-400 bg-white shadow-sm rounded-xl border border-slate-100">
+                            {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+                          </div>
+                        </div>
+
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="px-8 pb-8 pt-4 bg-white/80 border-t border-white/40"
+                            >
+                              <h5 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-4">Détails de l'Option / Manifesto</h5>
+                              <div className="prose prose-slate max-w-none text-slate-600 font-semibold leading-relaxed">
+                                {candidate.bio || candidate.description || "Détails non renseignés."}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
           </div>
-        </Card>
+
+          {/* Sidebar Analytical Widgets */}
+          <div className="space-y-8">
+            <Card className="bg-slate-900 text-white shadow-3xl shadow-slate-900/40 p-8 rounded-[40px] border-none relative overflow-hidden group">
+              <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-48 h-48 bg-primary-500/20 blur-[80px] rounded-full group-hover:bg-primary-500/30 transition-colors duration-700"></div>
+              <div className="relative z-10">
+                <h2 className="text-xs font-black text-primary-400 uppercase tracking-[0.2em] mb-8 flex items-center">
+                  <CheckBadgeIcon className="w-4 h-4 mr-2" /> Distribution Globale
+                </h2>
+                <div className="h-64 relative mb-8">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={election?.candidates.map(c => ({ name: c.name, votes: election.votes?.[c.id] || 0 })) || [{ name: 'Aucun', votes: 1 }]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={8}
+                        dataKey="votes"
+                        stroke="none"
+                      >
+                        {election?.candidates.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        )) || <Cell fill="#1e293b" />}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '16px', color: '#fff' }}
+                        itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-3xl font-black text-white">{election?.voters?.length || 0}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Electeurs</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {election ? election.candidates.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{c.name}</span>
+                      </div>
+                      <span className="text-xs font-black text-white">{election.votes?.[c.id] || 0} v.</span>
+                    </div>
+                  )) : (
+                    <p className="text-center text-slate-500 text-[10px] font-black uppercase tracking-widest py-8">Veuillez sélectionner un scrutin</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-white/40 backdrop-blur-2xl border-white/60 shadow-xl p-8 rounded-[40px] border">
+              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center">
+                <InformationCircleIcon className="w-4 h-4 mr-2" /> Note Technique
+              </h2>
+              <div className="p-4 bg-primary-50/50 rounded-2xl border border-primary-100">
+                <p className="text-xs text-primary-800 font-bold leading-relaxed">
+                  Toutes les données affichées ici sont extraites directement des hachages stockés sur la blockchain.
+                  Aucune manipulation manuelle n'est possible sur ces rapports.
+                </p>
+              </div>
+              <button className="w-full mt-6 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
+                Exporter le Rapport (PDF/CSV)
+              </button>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -18,8 +18,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/" replace />
+  if (requiredRole) {
+    // SuperAdmin can access everything
+    if (user.role === 'superadmin') return children
+
+    // Regular role check
+    if (user.role !== requiredRole) {
+      return <Navigate to="/" replace />
+    }
   }
 
   return children

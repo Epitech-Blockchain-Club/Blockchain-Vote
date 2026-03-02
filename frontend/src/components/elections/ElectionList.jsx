@@ -8,8 +8,8 @@ const ElectionList = ({ elections }) => {
 
   const filteredElections = elections.filter(election => {
     const matchesSearch = election.title.toLowerCase().includes(search.toLowerCase()) ||
-                         election.description?.toLowerCase().includes(search.toLowerCase())
-    
+      election.description?.toLowerCase().includes(search.toLowerCase())
+
     if (filter === 'all') return matchesSearch
     if (filter === 'active') {
       const now = new Date()
@@ -34,28 +34,28 @@ const ElectionList = ({ elections }) => {
             placeholder="Rechercher une élection..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/50 transition-all font-medium"
           />
         </div>
-        
+
         <div className="flex items-center gap-2">
           <FunnelIcon className="h-5 w-5 text-gray-400" />
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/50 transition-all font-medium appearance-none cursor-pointer"
           >
-            <option value="all">Toutes</option>
-            <option value="active">En cours</option>
-            <option value="upcoming">À venir</option>
-            <option value="ended">Terminées</option>
+            <option value="all">Toutes les élections</option>
+            <option value="active">Élections en cours</option>
+            <option value="upcoming">Prochaines élections</option>
+            <option value="ended">Élections terminées</option>
           </select>
         </div>
       </div>
 
       {filteredElections.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-400">Aucune élection trouvée</p>
+        <div className="text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+          <p className="text-slate-500 font-medium">Aucune élection ne correspond à votre recherche.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

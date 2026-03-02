@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import { ElectionProvider } from './contexts/ElectionContext'
 import { BlockchainProvider } from './contexts/BlockchainContext'
+import { SettingsProvider } from './contexts/SettingsContext'
 import Layout from './components/layout/Layout'
 
 // Pages
@@ -13,54 +14,63 @@ import ElectionPage from './Pages/ElectionPage'
 import ResultsPage from './Pages/ResultsPage'
 import AdminPage from './Pages/AdminPage'
 import LoginPage from './Pages/LoginPage'
-import AboutPage from './Pages/AboutPage'
 import VerificationPage from './Pages/VerificationPage'
+import ProfilePage from './Pages/ProfilePage'
+import RequestVotePage from './Pages/RequestVotePage'
+import SuperAdminPage from './Pages/SuperAdminPage'
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <ElectionProvider>
-          <BlockchainProvider>
-            <Layout>
-              <Toaster 
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#1f2937',
-                    color: '#fff',
-                  },
-                  success: {
-                    iconTheme: {
-                      primary: '#10b981',
-                      secondary: '#fff',
+      <SettingsProvider>
+        <AuthProvider>
+          <ElectionProvider>
+            <BlockchainProvider>
+              <Layout>
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      borderRadius: '16px',
+                      border: '1px solid #f1f5f9',
+                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
                     },
-                  },
-                  error: {
-                    iconTheme: {
-                      primary: '#ef4444',
-                      secondary: '#fff',
+                    success: {
+                      iconTheme: {
+                        primary: '#2563eb',
+                        secondary: '#fff',
+                      },
                     },
-                  },
-                }}
-              />
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/voter" element={<VoterPage />} />
-                <Route path="/election/:id" element={<ElectionPage />} />
-                <Route path="/results" element={<ResultsPage />} />
-                <Route path="/results/:id" element={<ResultsPage />} />
-                <Route path="/admin/*" element={<AdminPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/verify/:txHash" element={<VerificationPage />} />
-                <Route path="/verify" element={<VerificationPage />} />
-              </Routes>
-            </Layout>
-          </BlockchainProvider>
-        </ElectionProvider>
-      </AuthProvider>
+                    error: {
+                      iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#fff',
+                      },
+                    },
+                  }}
+                />
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/voter" element={<VoterPage />} />
+                  <Route path="/election/:id" element={<ElectionPage />} />
+                  <Route path="/results" element={<ResultsPage />} />
+                  <Route path="/results/:id" element={<ResultsPage />} />
+                  <Route path="/admin/*" element={<AdminPage />} />
+                  <Route path="/superadmin/*" element={<SuperAdminPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/verify/:txHash" element={<VerificationPage />} />
+                  <Route path="/verify" element={<VerificationPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/request-vote" element={<RequestVotePage />} />
+                </Routes>
+              </Layout>
+            </BlockchainProvider>
+          </ElectionProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </Router>
   )
 }

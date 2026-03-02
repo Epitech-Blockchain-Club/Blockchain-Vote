@@ -12,13 +12,13 @@ const Button = ({
   className = '',
   ...props
 }) => {
-  const baseClasses = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 shadow-lg outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 overflow-hidden relative group'
+  const baseClasses = 'font-bold rounded-xl transition-all duration-300 inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 shadow-sm outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white overflow-hidden relative group'
 
   const variants = {
     primary: 'btn-primary',
     secondary: 'btn-secondary',
-    outline: 'bg-transparent border-2 border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 hover:bg-slate-800/20 px-6 py-2.5',
-    danger: 'bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white shadow-red-500/20 px-6 py-2.5'
+    outline: 'bg-white border-2 border-slate-200 text-slate-600 hover:text-primary-600 hover:border-primary-200 hover:bg-primary-50 px-6 py-2.5',
+    danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-sm px-6 py-2.5'
   }
 
   const sizes = {

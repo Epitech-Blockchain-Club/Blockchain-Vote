@@ -7,7 +7,7 @@ const CountdownTimer = ({ targetDate, onComplete }) => {
   useEffect(() => {
     const calculateTimeLeft = () => {
       const difference = new Date(targetDate) - new Date()
-      
+
       if (difference <= 0) {
         onComplete?.()
         return { completed: true }
@@ -22,7 +22,7 @@ const CountdownTimer = ({ targetDate, onComplete }) => {
     }
 
     setTimeLeft(calculateTimeLeft())
-    
+
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft())
     }, 1000)
@@ -37,26 +37,26 @@ const CountdownTimer = ({ targetDate, onComplete }) => {
   const formatNumber = (num) => String(num).padStart(2, '0')
 
   return (
-    <div className="flex items-center gap-4 text-white">
+    <div className="flex items-center gap-4 text-slate-800 font-medium">
       <ClockIcon className="h-5 w-5 text-primary-400" />
       <div className="flex gap-2">
         {timeLeft.days > 0 && (
           <div className="text-center">
-            <span className="text-2xl font-bold text-primary-400">{timeLeft.days}</span>
-            <span className="text-xs ml-1">j</span>
+            <span className="text-2xl font-bold text-primary-600">{timeLeft.days}</span>
+            <span className="text-xs ml-1 text-slate-500">j</span>
           </div>
         )}
         <div className="text-center">
-          <span className="text-2xl font-bold text-primary-400">{formatNumber(timeLeft.hours)}</span>
-          <span className="text-xs ml-1">h</span>
+          <span className="text-2xl font-bold text-primary-600">{formatNumber(timeLeft.hours)}</span>
+          <span className="text-xs ml-1 text-slate-500">h</span>
         </div>
         <div className="text-center">
-          <span className="text-2xl font-bold text-primary-400">{formatNumber(timeLeft.minutes)}</span>
-          <span className="text-xs ml-1">m</span>
+          <span className="text-2xl font-bold text-primary-600">{formatNumber(timeLeft.minutes)}</span>
+          <span className="text-xs ml-1 text-slate-500">m</span>
         </div>
         <div className="text-center">
-          <span className="text-2xl font-bold text-primary-400">{formatNumber(timeLeft.seconds)}</span>
-          <span className="text-xs ml-1">s</span>
+          <span className="text-2xl font-bold text-primary-600">{formatNumber(timeLeft.seconds)}</span>
+          <span className="text-xs ml-1 text-slate-500">s</span>
         </div>
       </div>
     </div>

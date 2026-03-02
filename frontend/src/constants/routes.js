@@ -13,6 +13,12 @@ export const ROUTES = {
     VOTERS: '/admin/voters',
     STATISTICS: '/admin/statistics'
   },
+  SUPERADMIN: {
+    DASHBOARD: '/superadmin',
+    ORGANIZATIONS: '/superadmin/organizations',
+    ADMINS: '/superadmin/admins',
+    ACTIVITIES: '/superadmin/activities'
+  },
   LOGIN: '/login',
   ABOUT: '/about',
   VERIFY: (txHash) => `/verify/${txHash}`

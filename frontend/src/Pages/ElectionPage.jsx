@@ -16,12 +16,19 @@ const ElectionPage = () => {
 
   if (!election) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center max-w-2xl">
-        <div className="card border-red-500/30 bg-red-500/10">
-          <h1 className="text-3xl font-bold text-white mb-4">Élection introuvable</h1>
-          <p className="text-slate-400 mb-8">L'élection que vous recherchez n'existe pas ou a été supprimée.</p>
-          <Link to="/" className="btn-primary inline-flex items-center">
-            ← Retour à l'accueil
+      <div className="container mx-auto px-4 py-32 text-center max-w-2xl">
+        <div className="bg-red-50 border border-red-100 p-12 rounded-3xl shadow-xl shadow-red-500/5">
+          <div className="w-20 h-20 bg-white rounded-2xl shadow-sm border border-red-100 flex items-center justify-center mb-8 mx-auto">
+            <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-black text-red-600 mb-4 tracking-tight">Scrutin Introuvable</h1>
+          <p className="text-red-700/60 mb-10 font-medium">L'élection que vous recherchez n'existe pas, a été archivée, ou le lien est corrompu.</p>
+          <Link to="/">
+            <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-100/50 h-12 px-8">
+              Retour au tableau de bord
+            </Button>
           </Link>
         </div>
       </div>
@@ -33,121 +40,133 @@ const ElectionPage = () => {
   const hasVoted = election.voters?.includes(user?.email)
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="max-w-5xl mx-auto">
-        <Link to="/" className="text-indigo-400 hover:text-indigo-300 mb-8 inline-flex items-center transition-colors font-medium">
-          <span className="mr-2">←</span> Retour aux élections
+    <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="mb-10">
+        <Link to="/" className="group inline-flex items-center text-slate-400 hover:text-primary-600 transition-all font-black uppercase text-[10px] tracking-widest">
+          <span className="mr-3 p-1.5 bg-slate-50 rounded-lg group-hover:bg-primary-50 transition-colors">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
+          </span>
+          Retour aux scrutins
         </Link>
+      </div>
 
-        <div className="card mb-8">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-8 gap-4">
-            <div>
-              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
-                {election.title}
-              </h1>
-              {election.moderators && election.moderators.length > 0 && (
-                <div className="flex items-center text-indigo-400 text-sm mt-2">
-                  <ShieldCheckIcon className="h-4 w-4 mr-1" />
-                  Supervisée par {election.moderators.length} modérateur(s)
-                </div>
-              )}
-            </div>
+      <div className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-100 shadow-2xl shadow-slate-200/40 relative overflow-hidden mb-12">
+        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+          <ShieldCheckIcon className="w-48 h-48 text-slate-900" />
+        </div>
 
-            <span className={`px-4 py-2 rounded-full text-sm font-bold border shadow-lg ${isActive ? 'bg-green-500/20 text-green-400 border-green-500/30 animate-pulse' :
-                now < new Date(election.startDate) ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                  'bg-slate-700/50 text-slate-300 border-slate-600/50'
-              }`}>
-              {isActive ? '● En cours' :
-                now < new Date(election.startDate) ? 'À venir' : 'Terminée'}
-            </span>
-          </div>
-
-          <p className="text-slate-300 text-lg mb-8 leading-relaxed border-l-4 border-indigo-500/50 pl-4 py-1">
-            {election.description}
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 hover:bg-slate-800/80 transition-colors">
-              <CalendarIcon className="h-6 w-6 text-indigo-400 mb-3" />
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Début</p>
-              <p className="text-white font-medium">{new Date(election.startDate).toLocaleDateString()}</p>
-            </div>
-            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 hover:bg-slate-800/80 transition-colors">
-              <CalendarIcon className="h-6 w-6 text-indigo-400 mb-3" />
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Fin</p>
-              <p className="text-white font-medium">{new Date(election.endDate).toLocaleDateString()}</p>
-            </div>
-            {election.country && (
-              <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 hover:bg-slate-800/80 transition-colors">
-                <MapPinIcon className="h-6 w-6 text-indigo-400 mb-3" />
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Localisation</p>
-                <p className="text-white font-medium">{COUNTRY_NAMES[election.country]}</p>
+        <div className="relative z-10 flex flex-col md:flex-row md:justify-between md:items-start mb-10 gap-6">
+          <div className="max-w-3xl">
+            <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter leading-[0.9]">
+              {election.title}
+            </h1>
+            {election.moderators && election.moderators.length > 0 && (
+              <div className="flex items-center text-primary-600 text-[10px] font-black uppercase tracking-widest bg-primary-50 w-fit px-4 py-1.5 rounded-full border border-primary-100">
+                <ShieldCheckIcon className="h-4 w-4 mr-2" />
+                Géré par {election.moderators.length} certificateurs
               </div>
             )}
-            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 hover:bg-slate-800/80 transition-colors">
-              <UserGroupIcon className="h-6 w-6 text-indigo-400 mb-3" />
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Votants</p>
-              <p className="text-white font-medium text-xl">{election.voters?.length || 0}</p>
-            </div>
           </div>
 
-          {isActive && (
-            <div className="mb-8">
-              <CountdownTimer targetDate={election.endDate} />
-            </div>
-          )}
-
-          <div className="mt-12 mb-6 flex justify-between items-end border-b border-slate-700/50 pb-4">
-            <h2 className="text-2xl font-bold text-white tracking-tight">Candidats en lice</h2>
-            <span className="text-slate-400 text-sm bg-slate-800 py-1 px-3 rounded-full">{election.candidates.length} candidats</span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6">
-            {election.candidates.map(candidate => (
-              <CandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                votes={election.votes?.[candidate.id] || 0}
-                showVotes={!isActive}
-              />
-            ))}
-          </div>
-
-          {user && isActive && !hasVoted && (
-            <div className="mt-12 text-center p-8 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 backdrop-blur-sm">
-              <h3 className="text-xl font-bold text-white mb-4">Votre vote compte</h3>
-              <p className="text-slate-400 mb-6">Le vote est anonyme et sécurisé par la blockchain.</p>
-              <Link to="/voter">
-                <Button size="lg" className="w-full sm:w-auto">Exprimer mon vote</Button>
-              </Link>
-            </div>
-          )}
-
-          {hasVoted && (
-            <div className="mt-12 p-6 bg-green-500/10 border border-green-500/20 rounded-2xl text-center backdrop-blur-sm flex flex-col items-center">
-              <div className="h-12 w-12 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-green-400 mb-2">Vote enregistré avec succès</h3>
-              <p className="text-green-500/80 text-sm">Votre participation à cette élection a été prise en compte et inscrite de manière inaltérable.</p>
-            </div>
-          )}
-
-          {!user && isActive && (
-            <div className="mt-12 text-center p-8 bg-slate-800/50 rounded-2xl border border-slate-700/50 flex flex-col items-center">
-              <svg className="w-12 h-12 text-slate-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <h3 className="text-xl font-bold text-white mb-4">Authentification requise</h3>
-              <p className="text-slate-400 mb-6 max-w-md">Vous devez être connecté à votre compte pour pouvoir participer à cette élection de manière sécurisée.</p>
-              <Link to="/login">
-                <Button variant="outline" className="w-full sm:w-auto">Se connecter pour voter</Button>
-              </Link>
-            </div>
-          )}
+          <span className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-sm ${isActive ? 'bg-primary-50 text-primary-600 border-primary-100 animate-pulse' :
+            now < new Date(election.startDate) ? 'bg-amber-50 text-amber-600 border-amber-100' :
+              'bg-slate-50 text-slate-400 border-slate-200'
+            }`}>
+            {isActive ? '● Vote ouvert' :
+              now < new Date(election.startDate) ? 'Démarre bientôt' : 'Scrutin clos'}
+          </span>
         </div>
+
+        <div className="relative mb-12">
+          <p className="text-slate-500 text-xl font-medium leading-relaxed max-w-4xl">
+            {election.description}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          {[
+            { icon: <CalendarIcon className="h-6 w-6 text-primary-500" />, label: "Ouverture", value: new Date(election.startDate).toLocaleDateString() },
+            { icon: <CalendarIcon className="h-6 w-6 text-primary-500" />, label: "Fermeture", value: new Date(election.endDate).toLocaleDateString() },
+            { icon: <MapPinIcon className="h-6 w-6 text-secondary-500" />, label: "Territoire", value: COUNTRY_NAMES[election.country] || "Global" },
+            { icon: <UserGroupIcon className="h-6 w-6 text-primary-500" />, label: "Participation", value: `${election.voters?.length || 0} inscrits` }
+          ].map((stat, i) => (
+            <div key={i} className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 hover:border-primary-100 transition-all group">
+              <div className="mb-4 bg-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                {stat.icon}
+              </div>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">{stat.label}</p>
+              <p className="text-slate-900 font-black text-sm">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-16">
+          <CountdownTimer targetDate={election.endDate} />
+        </div>
+
+        <div className="mt-20 mb-8 flex justify-between items-end">
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Liste des choix</h2>
+            <p className="text-slate-500 text-sm font-medium">Sélectionnez une option pour enregistrer votre vote</p>
+          </div>
+          <span className="text-primary-600 text-[10px] font-black bg-primary-50 py-2 px-5 rounded-full border border-primary-100 tracking-tighter uppercase">{election.candidates.length} options disponibles</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          {election.candidates.map(candidate => (
+            <CandidateCard
+              key={candidate.id}
+              candidate={candidate}
+              votes={election.votes?.[candidate.id] || 0}
+              showVotes={!isActive}
+            />
+          ))}
+        </div>
+
+        {user && isActive && !hasVoted && (
+          <div className="mt-20 text-center p-12 bg-slate-900 rounded-[40px] shadow-2xl shadow-slate-900/40 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+              <svg className="w-32 h-32 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-3xl font-black text-white mb-4 relative z-10">Signez votre bulletin</h3>
+            <p className="text-slate-400 mb-10 text-lg font-medium relative z-10 max-w-xl mx-auto">Votre identité institutionnelle a été vérifiée. Vous pouvez maintenant participer de manière anonyme.</p>
+            <Link to="/voter" className="relative z-10">
+              <Button size="lg" className="bg-white text-slate-900 hover:bg-slate-100 h-16 px-16 rounded-[24px] font-black uppercase tracking-widest text-sm shadow-xl hover:-translate-y-1 transition-all">Voter maintenant</Button>
+            </Link>
+          </div>
+        )}
+
+        {hasVoted && (
+          <div className="mt-20 p-12 bg-primary-50 rounded-[40px] border border-primary-100 text-center flex flex-col items-center">
+            <div className="h-20 w-20 bg-white rounded-[24px] shadow-sm border border-primary-100 flex items-center justify-center mb-8">
+              <svg className="w-10 h-10 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Vote enregistré avec succès</h3>
+            <p className="text-slate-500 font-medium text-lg max-w-lg mb-8">Votre participation a été scellée cryptographiquement sur la blockchain. Merci de contribuer à la gouvernance de l'EBC.</p>
+            <Link to="/results">
+              <Button variant="outline" className="border-primary-200 text-primary-600 bg-white font-bold h-12 px-8">Consulter les résultats live</Button>
+            </Link>
+          </div>
+        )}
+
+        {!user && isActive && (
+          <div className="mt-20 text-center p-12 bg-slate-50 rounded-[40px] border border-slate-200 flex flex-col items-center">
+            <div className="h-20 w-20 bg-white rounded-[24px] shadow-sm border border-slate-100 flex items-center justify-center mb-8">
+              <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Authentification requise</h3>
+            <p className="text-slate-500 mb-10 max-w-lg font-medium text-lg">Pour voter, identifiez-vous via votre email institutionnel. La blockchain protégera votre secret par hachage.</p>
+            <Link to="/voter">
+              <Button size="lg" className="h-14 px-12 font-black uppercase tracking-widest text-xs">Vérifier mon identité</Button>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

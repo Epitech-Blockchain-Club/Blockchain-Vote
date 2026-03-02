@@ -23,56 +23,71 @@ const VerificationPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="max-w-4xl mx-auto px-4 py-16">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8 text-center">
-          Vérification de transaction
-        </h1>
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center p-3 bg-primary-100 rounded-2xl mb-6 shadow-lg shadow-primary-500/10">
+            <CheckCircleIcon className="h-10 w-10 text-primary-600" />
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">
+            Transparence Blockchain
+          </h1>
+          <p className="text-slate-500 font-medium max-w-md mx-auto">
+            Vérifiez l'intégrité et l'authenticité de votre vote directement sur le registre immuable.
+          </p>
+        </div>
 
-        <div className="bg-gray-800 rounded-lg p-8">
+        <div className="bg-white rounded-3xl p-10 border border-slate-100 shadow-xl shadow-slate-200/50">
           {txHash ? (
             <div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Hash de transaction
+              <div className="mb-8">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1">
+                  Identifiant de transaction (TX Hash)
                 </label>
-                <code className="block p-3 bg-gray-700 rounded-lg text-primary-400 text-sm break-all">
+                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl break-all font-mono text-xs text-primary-600 shadow-inner">
                   {txHash}
-                </code>
+                </div>
               </div>
 
               <Button
                 onClick={handleVerify}
                 loading={verifying}
-                className="w-full mb-6"
+                className="w-full h-14 shadow-lg shadow-primary-500/20 font-black tracking-tight mb-10"
               >
-                Vérifier la transaction
+                Lancer la vérification cryptographique
               </Button>
 
               {result && (
-                <div className={`p-4 rounded-lg ${
-                  result.error ? 'bg-red-600 bg-opacity-20' : 'bg-green-600 bg-opacity-20'
-                }`}>
+                <div className={`p-8 rounded-3xl border ${result.error ? 'bg-red-50 border-red-100' : 'bg-primary-50 border-primary-100'
+                  }`}>
                   {result.error ? (
-                    <div className="flex items-center text-red-400">
-                      <XCircleIcon className="h-6 w-6 mr-2" />
-                      <p>{result.error}</p>
+                    <div className="flex items-center text-red-700">
+                      <XCircleIcon className="h-6 w-6 mr-3" />
+                      <p className="font-bold">{result.error}</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center text-green-400">
-                        <CheckCircleIcon className="h-6 w-6 mr-2" />
-                        <span className="font-semibold">Transaction confirmée</span>
+                    <div className="space-y-6">
+                      <div className="flex items-center text-primary-700">
+                        <CheckCircleIcon className="h-6 w-6 mr-3" />
+                        <span className="text-xl font-black">Transaction Scellée</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-gray-400">Statut:</span>
-                        <span className="text-white">{result.status}</span>
-                        <span className="text-gray-400">Bloc:</span>
-                        <span className="text-white">#{result.blockNumber}</span>
-                        <span className="text-gray-400">Date:</span>
-                        <span className="text-white">
-                          {new Date(result.timestamp).toLocaleString()}
-                        </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="bg-white p-4 rounded-2xl border border-primary-100/50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Confirmation</p>
+                          <p className="text-slate-900 font-bold">{result.status}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-primary-100/50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Index du Bloc</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-primary-600 font-black">#{result.blockNumber}</span>
+                          </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-primary-100/50 sm:col-span-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Horodatage immuable</p>
+                          <p className="text-slate-900 font-bold">
+                            {new Date(result.timestamp).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'medium' })}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -80,16 +95,19 @@ const VerificationPage = () => {
               )}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-400 mb-4">
-                Entrez un hash de transaction pour vérifier votre vote
+            <div className="text-center py-6">
+              <p className="text-slate-500 font-medium mb-8">
+                Vous n'avez pas de transaction en cours ? <br />
+                Entrez un hash manuellement pour auditer le scrutin.
               </p>
-              <input
-                type="text"
-                placeholder="0x..."
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white mb-4"
-              />
-              <Button>Vérifier</Button>
+              <div className="flex flex-col gap-4">
+                <input
+                  type="text"
+                  placeholder="Collez ici le TX Hash (0x...)"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-mono text-sm"
+                />
+                <Button className="h-14 font-black tracking-tight shadow-lg shadow-primary-500/10">Vérifier maintenant</Button>
+              </div>
             </div>
           )}
         </div>

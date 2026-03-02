@@ -19,7 +19,14 @@ export function AuthProvider({ children }) {
     try {
       // Simuler une API call
       if (email && password) {
-        const userData = { email, role: email.includes('admin') ? 'admin' : 'voter' }
+        let role = 'voter'
+        if (email === 'super@votechain.com') {
+          role = 'superadmin'
+        } else if (email.includes('admin')) {
+          role = 'admin'
+        }
+
+        const userData = { email, role }
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
         toast.success('Connexion réussie')
