@@ -85,8 +85,8 @@ const LoginForm = () => {
               <span className="text-slate-900 font-black">admin@epitech.com</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400 font-bold uppercase tracking-tighter">Électeur:</span>
-              <span className="text-slate-900 font-black">voter@epitech.com</span>
+              <span className="text-slate-400 font-bold uppercase tracking-tighter">Super admin:</span>
+              <span className="text-slate-900 font-black">super@votechain.com</span>
             </div>
           </div>
 
