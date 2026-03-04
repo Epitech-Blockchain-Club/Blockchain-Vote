@@ -10,8 +10,8 @@ import {
   UserCircleIcon,
   Bars3Icon,
   XMarkIcon,
-  BellIcon,
-  LanguageIcon
+  LanguageIcon,
+  BellIcon
 } from '@heroicons/react/24/outline'
 import { ROUTES } from '../../constants/routes'
 import epitechLogo from '../../assets/epitech-logo.png'
@@ -25,12 +25,6 @@ const Navbar = () => {
   const location = useLocation()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
-  const [notifications] = useState([
-    { id: 1, text: 'Le modérateur Marie D. a validé le scrutin Alumni.', time: 'il y a 2 min', unread: true },
-    { id: 2, text: 'La session "Chapter France" est désormais close.', time: 'il y a 1h', unread: false },
-    { id: 3, text: 'Nouvelle proposition de vote soumise au consensus.', time: 'il y a 3h', unread: true }
-  ])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,6 +44,8 @@ const Navbar = () => {
   if (user?.role === 'admin') {
     navLinks.push({ name: t({ fr: 'Dashboard', en: 'Dashboard' }), path: ROUTES.ADMIN.DASHBOARD, icon: ShieldCheckIcon })
     navLinks.push({ name: t({ fr: 'Rapport', en: 'Report' }), path: ROUTES.ADMIN.STATISTICS, icon: ChartBarIcon })
+  } else if (user?.role === 'superadmin') {
+    navLinks.push({ name: t({ fr: 'SuperAdmin', en: 'SuperAdmin' }), path: '/superadmin', icon: ShieldCheckIcon })
   } else {
     navLinks.push({ name: t({ fr: 'Accueil', en: 'Home' }), path: ROUTES.HOME, icon: HomeIcon })
     navLinks.push({ name: t({ fr: 'Voter', en: 'Vote' }), path: ROUTES.VOTER, icon: UserGroupIcon })
@@ -98,7 +94,6 @@ const Navbar = () => {
 
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
-
             {/* Language Toggle */}
             <button
               onClick={toggleLanguage}
@@ -111,35 +106,16 @@ const Navbar = () => {
 
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="p-2 text-slate-400 hover:text-primary-600 transition-colors relative"
-              >
+            {/* Notification Bell (Restored for Admin/SuperAdmin, hidden on Landing) */}
+            {user && location.pathname !== '/' && (
+              <button className="p-2 text-slate-400 hover:text-primary-600 transition-colors relative group">
                 <BellIcon className="h-6 w-6" />
-                {notifications.some(n => n.unread) && (
-                  <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
-                )}
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                {/* Dropdown would go here */}
               </button>
+            )}
 
-              {isNotificationsOpen && (
-                <div className="absolute top-full right-0 mt-4 w-80 bg-white border border-slate-100 shadow-2xl rounded-2xl overflow-hidden animate-fade-in py-2">
-                  <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Notifications</span>
-                    <span className="text-[10px] text-primary-600 font-bold bg-primary-50 px-2 py-0.5 rounded-full">3 nouvelles</span>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-4 hover:bg-slate-50 border-b border-slate-50 transition-colors cursor-pointer ${n.unread ? 'bg-primary-50/20' : ''}`}>
-                        <p className="text-xs font-semibold text-slate-800 leading-tight mb-1">{n.text}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">{n.time}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
             {user ? (
               <div className="flex items-center space-x-4">

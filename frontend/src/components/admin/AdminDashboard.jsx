@@ -41,10 +41,10 @@ const AdminDashboard = () => {
     const end = new Date(election.endDate)
 
     if (election.status === 'pending') return 'pending'
-    if (election.timingMode === 'manual') return 'Manuall'
+    if (election.timingMode === 'manual') return 'manual'
     if (now < start) return 'not started'
     if (now > end) return 'finished'
-    return 'Actif'
+    return 'active'
   }
 
   const filteredElections = elections
@@ -185,10 +185,10 @@ const AdminDashboard = () => {
                 } else if (currentStatus === 'pending') {
                   statusLabel = 'En attente'
                   statusClasses = 'bg-blue-50 text-blue-700 border-blue-200'
-                } else if (currentStatus === 'Manuall') {
+                } else if (currentStatus === 'manual') {
                   statusLabel = 'Manuel'
                   statusClasses = 'bg-purple-50 text-purple-700 border-purple-200'
-                } else if (now >= start && now <= end) {
+                } else if (currentStatus === 'active') {
                   statusLabel = 'En cours'
                   statusClasses = 'bg-primary-50 text-primary-700 border-primary-200'
                 }

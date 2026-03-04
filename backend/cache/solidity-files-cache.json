@@ -1,0 +1,117 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/home/brouhane/blockchain/Blockchain-Vote/backend/contracts/Scrutin.sol": {
+      "lastModificationDate": 1772554351066,
+      "contentHash": "cbebe7bce033d29500ea19ce212e9b14",
+      "sourceName": "contracts/Scrutin.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./VoteSession.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Scrutin"
+      ]
+    },
+    "/home/brouhane/blockchain/Blockchain-Vote/backend/contracts/VoteSession.sol": {
+      "lastModificationDate": 1772554353017,
+      "contentHash": "9a4d7c21ea9d6854797662ae3649b8cb",
+      "sourceName": "contracts/VoteSession.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "VoteSession"
+      ]
+    },
+    "/home/brouhane/blockchain/Blockchain-Vote/backend/contracts/ScrutinFactory.sol": {
+      "lastModificationDate": 1772554355033,
+      "contentHash": "870718c0ab944d0b08027be3e7ea4034",
+      "sourceName": "contracts/ScrutinFactory.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Scrutin.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ScrutinFactory"
+      ]
+    }
+  }
+}

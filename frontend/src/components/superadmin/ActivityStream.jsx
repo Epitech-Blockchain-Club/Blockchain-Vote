@@ -8,16 +8,41 @@ import {
 } from '@heroicons/react/24/outline'
 import { useSettings } from '../../contexts/SettingsContext'
 
-const ActivityStream = () => {
-    const { t } = useSettings()
+import { useElections } from '../../contexts/ElectionContext'
+import { PlusCircleIcon } from '@heroicons/react/24/outline'
+import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 
-    const activities = [
-        { id: 1, type: 'VOTE', org: 'Epitech Lyon', detail: 'Nouveau vote enregistré sur le bloc #485,921', time: '1m ago', icon: BoltIcon, color: 'text-amber-500', bg: 'bg-amber-50' },
-        { id: 2, type: 'SESSION', org: 'Epitech Paris', detail: 'Session "BDE Selection" officiellement ouverte', time: '12m ago', icon: GlobeAltIcon, color: 'text-primary-500', bg: 'bg-primary-50' },
-        { id: 3, type: 'ADMIN', org: 'System', detail: 'Nouvel admin Marie Curie ajouté à Epitech Lyon', time: '45m ago', icon: UserCircleIcon, color: 'text-purple-500', bg: 'bg-purple-50' },
-        { id: 4, type: 'NETWORK', org: 'Mainnet', detail: 'Synchronisation du Smart Contract réussie', time: '1h ago', icon: CubeIcon, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-        { id: 5, type: 'DATABASE', org: 'System', detail: 'Backup quotidien complété avec succès', time: '3h ago', icon: CircleStackIcon, color: 'text-blue-500', bg: 'bg-blue-50' },
-    ]
+const ActivityStream = () => {
+    const navigate = useNavigate()
+    const { t } = useSettings()
+    const { elections } = useElections()
+
+    // Map elections to activity stream
+    const activities = elections.slice(0, 5).map((e, idx) => ({
+        id: e.address || idx,
+        type: 'SESSION',
+        org: 'VoteChain Global',
+        detail: `Nouveau scrutin "${e.title}" déployé sur la blockchain`,
+        time: idx === 0 ? "Récent" : `${idx + 2}h ago`,
+        icon: GlobeAltIcon,
+        color: 'text-primary-500',
+        bg: 'bg-primary-50'
+    }))
+
+    // Add a default activity if empty
+    if (activities.length === 0) {
+        activities.push({
+            id: 0,
+            type: 'NETWORK',
+            org: 'Mainnet',
+            detail: 'Initialisation du réseau VoteChain réussie',
+            time: 'En ligne',
+            icon: CubeIcon,
+            color: 'text-emerald-500',
+            bg: 'bg-emerald-50'
+        })
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -56,10 +81,22 @@ const ActivityStream = () => {
                                     {activity.detail}
                                 </p>
                                 <div className="mt-4 flex items-center space-x-4">
-                                    <button className="text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest">
+                                    <button
+                                        onClick={() => toast.success('Logs: ' + activity.detail, { icon: '📊' })}
+                                        className="text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest"
+                                    >
                                         View Logs
                                     </button>
-                                    <button className="text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest">
+                                    <button
+                                        onClick={() => {
+                                            if (activity.type === 'SESSION' && activity.id) {
+                                                navigate(`/admin/elections/${activity.id}`)
+                                            } else {
+                                                toast('Détails du système indisponibles en démo', { icon: 'ℹ️' })
+                                            }
+                                        }}
+                                        className="text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest"
+                                    >
                                         Details
                                     </button>
                                 </div>

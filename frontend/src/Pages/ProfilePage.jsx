@@ -12,7 +12,7 @@ import {
 import toast from 'react-hot-toast'
 
 const ProfilePage = () => {
-    const { user, updateProfile } = useAuth()
+    const { user, updateUser } = useAuth()
     const [formData, setFormData] = useState({
         name: user?.name || '',
         email: user?.email || '',
@@ -34,7 +34,11 @@ const ProfilePage = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        // Simulated update
+        updateUser({
+            name: formData.name,
+            bio: formData.bio,
+            avatar: avatarPreview
+        })
         toast.success('Profil mis à jour avec succès')
     }
 

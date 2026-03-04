@@ -23,10 +23,11 @@ const VoterPage = () => {
   const { sendTransaction } = useBlockchain()
   const navigate = useNavigate()
 
-  // Filtrer les élections accessibles
+  // Filtrer les élections accessibles (ayant au moins une session validée)
   const availableElections = elections.filter(election => {
     const now = new Date()
-    return now >= new Date(election.startDate) && now <= new Date(election.endDate)
+    const isToday = now >= new Date(election.startDate) && now <= new Date(election.endDate)
+    return isToday && election.status === 'active'
   })
 
   const handleVerified = (data) => {
@@ -35,8 +36,8 @@ const VoterPage = () => {
     toast.success('Email vérifié avec succès')
   }
 
-  const handleVoteClick = (election, candidateId) => {
-    setSelectedElection(election)
+  const handleVoteClick = (election, session, candidateId) => {
+    setSelectedElection({ ...election, currentSession: session })
     setSelectedCandidate(candidateId)
     setShowConfirmModal(true)
   }
@@ -46,24 +47,21 @@ const VoterPage = () => {
     setShowConfirmModal(false)
 
     try {
-      // Simuler une transaction blockchain
-      const tx = await sendTransaction(
-        '0xContractAddress',
-        { electionId: selectedElection.id, candidateId: selectedCandidate }
-      )
+      // Utiliser l'adresse de la session pour le vote
+      const sessionAddress = selectedElection.currentSession.address
 
-      // Enregistrer le vote
-      castVote({
-        electionId: selectedElection.id,
+      // Enregistrer le vote via l'API (qui gère la transaction blockchain)
+      const success = await castVote({
+        electionId: sessionAddress,
         candidateId: selectedCandidate,
         email: verifiedEmail.email,
         country: verifiedEmail.country
       })
 
-      toast.success('Vote enregistré avec succès sur la blockchain !')
-
-      // Rediriger vers la page de vérification
-      navigate(`/verify/${tx.hash}`)
+      if (success) {
+        toast.success('Vote enregistré avec succès !')
+        // Optionnel: rediriger vers une page de confirmation ou rafraîchir
+      }
     } catch (error) {
       toast.error('Erreur lors du vote')
     } finally {
@@ -99,7 +97,7 @@ const VoterPage = () => {
         <div className="mb-12 flex flex-col md:flex-row md:justify-between md:items-end gap-6 bg-slate-50 p-8 rounded-3xl border border-slate-100">
           <div>
             <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
-              Scrutins disponibles
+              Scrutins en cours
             </h1>
             <div className="flex items-center space-x-2">
               <span className="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></span>
@@ -118,7 +116,7 @@ const VoterPage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m0 0l2 2 2-2M8 21l4-4 4 4" />
               </svg>
             </div>
-            <p className="text-slate-500 font-bold uppercase text-xs tracking-[0.2em]">Aucun scrutin ouvert pour votre profil pour le moment</p>
+            <p className="text-slate-500 font-bold uppercase text-xs tracking-[0.2em]">Aucun scrutin validé et ouvert pour le moment</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -131,15 +129,24 @@ const VoterPage = () => {
                 </div>
                 <p className="text-slate-500 mb-8 font-medium leading-relaxed line-clamp-2">{election.description}</p>
 
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 px-1">Options de vote</p>
-                  {election.candidates.map(candidate => (
-                    <CandidateCard
-                      key={candidate.id}
-                      candidate={candidate}
-                      onVote={() => handleVoteClick(election, candidate.id)}
-                      disabled={election.voters?.includes(verifiedEmail?.email)}
-                    />
+                <div className="space-y-8">
+                  {election.sessions?.filter(s => s.isValidated).map((session, sIdx) => (
+                    <div key={sIdx} className="space-y-4">
+                      <div className="flex items-center justify-between px-1">
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">Session: {session.title}</p>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-100 uppercase tracking-wider">Validé</span>
+                      </div>
+                      <div className="space-y-3">
+                        {session.options?.map((candidate, cIdx) => (
+                          <CandidateCard
+                            key={cIdx}
+                            candidate={candidate}
+                            onVote={() => handleVoteClick(election, session, cIdx)}
+                            disabled={election.voters?.includes(verifiedEmail?.email)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
 

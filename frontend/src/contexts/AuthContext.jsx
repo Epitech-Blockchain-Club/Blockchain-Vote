@@ -17,22 +17,22 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      // Simuler une API call
-      if (email && password) {
-        let role = 'voter'
-        if (email === 'super@votechain.com') {
-          role = 'superadmin'
-        } else if (email.includes('admin')) {
-          role = 'admin'
-        }
+      const res = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const result = await res.json()
 
-        const userData = { email, role }
+      if (result.success) {
+        const userData = result.user
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
-        toast.success('Connexion réussie')
+        toast.success(`Bienvenue, ${userData.role}`)
         return userData
+      } else {
+        throw new Error(result.error || 'Email ou mot de passe incorrect')
       }
-      throw new Error('Email ou mot de passe incorrect')
     } catch (error) {
       toast.error(error.message)
       throw error
@@ -45,13 +45,19 @@ export function AuthProvider({ children }) {
     toast.success('Déconnexion réussie')
   }
 
-  const verifyEmail = (email) => {
-    // Simuler la vérification d'email
+  const verifyEmail = async (email) => {
+    // Check if email belongs to an allowed voter (placeholder for now)
     return true
   }
 
+  const updateUser = (newData) => {
+    const updatedUser = { ...user, ...newData }
+    setUser(updatedUser)
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, verifyEmail }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, verifyEmail, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

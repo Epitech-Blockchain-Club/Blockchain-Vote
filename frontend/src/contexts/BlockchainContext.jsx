@@ -10,14 +10,21 @@ export function BlockchainProvider({ children }) {
 
   const connect = async () => {
     try {
-      // Simulation de connexion blockchain
+      // Connect to the backend API instead of simulation
+      const response = await fetch('http://localhost:3001/api/scrutins');
+      if (!response.ok) throw new Error('Backend unreachable');
+
       setConnected(true)
+      // Real wallet address would come from MetaMask here, but for these portals 
+      // we use a relayer-signed model. We'll set a placeholder account.
       setAccount('0x' + Math.random().toString(16).substring(2, 42))
-      setNetwork('Polygon Mumbai')
-      toast.success('Connecté à la blockchain')
+      setNetwork('Hardhat Localhost')
+      toast.success('Connecté au backend blockchain')
       return true
     } catch (error) {
-      toast.error('Erreur de connexion')
+      console.error('Connection error:', error);
+      toast.error('Erreur de connexion au backend')
+      setConnected(false)
       return false
     }
   }

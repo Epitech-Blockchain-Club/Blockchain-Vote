@@ -7,6 +7,9 @@ import {
     ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline'
 import { useSettings } from '../../contexts/SettingsContext'
+import { useElections } from '../../contexts/ElectionContext'
+import { useAuth } from '../../contexts/AuthContext'
+import Spinner from '../common/Spinner'
 
 const StatCard = ({ title, value, icon: Icon, color, trend }) => (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
@@ -28,13 +31,27 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => (
 
 const SuperAdminDashboard = () => {
     const { t } = useSettings()
+    const { elections, loading } = useElections()
+    const { user } = useAuth()
+
+    const activeSessions = elections.filter(e => {
+        const now = new Date()
+        return now >= new Date(e.startDate) && now <= new Date(e.endDate)
+    }).length
+
+    const totalVotes = elections.reduce((acc, curr) => {
+        const sessionVotes = Object.values(curr.votes || {}).reduce((a, b) => a + b, 0)
+        return acc + sessionVotes
+    }, 0)
 
     const stats = [
-        { title: t({ fr: 'Organisations', en: 'Organizations' }), value: '12', icon: BuildingOfficeIcon, color: 'bg-blue-500', trend: '+2' },
-        { title: t({ fr: 'Administrateurs', en: 'Administrators' }), value: '24', icon: UserGroupIcon, color: 'bg-purple-500', trend: '+4' },
-        { title: t({ fr: 'Sessions Actives', en: 'Active Sessions' }), value: '8', icon: InboxStackIcon, color: 'bg-indigo-500', trend: 'Live' },
-        { title: t({ fr: 'Votes Totaux', en: 'Total Votes' }), value: '15.4k', icon: CheckBadgeIcon, color: 'bg-emerald-500', trend: '+12%' },
+        { title: t({ fr: 'Organisations', en: 'Organizations' }), value: '1', icon: BuildingOfficeIcon, color: 'bg-blue-500', trend: 'Live' },
+        { title: t({ fr: 'Administrateurs', en: 'Administrators' }), value: '2', icon: UserGroupIcon, color: 'bg-purple-500', trend: 'Live' },
+        { title: t({ fr: 'Sessions Actives', en: 'Active Sessions' }), value: activeSessions.toString(), icon: InboxStackIcon, color: 'bg-indigo-500', trend: 'Live' },
+        { title: t({ fr: 'Votes Totaux', en: 'Total Votes' }), value: totalVotes > 1000 ? (totalVotes / 1000).toFixed(1) + 'k' : totalVotes.toString(), icon: CheckBadgeIcon, color: 'bg-emerald-500', trend: totalVotes > 0 ? '+100%' : '0' },
     ]
+
+    if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -62,20 +79,21 @@ const SuperAdminDashboard = () => {
                         {t({ fr: 'Activités Récentes', en: 'Recent Activities' })}
                     </h3>
                     <div className="space-y-6">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="flex items-center space-x-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group">
+                        {elections.slice(0, 5).map((election) => (
+                            <div key={election.id} className="flex items-center space-x-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group">
                                 <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
-                                    EP
+                                    {election.title.substring(0, 2).toUpperCase()}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-900">Nouvelle session créée par Epitech Paris</p>
-                                    <p className="text-xs text-slate-500">Il y a 15 minutes • BDE Election 2024</p>
+                                    <p className="text-sm font-bold text-slate-900">Nouveau scrutin : {election.title}</p>
+                                    <p className="text-xs text-slate-500">{new Date(election.startDate).toLocaleDateString()} • {election.type}</p>
                                 </div>
-                                <div className="text-xs font-bold text-slate-400">
-                                    MAR 02
+                                <div className="text-xs font-bold text-slate-400 uppercase">
+                                    {new Date(election.startDate).toLocaleString('default', { month: 'short', day: 'numeric' })}
                                 </div>
                             </div>
                         ))}
+                        {elections.length === 0 && <p className="text-slate-500 italic">Aucune activité récente.</p>}
                     </div>
                 </div>
 

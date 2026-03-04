@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useElections } from '../../contexts/ElectionContext'
 import Card from '../common/Card'
@@ -27,26 +28,18 @@ const Statistics = () => {
   // Statistiques globales
   const globalStats = {
     totalElections: elections.length,
-    totalVotes: elections.reduce((acc, e) => acc + (e.voters?.length || 0), 0),
+    totalVotes: elections.reduce((acc, e) => acc + (e.voters ? e.voters.length : 0), 0),
     activeElections: elections.filter(e => {
       const now = new Date()
       return now >= new Date(e.startDate) && now <= new Date(e.endDate)
     }).length,
     avgParticipation: elections.length > 0
-      ? (elections.reduce((acc, e) => acc + (e.voters?.length || 0), 0) / elections.length).toFixed(1)
+      ? ((elections.reduce((acc, e) => acc + (e.voters ? e.voters.length : 0), 0) / elections.length)).toFixed(1)
       : 0
   }
 
-  // Mock data for votes over time
-  const timeData = [
-    { time: '08:00', votes: 12, trend: 5 },
-    { time: '10:00', votes: 25, trend: 15 },
-    { time: '12:00', votes: 48, trend: 30 },
-    { time: '14:00', votes: 65, trend: 45 },
-    { time: '16:00', votes: 92, trend: 70 },
-    { time: '18:00', votes: 110, trend: 95 },
-    { time: '20:00', votes: 125, trend: 120 }
-  ]
+  // Time series data (placeholder until backend supports time-series)
+  const timeData = []
 
   const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#64748b']
 
@@ -158,8 +151,8 @@ const Statistics = () => {
                 <div className="space-y-4">
                   {election.candidates.sort((a, b) => (election.votes?.[b.id] || 0) - (election.votes?.[a.id] || 0)).map((candidate, idx) => {
                     const voteCount = election.votes?.[candidate.id] || 0
-                    const totalVoters = election.voters?.length || 1
-                    const percentage = ((voteCount / totalVoters) * 100).toFixed(1)
+                    const totalVoters = election.voters ? election.voters.length : 1
+                    const percentage = totalVoters > 0 ? ((voteCount / totalVoters) * 100).toFixed(1) : 0
                     const isExpanded = expandedPart === candidate.id
 
                     return (
@@ -285,20 +278,21 @@ const Statistics = () => {
               </div>
             </Card>
 
-            <Card className="bg-white/40 backdrop-blur-2xl border-white/60 shadow-xl p-8 rounded-[40px] border">
-              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center">
-                <InformationCircleIcon className="w-4 h-4 mr-2" /> Note Technique
-              </h2>
-              <div className="p-4 bg-primary-50/50 rounded-2xl border border-primary-100">
-                <p className="text-xs text-primary-800 font-bold leading-relaxed">
-                  Toutes les données affichées ici sont extraites directement des hachages stockés sur la blockchain.
-                  Aucune manipulation manuelle n'est possible sur ces rapports.
-                </p>
-              </div>
-              <button className="w-full mt-6 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
-                Exporter le Rapport (PDF/CSV)
-              </button>
-            </Card>
+            <div className="p-4 bg-primary-50/50 rounded-2xl border border-primary-100">
+              <p className="text-xs text-primary-800 font-bold leading-relaxed">
+                Toutes les données affichées ici sont extraites directement des hachages stockés sur la blockchain.
+                Aucune manipulation manuelle n'est possible sur ces rapports.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                toast.success('Génération du rapport PDF...')
+                setTimeout(() => window.print(), 1000)
+              }}
+              className="w-full mt-6 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
+            >
+              Exporter le Rapport (PDF/CSV)
+            </button>
           </div>
         </div>
       </div>

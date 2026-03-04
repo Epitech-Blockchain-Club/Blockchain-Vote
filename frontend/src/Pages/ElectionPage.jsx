@@ -132,7 +132,7 @@ const ElectionPage = () => {
             </div>
             <h3 className="text-3xl font-black text-white mb-4 relative z-10">Signez votre bulletin</h3>
             <p className="text-slate-400 mb-10 text-lg font-medium relative z-10 max-w-xl mx-auto">Votre identité institutionnelle a été vérifiée. Vous pouvez maintenant participer de manière anonyme.</p>
-            <Link to="/voter" className="relative z-10">
+            <Link to={`/vote/${id}`} className="relative z-10">
               <Button size="lg" className="bg-white text-slate-900 hover:bg-slate-100 h-16 px-16 rounded-[24px] font-black uppercase tracking-widest text-sm shadow-xl hover:-translate-y-1 transition-all">Voter maintenant</Button>
             </Link>
           </div>
@@ -162,7 +162,7 @@ const ElectionPage = () => {
             </div>
             <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Authentification requise</h3>
             <p className="text-slate-500 mb-10 max-w-lg font-medium text-lg">Pour voter, identifiez-vous via votre email institutionnel. La blockchain protégera votre secret par hachage.</p>
-            <Link to="/voter">
+            <Link to={`/vote/${id}`} className="relative z-10">
               <Button size="lg" className="h-14 px-12 font-black uppercase tracking-widest text-xs">Vérifier mon identité</Button>
             </Link>
           </div>

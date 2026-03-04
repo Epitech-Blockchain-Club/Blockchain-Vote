@@ -18,6 +18,8 @@ import VerificationPage from './Pages/VerificationPage'
 import ProfilePage from './Pages/ProfilePage'
 import RequestVotePage from './Pages/RequestVotePage'
 import SuperAdminPage from './Pages/SuperAdminPage'
+import VoterPortalPage from './Pages/VoterPortalPage'
+import ModeratorPortalPage from './Pages/ModeratorPortalPage'
 
 function App() {
   return (
@@ -65,6 +67,10 @@ function App() {
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/request-vote" element={<RequestVotePage />} />
+                  {/* Public portals — no login required */}
+                  <Route path="/vote/:id" element={<VoterPortalPage />} />
+                  <Route path="/moderate/:id" element={<ModeratorPortalPage />} />
+                  <Route path="/moderate/:id/:sessionId" element={<ModeratorPortalPage />} />
                 </Routes>
               </Layout>
             </BlockchainProvider>
