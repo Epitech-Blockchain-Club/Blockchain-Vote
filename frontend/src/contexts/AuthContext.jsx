@@ -39,6 +39,30 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const loginWithToken = async (token) => {
+    try {
+      const res = await fetch('http://localhost:3001/api/auth/moderator/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+      const result = await res.json()
+
+      if (result.success) {
+        const userData = result.user
+        setUser(userData)
+        localStorage.setItem('user', JSON.stringify(userData))
+        toast.success(`Identification réussie : ${userData.email}`)
+        return userData
+      } else {
+        throw new Error(result.error || 'Token invalide ou expiré')
+      }
+    } catch (error) {
+      console.error('Token login error:', error)
+      throw error
+    }
+  }
+
   const logout = () => {
     setUser(null)
     localStorage.removeItem('user')
@@ -57,7 +81,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, verifyEmail, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithToken, logout, verifyEmail, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

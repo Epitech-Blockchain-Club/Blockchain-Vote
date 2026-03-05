@@ -112,11 +112,13 @@ export function ElectionProvider({ children }) {
           timingMode: newElection.timingMode,
           startDate: newElection.startDate,
           endDate: newElection.endDate,
+          voters: newElection.voters, // Root level voters
           voteSessions: newElection.voteSessions.map(s => ({
             title: s.title,
             description: s.description,
-            moderators: s.moderators.filter(m => m.trim() !== ''),
+            moderators: (s.moderators || []).filter(m => m.trim() !== ''),
             voterCount: parseInt(s.voterCount) || 0,
+            voters: s.voters || [], // Session level voters
             options: s.parts.map(p => ({
               title: p.title,
               description: p.description,

@@ -102,11 +102,27 @@ const VoterPortalPage = () => {
     const [confirming, setConfirming] = useState(false)
     // All done
     const [allDone, setAllDone] = useState(false)
+    // Identity verification
+    const [isSocialVerified, setIsSocialVerified] = useState(false)
+    const [token, setToken] = useState(null)
 
     React.useEffect(() => {
         const fetchScrutin = async () => {
             try {
                 setLoading(true)
+                const urlParams = new URLSearchParams(window.location.search)
+                const t = urlParams.get('token')
+                setToken(t)
+
+                if (t) {
+                    const authRes = await fetch(`http://localhost:3001/api/auth/moderator/verify?token=${t}`)
+                    const authResult = await authRes.json()
+                    if (authResult.success) {
+                        // Logged in as voter
+                        localStorage.setItem('user', JSON.stringify({ email: authResult.email, role: 'voter' }))
+                    }
+                }
+
                 const res = await fetch(`http://localhost:3001/api/scrutins`)
                 const result = await res.json()
                 if (result.success) {
@@ -160,6 +176,141 @@ const VoterPortalPage = () => {
 
     const selectPart = (partId) => {
         setVotes(prev => ({ ...prev, [activeSessionId]: partId }))
+    }
+
+    const handleSocialLogin = async (provider) => {
+        const width = 600, height = 700
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
+        let url = '';
+
+        try {
+            toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
+            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
+            const config = await configRes.json();
+            console.log("OAuth Debug:", { provider, config });
+            toast.dismiss('oauth-init');
+
+            if (provider === 'google' && config.googleClientId) {
+                // Real Google OAuth Flow
+                console.log("OAuth Debug: Using REAL Google Flow");
+                url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&response_type=token&scope=email%20profile`;
+            } else if (provider === 'microsoft' && config.microsoftClientId) {
+                // Real Microsoft OAuth Flow
+                console.log("OAuth Debug: Using REAL Microsoft Flow");
+                url = `https://login.microsoftonline.com/${config.microsoftTenantId || 'common'}/oauth2/v2.0/authorize?client_id=${config.microsoftClientId}&response_type=token&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&scope=User.Read%20email%20openid%20profile`;
+            } else {
+                // Simulation Fallback
+                console.log("OAuth Debug: Using SIMULATION Fallback");
+                const popupContent = `
+                    <html>
+                        <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0; padding: 20px; text-align: center;">
+                            <img src="https://www.${provider === 'google' ? 'google' : 'microsoft'}.com/favicon.ico" style="width: 48px; margin-bottom: 20px;">
+                            <h2 style="color: #0f172a; margin-bottom: 8px;">Vérification Identity (Simulation)</h2>
+                            <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Choisissez un compte pour voter sur <b>VoteChain</b></p>
+                            <div onclick="window.close()" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 25px; display: flex; align-items: center; gap: 15px; width: 100%; max-width: 300px;">
+                                <div style="width: 32px; height: 32px; background: #2563eb; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${user?.email?.charAt(0).toUpperCase() || 'V'}</div>
+                                <div style="text-align: left;">
+                                    <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${user?.email || 'voter@example.com'}</div>
+                                </div>
+                            </div>
+                        </body>
+                        <script>
+                            window.onunload = () => window.opener.postMessage('verified', '*');
+                        </script>
+                    </html>
+                `;
+                const blob = new Blob([popupContent], { type: 'text/html' });
+                url = URL.createObjectURL(blob);
+            }
+
+            const win = window.open(url, 'OAuth2 Verification', `width=${width},height=${height},left=${left},top=${top}`);
+
+            const handleMsg = async (event) => {
+                if (event.data?.type === 'oauth-success') {
+                    // REAL OAUTH SUCCESS
+                    window.removeEventListener('message', handleMsg);
+                    toast.loading(`Vérification auprès de ${provider === 'google' ? 'Google' : 'Microsoft'}...`, { id: 'oauth-verify' });
+
+                    try {
+                        let email = null;
+
+                        if (provider === 'google') {
+                            const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                headers: { Authorization: `Bearer ${event.data.token}` }
+                            });
+                            const googleData = await googleRes.json();
+                            email = googleData.email;
+                        } else if (provider === 'microsoft') {
+                            const msRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+                                headers: { Authorization: `Bearer ${event.data.token}` }
+                            });
+                            const msData = await msRes.json();
+                            email = msData.mail || msData.userPrincipalName;
+                        }
+
+                        // Strict Email Check
+                        if (email && email.toLowerCase() === user?.email?.toLowerCase()) {
+                            setIsSocialVerified(true);
+                            toast.success(`Identité validée et certifiée ${provider === 'google' ? 'Google' : 'Microsoft'} ✓`, { id: 'oauth-verify' });
+                        } else {
+                            toast.error(`Échec: Email saisi (${email || 'Inconnu'}) différent du compte autorisé (${user?.email})`, { id: 'oauth-verify', duration: 6000 });
+                        }
+                    } catch (err) {
+                        toast.error(`Erreur de communication avec ${provider === 'google' ? 'Google' : 'Microsoft'}.`, { id: 'oauth-verify' });
+                    }
+                } else if (event.data === 'verified') {
+                    // SIMULATION SUCCESS
+                    window.removeEventListener('message', handleMsg);
+                    setIsSocialVerified(true);
+                    toast.success('Identité validée ✓');
+                }
+            };
+            window.addEventListener('message', handleMsg);
+
+        } catch (err) {
+            toast.error("Impossible de joindre le système d'authentification.");
+            toast.dismiss('oauth-init');
+        }
+    }
+
+    // legacy
+    const simulateSocialLogin = (provider) => {
+
+        const width = 600, height = 700
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
+
+        const popupContent = `
+            <html>
+                <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0; padding: 20px; text-align: center;">
+                    <img src="https://www.${provider === 'google' ? 'google' : 'microsoft'}.com/favicon.ico" style="width: 48px; margin-bottom: 20px;">
+                    <h2 style="color: #0f172a; margin-bottom: 8px;">Vérification Identity</h2>
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Choisissez un compte pour voter sur <b>VoteChain</b></p>
+                    <div onclick="window.close()" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 25px; display: flex; align-items: center; gap: 15px; width: 100%; max-width: 300px;">
+                        <div style="width: 32px; height: 32px; background: #2563eb; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${user?.email?.charAt(0).toUpperCase() || 'V'}</div>
+                        <div style="text-align: left;">
+                            <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${user?.email || 'voter@example.com'}</div>
+                        </div>
+                    </div>
+                </body>
+                <script>
+                    window.onunload = () => window.opener.postMessage('verified', '*');
+                </script>
+            </html>
+        `;
+        const blob = new Blob([popupContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, 'OAuth2 Verification', `width=${width},height=${height},left=${left},top=${top}`)
+
+        const handleMsg = (event) => {
+            if (event.data === 'verified') {
+                setIsSocialVerified(true)
+                toast.success('Identité Électeur validée ✓')
+                window.removeEventListener('message', handleMsg)
+            }
+        }
+        window.addEventListener('message', handleMsg)
     }
 
     const submitSession = () => {
@@ -299,8 +450,18 @@ const VoterPortalPage = () => {
                   ${votes[activeSessionId]
                                         ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-500/20'
                                         : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}>
-                                {votes[activeSessionId] ? 'Valider mon choix →' : 'Sélectionnez une option pour continuer'}
+                                {votes[activeSessionId] ? (isSocialVerified ? 'Valider mon choix →' : 'Vérifiez votre identité pour voter') : 'Sélectionnez une option pour continuer'}
                             </button>
+
+                            {!isSocialVerified && votes[activeSessionId] && (
+                                <div className="mt-4 p-6 bg-primary-600 rounded-3xl text-white shadow-xl">
+                                    <p className="font-black text-sm mb-4">Vérification d'Identité Requise</p>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleSocialLogin('google')} className="flex-1 bg-white text-primary-600 py-2 rounded-xl text-[10px] font-black uppercase">Google</button>
+                                        <button onClick={() => handleSocialLogin('microsoft')} className="flex-1 bg-white text-primary-600 py-2 rounded-xl text-[10px] font-black uppercase shadow-sm">Office 365</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

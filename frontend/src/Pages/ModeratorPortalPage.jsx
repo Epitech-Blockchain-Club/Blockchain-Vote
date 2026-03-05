@@ -11,6 +11,7 @@ import {
     CalendarIcon,
     ChevronDownIcon,
     ChevronUpIcon,
+    ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -38,27 +39,40 @@ const StatusBadge = ({ status }) => {
 // ─── ModeratorPortalPage ──────────────────────────────────────────────────────
 const ModeratorPortalPage = () => {
     const { id, sessionId } = useParams()
-    const { user } = useAuth()
+    const { user, loginWithToken } = useAuth()
     const [scrutin, setScrutin] = useState(null)
     const [loading, setLoading] = useState(true)
 
     // Per-session decision state: { [sessionId]: { status, reason } }
     const [decisions, setDecisions] = useState({})
     const [expandedSessions, setExpandedSessions] = useState({})
-    const [showReasonFor, setShowReasonFor] = useState(null) // sessionId asking for invalidation reason
+    const [showReasonFor, setShowReasonFor] = useState(null)
     const [reasonDraft, setReasonDraft] = useState('')
+    const [isSocialVerified, setIsSocialVerified] = useState(false) // OAuth2 simulation
 
     React.useEffect(() => {
-        const fetchScrutin = async () => {
+        const init = async () => {
             try {
                 setLoading(true)
+
+                // 1. Handle Magic Link authentication if token is present
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('token');
+                if (token && (!user || user.role !== 'moderator')) {
+                    try {
+                        await loginWithToken(token);
+                    } catch (err) {
+                        toast.error("Lien d'invitation invalide ou expiré");
+                    }
+                }
+
+                // 2. Fetch Scrutin data
                 const res = await fetch(`http://localhost:3001/api/scrutins`)
                 const result = await res.json()
                 if (result.success) {
                     const found = result.data.find(s => s.address === id)
                     if (found) {
                         setScrutin(found)
-                        // Initialize states
                         const initialDecisions = {}
                         const initialExpanded = {}
                         found.sessions.forEach(s => {
@@ -77,8 +91,8 @@ const ModeratorPortalPage = () => {
                 setLoading(false)
             }
         }
-        fetchScrutin()
-    }, [id])
+        init()
+    }, [id, loginWithToken])
 
     const sessionsToShow = scrutin
         ? (sessionId ? scrutin.sessions.filter(s => s.address === sessionId) : scrutin.sessions)
@@ -87,29 +101,147 @@ const ModeratorPortalPage = () => {
     const toggleExpand = (sid) => setExpandedSessions(prev => ({ ...prev, [sid]: !prev[sid] }))
 
     const handleVoteDecision = async (sid, decision, reason = '') => {
+        if (!isSocialVerified && user?.role !== 'superadmin') {
+            toast.error("Veuillez d'abord vérifier votre identité (Google/Office 365)")
+            return
+        }
+
         try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
             const res = await fetch('http://localhost:3001/api/moderators/decision', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sessionId: sid,
-                    moderatorEmail: user?.email || "mod@example.com",
+                    sessionId: sid, // This is the contract address
                     decision: decision,
-                    reason: reason
+                    reason: reason,
+                    token: token // Security token mandatory
                 })
             })
             const result = await res.json()
             if (result.success) {
                 setDecisions(prev => ({ ...prev, [sid]: { status: decision, reason } }))
-                toast.success(decision === 'validate' ? 'Session validée ✓ (Admin notifié par mail)' : 'Session invalidée (Admin notifié).', {
-                    icon: decision === 'validate' ? '✅' : '❌',
-                    duration: 4000
+                toast.success(decision === 'validate' ? 'Session validée ✓' : 'Session invalidée.', {
+                    icon: decision === 'validate' ? '✅' : '❌'
                 })
+
+                // Cleanup after decision (one-time use)
+                setTimeout(() => {
+                    localStorage.removeItem('user')
+                    window.location.href = `/results?success=true&decision=${decision}`
+                }, 2000)
             } else {
                 throw new Error(result.error)
             }
         } catch (err) {
-            toast.error('Erreur: ' + err.message)
+            toast.error(err.message)
+        }
+    }
+
+    const downloadVotersList = (voters, sessionTitle) => {
+        if (!voters || voters.length === 0) return;
+        const blob = new Blob([voters.join('\n')], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `voters_${sessionTitle.replace(/\s+/g, '_').toLowerCase()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("Liste des électeurs téléchargée (.txt)");
+    };
+
+    const handleSocialLogin = async (provider) => {
+        const width = 600, height = 700
+        const left = window.screenX + (window.outerWidth - width) / 2
+        const top = window.screenY + (window.outerHeight - height) / 2
+        let url = '';
+
+        try {
+            toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
+            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
+            const config = await configRes.json();
+            console.log("OAuth Debug:", { provider, config });
+            toast.dismiss('oauth-init');
+
+            if (provider === 'google' && config.googleClientId) {
+                console.log("OAuth Debug: Using REAL Google Flow");
+                url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&response_type=token&scope=email%20profile`;
+            } else if (provider === 'microsoft' && config.microsoftClientId) {
+                console.log("OAuth Debug: Using REAL Microsoft Flow");
+                url = `https://login.microsoftonline.com/${config.microsoftTenantId || 'common'}/oauth2/v2.0/authorize?client_id=${config.microsoftClientId}&response_type=token&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&scope=User.Read%20email%20openid%20profile`;
+            } else {
+                console.log("OAuth Debug: Using SIMULATION Fallback");
+                const popupContent = `
+                    <html>
+                        <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0; padding: 20px; text-align: center;">
+                            <img src="https://www.${provider}.com/favicon.ico" style="width: 48px; margin-bottom: 20px;">
+                            <h2 style="color: #0f172a; margin-bottom: 8px;">Vérification Identity</h2>
+                            <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Choisissez un compte pour continuer vers <b>VoteChain</b></p>
+                            <div onclick="window.close()" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 25px; display: flex; align-items: center; gap: 15px; width: 100%; max-width: 300px; transition: background 0.2s;">
+                                <div style="width: 32px; height: 32px; background: #2563eb; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${user?.email?.charAt(0).toUpperCase()}</div>
+                                <div style="text-align: left;">
+                                    <div style="font-weight: bold; font-size: 14px; color: #1e293b;">${user?.email}</div>
+                                    <div style="font-size: 12px; color: #94a3b8;">Connecté</div>
+                                </div>
+                            </div>
+                            <p style="margin-top: 30px; font-size: 11px; color: #94a3b8;">Ceci est un environnement de démonstration sécurisé.</p>
+                        </body>
+                        <script>
+                            window.onunload = () => window.opener.postMessage('verified', '*');
+                        </script>
+                    </html>
+                `;
+                const blob = new Blob([popupContent], { type: 'text/html' });
+                url = URL.createObjectURL(blob);
+            }
+
+            const win = window.open(url, 'OAuth2 Verification', `width=${width},height=${height},left=${left},top=${top}`);
+
+            const handleMsg = async (event) => {
+                if (event.data?.type === 'oauth-success') {
+                    window.removeEventListener('message', handleMsg);
+                    toast.loading(`Vérification auprès de ${provider === 'google' ? 'Google' : 'Microsoft'}...`, { id: 'oauth-verify' });
+
+                    try {
+                        let email = null;
+
+                        if (provider === 'google') {
+                            const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                                headers: { Authorization: `Bearer ${event.data.token}` }
+                            });
+                            const googleData = await googleRes.json();
+                            email = googleData.email;
+                        } else if (provider === 'microsoft') {
+                            const msRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+                                headers: { Authorization: `Bearer ${event.data.token}` }
+                            });
+                            const msData = await msRes.json();
+                            email = msData.mail || msData.userPrincipalName;
+                        }
+
+                        if (email && email.toLowerCase() === user?.email?.toLowerCase()) {
+                            setIsSocialVerified(true);
+                            toast.success(`Identité certifiée ${provider === 'google' ? 'Google' : 'Microsoft'} ✓`, { id: 'oauth-verify' });
+                        } else {
+                            toast.error(`Échec: Email saisi (${email || 'Inconnu'}) différent du compte autorisé (${user?.email})`, { id: 'oauth-verify', duration: 6000 });
+                        }
+                    } catch (err) {
+                        toast.error(`Erreur avec ${provider === 'google' ? 'Google' : 'Microsoft'} API.`, { id: 'oauth-verify' });
+                    }
+                } else if (event.data === 'verified') {
+                    window.removeEventListener('message', handleMsg);
+                    setIsSocialVerified(true);
+                    toast.success('Identité confirmée ✓');
+                }
+            };
+            window.addEventListener('message', handleMsg);
+        } catch (err) {
+            toast.error("Impossible d'initialiser OAuth.");
+            toast.dismiss('oauth-init');
         }
     }
 
@@ -128,7 +260,10 @@ const ModeratorPortalPage = () => {
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-slate-900">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-400"></div>
+            <div className="flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-400"></div>
+                <p className="text-slate-400 font-bold animate-pulse text-sm">Vérification de l'invitation...</p>
+            </div>
         </div>
     )
 
@@ -139,7 +274,11 @@ const ModeratorPortalPage = () => {
     )
 
     // Authorization check
-    const isAuthorized = sessionsToShow.some(s => (s.moderators || []).includes(user?.email))
+    const userEmail = user?.email?.toLowerCase()
+    const isAuthorized = sessionsToShow.some(s =>
+        (s.moderators || []).some(m => m?.toLowerCase() === userEmail)
+    )
+
     if (!isAuthorized && user?.role !== 'superadmin') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-900 px-6">
@@ -147,18 +286,18 @@ const ModeratorPortalPage = () => {
                     <XCircleIcon className="h-20 w-20 text-red-500 mx-auto mb-6" />
                     <h2 className="text-2xl font-black text-white mb-4">Accès Refusé</h2>
                     <p className="text-slate-400 font-medium mb-8">
-                        Votre compte ({user?.email}) n'est pas enregistré comme modérateur pour ce scrutin.
-                        Veuillez vous connecter avec l'adresse email autorisée.
+                        Votre adresse ({user?.email || 'non identifiée'}) n'est pas autorisée comme modérateur pour ce scrutin.
+                        Si vous avez reçu un mail, assurez-vous d'utiliser le lien original.
                     </p>
                     <button onClick={() => window.location.href = '/login'} className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black transition-all">
-                        Changer de compte
+                        Se connecter autrement
                     </button>
                 </div>
             </div>
         )
     }
 
-    const allDecided = sessionsToShow.every(s => decisions[s.address]?.status !== 'pending')
+    const allDecided = sessionsToShow.every(s => decisions[s.address]?.status && decisions[s.address]?.status !== 'pending')
     const allValidated = sessionsToShow.every(s => decisions[s.address]?.status === 'validate')
 
     return (
@@ -172,7 +311,7 @@ const ModeratorPortalPage = () => {
                             <div>
                                 <h3 className="font-black text-slate-900 text-lg">Invalider la session</h3>
                                 <p className="text-xs text-slate-400 font-medium">
-                                    {scrutin.voteSessions.find(s => s.id === showReasonFor)?.title}
+                                    {scrutin.sessions.find(s => s.address === showReasonFor)?.title}
                                 </p>
                             </div>
                         </div>
@@ -250,6 +389,35 @@ const ModeratorPortalPage = () => {
                     </p>
                 </div>
 
+                {/* OAuth2 Verification Banner */}
+                {!isSocialVerified && user?.role !== 'superadmin' && (
+                    <div className="bg-primary-600/20 border-2 border-primary-500/30 rounded-[32px] p-8 mb-8 text-center backdrop-blur-sm shadow-xl shadow-primary-900/10">
+                        <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <UserCircleIcon className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className="text-xl font-black text-white mb-2">Vérification d'Identité Requise</h3>
+                        <p className="text-slate-400 text-sm font-medium mb-6 max-w-sm mx-auto">
+                            Pour sécuriser ce scrutin, vous devez confirmer que vous êtes bien le propriétaire de l'adresse <strong>{user?.email}</strong> via un fournisseur d'identité.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                            <button
+                                onClick={() => handleSocialLogin('google')}
+                                className="flex items-center justify-center gap-3 px-6 py-3.5 bg-white text-slate-900 rounded-2xl font-black hover:bg-slate-100 transition-all shadow-lg"
+                            >
+                                <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+                                Vérifier avec Google
+                            </button>
+                            <button
+                                onClick={() => handleSocialLogin('microsoft')}
+                                className="flex items-center justify-center gap-3 px-6 py-3.5 bg-[#00A4EF]/10 border border-[#00A4EF]/20 text-[#00A4EF] rounded-2xl font-black hover:bg-[#00A4EF]/20 transition-all"
+                            >
+                                <img src="https://www.microsoft.com/favicon.ico" className="w-4 h-4" alt="Microsoft" />
+                                Vérifier avec Office 365
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Sessions to validate */}
                 <div className="space-y-6">
                     {sessionsToShow.map((session, si) => {
@@ -287,10 +455,64 @@ const ModeratorPortalPage = () => {
                                             <div className="bg-slate-50 rounded-2xl border border-slate-100 px-4 divide-y divide-slate-100">
                                                 <InfoRow label="Titre" value={session.title} />
                                                 {session.description && <InfoRow label="Description" value={session.description} />}
-                                                <InfoRow label="Électeurs estimés" value={`${session.voterCount || 0} votants`} />
-                                                <InfoRow label="Options de vote" value={`${session.options ? session.options.length : 0} choix`} />
+                                                <InfoRow label="Capacité" value={`${session.voterCount || 0} électeurs`} />
+                                                <InfoRow label="Options" value={`${session.options ? session.options.length : 0} candidats`} />
                                             </div>
                                         </div>
+
+                                        {/* Voter List */}
+                                        {((session.voters && session.voters.length > 0) || (scrutin.voters && scrutin.voters.length > 0)) ? (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                        <UserCircleIcon className="w-3.5 h-3.5" /> Liste des Électeurs ({session.voters && session.voters.length > 0 ? session.voters.length : scrutin.voters?.length || 0} inscrits)
+                                                    </p>
+                                                    <button
+                                                        onClick={() => downloadVotersList(session.voters && session.voters.length > 0 ? session.voters : (scrutin.voters || []), session.title)}
+                                                        className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors"
+                                                    >
+                                                        <ArrowDownTrayIcon className="w-3 h-3" /> Exporter (.txt)
+                                                    </button>
+                                                </div>
+                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-40 overflow-y-auto">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {(session.voters && session.voters.length > 0 ? session.voters : (scrutin.voters || [])).map((v, vi) => (
+                                                            <span key={vi} className="text-[10px] font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-600 shadow-sm">
+                                                                {v}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
+                                                <UserCircleIcon className="w-5 h-5 text-amber-500" />
+                                                <p className="text-xs font-bold text-amber-700">Aucun électeur configuré pour cette session.</p>
+                                            </div>
+                                        )}
+
+                                        {/* Moderators List */}
+                                        {session.moderators && session.moderators.length > 0 && (
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                    <ShieldCheckIcon className="w-3.5 h-3.5" /> Collège des Modérateurs ({session.moderators.length})
+                                                </p>
+                                                <div className="bg-primary-50/30 border border-primary-100/50 rounded-2xl p-4">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {session.moderators.map((m, mi) => (
+                                                            <div key={mi} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-tight 
+                                                                ${m?.toLowerCase() === user?.email?.toLowerCase()
+                                                                    ? 'bg-primary-600 border-primary-700 text-white shadow-lg shadow-primary-500/20'
+                                                                    : 'bg-white border-slate-200 text-slate-500'}`}>
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${m?.toLowerCase() === user?.email?.toLowerCase() ? 'bg-white' : 'bg-primary-400'}`} />
+                                                                {m}
+                                                                {m?.toLowerCase() === user?.email?.toLowerCase() && <span className="text-[8px] bg-white/20 px-1 rounded ml-1">VOUS</span>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Candidates / Parts */}
                                         <div>
@@ -336,12 +558,24 @@ const ModeratorPortalPage = () => {
                                         {/* Decision area */}
                                         {decision.status === 'pending' ? (
                                             <div className="flex gap-4 pt-2">
-                                                <button onClick={() => openInvalidateDialog(session.id)}
-                                                    className="flex-1 flex items-center justify-center gap-2 py-3.5 border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-2xl font-bold transition-all">
+                                                <button
+                                                    onClick={() => openInvalidateDialog(session.address)}
+                                                    disabled={!isSocialVerified && user?.role !== 'superadmin'}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 border-2 rounded-2xl font-bold transition-all
+                                                        ${(!isSocialVerified && user?.role !== 'superadmin')
+                                                            ? 'border-slate-100 text-slate-300 cursor-not-allowed'
+                                                            : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+                                                >
                                                     <XCircleIcon className="w-5 h-5" /> Invalider
                                                 </button>
-                                                <button onClick={() => handleValidate(session.id)}
-                                                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black shadow-lg shadow-primary-500/20 transition-all">
+                                                <button
+                                                    onClick={() => handleValidate(session.address)}
+                                                    disabled={!isSocialVerified && user?.role !== 'superadmin'}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black shadow-lg transition-all
+                                                        ${(!isSocialVerified && user?.role !== 'superadmin')
+                                                            ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
+                                                            : 'bg-primary-600 hover:bg-primary-700 text-white shadow-primary-500/20'}`}
+                                                >
                                                     <CheckCircleIcon className="w-5 h-5" /> Valider
                                                 </button>
                                             </div>

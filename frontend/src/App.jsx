@@ -20,6 +20,7 @@ import RequestVotePage from './Pages/RequestVotePage'
 import SuperAdminPage from './Pages/SuperAdminPage'
 import VoterPortalPage from './Pages/VoterPortalPage'
 import ModeratorPortalPage from './Pages/ModeratorPortalPage'
+import OAuthCallbackPage from './Pages/OAuthCallbackPage'
 
 function App() {
   return (
@@ -71,6 +72,7 @@ function App() {
                   <Route path="/vote/:id" element={<VoterPortalPage />} />
                   <Route path="/moderate/:id" element={<ModeratorPortalPage />} />
                   <Route path="/moderate/:id/:sessionId" element={<ModeratorPortalPage />} />
+                  <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
                 </Routes>
               </Layout>
             </BlockchainProvider>

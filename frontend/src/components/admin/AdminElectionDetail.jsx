@@ -135,19 +135,20 @@ const AdminElectionDetail = () => {
                                             <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Session {sIdx + 1}</p>
                                             <h3 className="text-lg font-black text-slate-900">{session.title}</h3>
                                         </div>
-                                        <div className="flex flex-col items-end gap-2">
-                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${session.isValidated ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                {session.isValidated ? 'Validée' : 'En validation'}
+                                        <div className="flex flex-col items-end gap-3">
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${session.isValidated ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                                {session.isValidated ? 'Validée ✓' : 'En validation'}
                                             </span>
                                             <button
                                                 onClick={() => {
-                                                    const link = `${window.location.origin}/moderator/${election.id}/${session.address || ''}`
+                                                    const link = `${window.location.origin}/moderate/${election.address || election.id}/${session.address || ''}`
                                                     navigator.clipboard.writeText(link)
                                                     toast.success('Lien modérateur copié !')
                                                 }}
-                                                className="text-[10px] font-black text-secondary-600 hover:text-secondary-700 underline underline-offset-4 uppercase tracking-wider"
+                                                className="group flex items-center gap-2 px-3 py-1.5 bg-slate-100/50 hover:bg-primary-50 text-[10px] font-black text-slate-500 hover:text-primary-600 rounded-xl transition-all border border-slate-200/50 hover:border-primary-200 uppercase tracking-wider"
                                             >
-                                                Copier lien modéra.
+                                                <ShieldCheckIcon className="w-3.5 h-3.5" />
+                                                Copier lien ID
                                             </button>
                                         </div>
                                     </div>
@@ -190,23 +191,22 @@ const AdminElectionDetail = () => {
                         <Card className="bg-primary-600 text-white shadow-xl shadow-primary-900/30 p-8 rounded-[40px] border-none overflow-hidden relative">
                             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-white/10 blur-3xl rounded-full"></div>
 
-                            <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-                                <div className="p-4 bg-white rounded-3xl shadow-2xl">
+                            <div className="relative z-10 w-full flex flex-col lg:flex-row items-center lg:items-center gap-8">
+                                <div className="p-4 bg-white rounded-3xl shadow-2xl shrink-0">
                                     <QRCodeSVG
                                         value={`${window.location.origin}/vote/${election.id}`}
-                                        size={180}
+                                        size={160}
                                         level="H"
                                         includeMargin={false}
                                     />
                                 </div>
-                                <div className="flex-1 text-center md:text-left">
+                                <div className="flex-1 min-w-0 text-center lg:text-left">
                                     <h2 className="text-2xl font-black mb-2 tracking-tight">Accès Électeurs Activé</h2>
-                                    <p className="text-primary-100 font-medium mb-6 leading-relaxed">
-                                        Le consensus a été atteint. Le portail de vote est désormais ouvert.
-                                        Partagez ce QR Code ou le lien ci-dessous avec les participants.
+                                    <p className="text-primary-100 font-medium mb-6 leading-relaxed text-sm">
+                                        Le consensus a été atteint. Le vote est désormais ouvert pour tous les participants autorisés.
                                     </p>
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/10 backdrop-blur-md rounded-2xl p-1.5 border border-white/20">
+                                        <div className="flex-1 px-3 py-2 font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 opacity-80">
                                             {window.location.origin}/vote/{election.id}
                                         </div>
                                         <Button
@@ -215,7 +215,7 @@ const AdminElectionDetail = () => {
                                                 navigator.clipboard.writeText(`${window.location.origin}/vote/${election.id}`)
                                                 toast.success('Lien de vote copié !')
                                             }}
-                                            className="bg-white text-primary-600 hover:bg-slate-50 border-none px-6 font-black uppercase text-[10px]"
+                                            className="bg-white text-primary-600 hover:bg-slate-50 border-none px-6 py-2.5 font-black uppercase text-[10px] shrink-0"
                                         >
                                             Copier le lien
                                         </Button>

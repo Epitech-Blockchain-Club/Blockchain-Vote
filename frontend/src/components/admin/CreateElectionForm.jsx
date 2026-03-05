@@ -17,7 +17,7 @@ const makeSession = () => ({
   id: Date.now() + Math.random(),
   title: '',
   description: '',
-  moderators: [''],
+  moderatorsText: '',
   voterCount: 0,
   votersText: '',
   parts: [makePart()],
@@ -39,11 +39,6 @@ const parseCSV = (text) => {
 // ─── VoteSessionForm ──────────────────────────────────────────────────────────
 const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRemove }) => {
   const set = (field, value) => onChange({ ...session, [field]: value })
-
-  // moderators
-  const setMod = (i, v) => { const m = [...session.moderators]; m[i] = v; set('moderators', m) }
-  const addMod = () => set('moderators', [...session.moderators, ''])
-  const rmMod = (i) => { if (session.moderators.length > 1) set('moderators', session.moderators.filter((_, k) => k !== i)) }
 
   // parts
   const setPart = (pi, updated) => onChange({ ...session, parts: session.parts.map((p, i) => i === pi ? updated : p) })
@@ -107,40 +102,31 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
             <h3 className="text-xs font-black text-secondary-600 uppercase tracking-[0.2em] mb-1">B. Modérateurs (Validateurs)</h3>
             <p className="text-sm text-slate-500 font-medium">Consensus <span className="font-black text-secondary-600">100%</span> requis pour ouvrir ce vote.</p>
           </div>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant="outline" className="border-secondary-200 text-secondary-600 hover:bg-secondary-50 relative overflow-hidden">
-              <DocumentArrowUpIcon className="w-4 h-4 mr-1.5" /> CSV
-              <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={e => {
-                  const file = e.target.files[0]
-                  if (file) {
-                    const reader = new FileReader()
-                    reader.onload = (re) => {
-                      const emails = parseCSV(re.target.result)
-                      set('moderators', [...new Set([...session.moderators.filter(m => m !== ''), ...emails])])
-                      toast.success(`${emails.length} modérateurs importés`)
-                    }
-                    reader.readAsText(file)
-                  }
-                }} />
-            </Button>
-            <Button type="button" onClick={addMod} size="sm" variant="outline" className="border-secondary-200 text-secondary-600 hover:bg-secondary-50">
-              <PlusIcon className="w-4 h-4 mr-1.5" /> Ajouter
-            </Button>
-          </div>
         </div>
-        <div className="space-y-3">
-          {session.moderators.map((email, i) => (
-            <div key={i} className="flex gap-2">
-              <input type="email" required placeholder="Email du modérateur" value={email} onChange={e => setMod(i, e.target.value)}
-                className="flex-1 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-secondary-500 font-medium" />
-              {session.moderators.length > 1 && (
-                <button type="button" onClick={() => rmMod(i)} className="p-3 text-red-400 hover:text-red-500 bg-slate-50 rounded-2xl border border-slate-100">
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          ))}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Liste des modérateurs</label>
+          <div className="h-16 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-secondary-50 transition-colors cursor-pointer group mb-3 relative overflow-hidden">
+            <DocumentArrowUpIcon className="w-6 h-6 text-slate-400 group-hover:text-secondary-600 mb-1 transition-colors" />
+            <span className="text-xs font-bold text-slate-500 group-hover:text-secondary-700">Importer CSV/TXT</span>
+            <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer"
+              onChange={e => {
+                const file = e.target.files[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = (re) => {
+                    const emails = parseCSV(re.target.result)
+                    const current = session.moderatorsText ? session.moderatorsText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean) : []
+                    const combined = [...new Set([...current, ...emails])]
+                    set('moderatorsText', combined.join('\n'))
+                    toast.success(`${emails.length} modérateurs importés`)
+                  }
+                  reader.readAsText(file)
+                }
+              }} />
+          </div>
+          <textarea rows="2" value={session.moderatorsText || ''} onChange={e => set('moderatorsText', e.target.value)}
+            className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-secondary-500 font-medium text-sm text-slate-700 leading-relaxed"
+            placeholder="mod1@epitech.eu&#10;mod2@epitech.eu" />
         </div>
       </Card>
 
@@ -313,7 +299,23 @@ const CreateElectionForm = () => {
     e.preventDefault()
     setLoading(true)
     try {
-      const result = await addElection(formData)
+      // Extract and deduplicate voters from all sessions
+      const allVoters = new Set()
+      formData.voteSessions.forEach(session => {
+        const sessionVoters = session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean)
+        sessionVoters.forEach(v => allVoters.add(v))
+      })
+      const payload = {
+        ...formData,
+        voters: Array.from(allVoters),
+        voteSessions: formData.voteSessions.map(session => ({
+          ...session,
+          moderators: session.moderatorsText ? session.moderatorsText.split(/[\n,;]/).map(e => e.trim()).filter(Boolean) : [],
+          voters: session.votersText ? session.votersText.split(/[\n,;]/).map(e => e.trim()).filter(Boolean) : []
+        }))
+      }
+
+      const result = await addElection(payload)
       if (result && result.address) {
         const voterLink = `${window.location.origin}/vote/${result.address}`
         setGeneratedLink(voterLink)
