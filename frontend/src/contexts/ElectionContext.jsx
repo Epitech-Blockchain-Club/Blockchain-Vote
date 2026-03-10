@@ -15,6 +15,7 @@ export function ElectionProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const fetchElections = async () => {
+    console.log('🏁 [CONTEXT] fetchElections triggered');
     try {
       setLoading(true)
       const res = await fetch('http://localhost:3001/api/scrutins')
@@ -35,12 +36,17 @@ export function ElectionProvider({ children }) {
             endDate: scrutin.endDate || new Date(new Date(scrutin.createdAt).getTime() + 86400000 * 7).toISOString(),
             sessions: sessions,
             votes: scrutin.votes || {},
-            voters: scrutin.voters || [],
-            voterCount: sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0) || 0,
-            status: allValidated ? 'active' : 'pending_validation'
+            timeSeries: scrutin.timeSeries || [],
+            voters: scrutin.voters || [], // Global voters
+            voterCount: sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0) || (scrutin.voters?.length || 0),
+            status: allValidated ? 'active' : 'pending_validation',
+            // A scrutin is only invalidated when ALL its sessions are invalidated
+            isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated)
           }
         })
         setElections(mapped)
+        console.log('[CONTEXT] Stats Check:', mapped.map(e => ({ id: e.id, votes: e.votes, ts: e.timeSeries })));
+        console.log('[CONTEXT] Elections fetched and mapped:', mapped.length);
       }
     } catch (error) {
       console.error('Fetch elections error:', error)
@@ -71,7 +77,26 @@ export function ElectionProvider({ children }) {
       setLoading(false)
     }
     init()
+
+    // Auto-refresh every 15 seconds to pick up blockchain state changes
+    // (session validation, invalidation)
+    const interval = setInterval(() => {
+      fetchElections()
+    }, 15000)
+    return () => clearInterval(interval)
   }, [])
+
+  const getResults = async (address) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/scrutins/${address}/results`)
+      const result = await res.json()
+      if (result.success) return result.data
+      throw new Error(result.error)
+    } catch (error) {
+      console.error('Fetch results error:', error)
+      return null
+    }
+  }
 
   const castVote = async ({ electionId, candidateId, email, country }) => {
     try {
@@ -150,6 +175,12 @@ export function ElectionProvider({ children }) {
     toast.error('Suppression non supportée sur la blockchain')
   }
 
+  const getElectionById = async (id) => {
+    if (!id) return null;
+    // Find in memory
+    return elections.find(e => e.id?.toLowerCase() === id.toLowerCase()) || null;
+  }
+
   const addUser = async (userData) => {
     try {
       const res = await fetch('http://localhost:3001/api/auth/register', {
@@ -221,6 +252,8 @@ export function ElectionProvider({ children }) {
       addUser,
       assignAdminToOrg,
       createOrganization,
+      getResults,
+      getElectionById,
       refreshElections: fetchElections
     }}>
       {children}

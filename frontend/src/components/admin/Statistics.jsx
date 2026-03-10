@@ -21,25 +21,50 @@ import {
 const Statistics = () => {
   const { elections } = useElections()
   const [selectedElection, setSelectedElection] = useState('')
+  const [selectedSession, setSelectedSession] = useState(0)
   const [expandedPart, setExpandedPart] = useState(null)
 
+  console.log('⚡ [RENDER] Statistics Component. Elections Count:', elections.length);
+
   const election = elections.find(e => e.id === selectedElection)
+  const sessions = election?.sessions || []
+  const currentSession = sessions[selectedSession] || sessions[0]
+  const candidates = currentSession?.candidates || currentSession?.options || []
 
   // Statistiques globales
   const globalStats = {
     totalElections: elections.length,
-    totalVotes: elections.reduce((acc, e) => acc + (e.voters ? e.voters.length : 0), 0),
+    totalSessions: elections.reduce((acc, e) => acc + (e.sessions ? e.sessions.length : 0), 0),
     activeElections: elections.filter(e => {
       const now = new Date()
       return now >= new Date(e.startDate) && now <= new Date(e.endDate)
     }).length,
+    totalVotes: elections.reduce((acc, e) => acc + Object.values(e.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0),
     avgParticipation: elections.length > 0
-      ? ((elections.reduce((acc, e) => acc + (e.voters ? e.voters.length : 0), 0) / elections.length)).toFixed(1)
+      ? (() => {
+        let totalPossibleVoters = 0;
+        let totalActualVotes = 0;
+        elections.forEach(e => {
+          totalPossibleVoters += e.voterCount || 0;
+          totalActualVotes += Object.values(e.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0);
+        });
+        return totalPossibleVoters > 0 ? ((totalActualVotes / totalPossibleVoters) * 100).toFixed(1) : 0;
+      })()
       : 0
   }
 
-  // Time series data (placeholder until backend supports time-series)
-  const timeData = []
+  // Time series data
+  const timeData = election?.timeSeries || [{ time: '00:00', votes: 0 }]
+
+  // LOGS FOR REPORT PAGE
+  React.useEffect(() => {
+    if (election) {
+      console.log('📊 [STATS] Election Selected:', election.title);
+      console.log('🗳️ [STATS] Aggregated Votes:', election.votes);
+      console.log('📈 [STATS] Time Series Data:', timeData);
+      console.log('👥 [STATS] Participation Tally:', globalStats);
+    }
+  }, [selectedElection, election]);
 
   const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#64748b']
 
@@ -55,9 +80,18 @@ const Statistics = () => {
 
       <div className="relative z-10">
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-3">Rapports Analytiques</h1>
-            <p className="text-slate-500 font-semibold text-lg max-w-xl">Supervisez l'intégrité et la participation de vos scrutins blockchain en temps réel.</p>
+          <div className="flex items-center gap-6">
+            {election?.logoUrl && (
+              <div className="h-20 w-20 bg-white rounded-3xl border-2 border-primary-100 shadow-xl shadow-primary-500/10 overflow-hidden flex-shrink-0 flex items-center justify-center p-2">
+                <img src={election.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-3">Rapports Analytiques</h1>
+              <p className="text-slate-500 font-semibold text-lg max-w-xl">
+                {election ? `Analyse détaillée de : ${election.title}` : "Supervisez l'intégrité et la participation de vos scrutins blockchain en temps réel."}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3 bg-white/50 backdrop-blur-md p-2 rounded-2xl border border-white/80 shadow-sm">
             <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse"></div>
@@ -98,16 +132,33 @@ const Statistics = () => {
                   </h2>
                   <p className="text-lg font-black text-slate-900 mb-1">Évolution temporelle des votes</p>
                 </div>
-                <select
-                  value={selectedElection}
-                  onChange={(e) => setSelectedElection(e.target.value)}
-                  className="px-6 py-4 bg-white/80 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-bold appearance-none cursor-pointer shadow-sm text-sm min-w-[300px]"
-                >
-                  <option value="">Tous les scrutins récents</option>
-                  {elections.map(e => (
-                    <option key={e.id} value={e.id}>{e.title}</option>
-                  ))}
-                </select>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  <select
+                    value={selectedElection}
+                    onChange={(e) => {
+                      setSelectedElection(e.target.value);
+                      setSelectedSession(0);
+                    }}
+                    className="px-6 py-4 bg-white/80 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-bold appearance-none cursor-pointer shadow-sm text-sm min-w-[250px]"
+                  >
+                    <option value="">Tous les scrutins récents</option>
+                    {elections.map(e => (
+                      <option key={e.id} value={e.id}>{e.title}</option>
+                    ))}
+                  </select>
+
+                  {election && sessions.length > 1 && (
+                    <select
+                      value={selectedSession}
+                      onChange={(e) => setSelectedSession(parseInt(e.target.value))}
+                      className="px-6 py-4 bg-white/80 border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-bold appearance-none cursor-pointer shadow-sm text-sm"
+                    >
+                      {sessions.map((s, idx) => (
+                        <option key={idx} value={idx}>{s.title || `Session ${idx + 1}`}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
 
               <div className="h-80 w-full">
@@ -149,77 +200,81 @@ const Statistics = () => {
                   <span className="text-[10px] font-black text-primary-600 bg-primary-50 px-3 py-1 rounded-full uppercase tracking-tighter">Répartition Live</span>
                 </div>
                 <div className="space-y-4">
-                  {election.candidates.sort((a, b) => (election.votes?.[b.id] || 0) - (election.votes?.[a.id] || 0)).map((candidate, idx) => {
-                    const voteCount = election.votes?.[candidate.id] || 0
-                    const totalVoters = election.voters ? election.voters.length : 1
-                    const percentage = totalVoters > 0 ? ((voteCount / totalVoters) * 100).toFixed(1) : 0
-                    const isExpanded = expandedPart === candidate.id
+                  {candidates.map((c, i) => ({ ...c, originalIndex: i }))
+                    .sort((a, b) => {
+                      return (election.votes?.[b.originalIndex] || 0) - (election.votes?.[a.originalIndex] || 0)
+                    }).map((candidate, rank) => {
+                      const cId = candidate.originalIndex;
+                      const voteCount = election.votes?.[cId] || 0
+                      const totalVotesCast = Object.values(election.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
+                      const percentage = totalVotesCast > 0 ? ((voteCount / totalVotesCast) * 100).toFixed(1) : 0
+                      const isExpanded = expandedPart === cId
 
-                    return (
-                      <Card key={candidate.id} className="bg-white/60 backdrop-blur-xl border border-white/40 p-1 rounded-[32px] overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
-                        <div
-                          className="p-5 cursor-pointer flex flex-col md:flex-row items-center gap-6"
-                          onClick={() => togglePart(candidate.id)}
-                        >
-                          <div className="relative">
-                            <div className="h-16 w-16 bg-white rounded-2xl border-2 border-primary-100 shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
-                              {candidate.photo || candidate.imageUrl ? (
-                                <img src={candidate.photo || candidate.imageUrl} alt={candidate.name} className="h-full w-full object-cover" />
-                              ) : (
-                                <span className="text-xl font-black text-primary-200">{candidate.name.substring(0, 1)}</span>
+                      return (
+                        <Card key={cId} className="bg-white/60 backdrop-blur-xl border border-white/40 p-1 rounded-[32px] overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+                          <div
+                            className="p-5 cursor-pointer flex flex-col md:flex-row items-center gap-6"
+                            onClick={() => togglePart(cId)}
+                          >
+                            <div className="relative">
+                              <div className="h-16 w-16 bg-white rounded-2xl border-2 border-primary-100 shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                {candidate.photo || candidate.imageUrl ? (
+                                  <img src={candidate.photo || candidate.imageUrl} alt={candidate.name || candidate.title} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span className="text-xl font-black text-primary-200">{(candidate.name || candidate.title || "?").substring(0, 1)}</span>
+                                )}
+                              </div>
+                              {rank === 0 && (
+                                <div className="absolute -top-3 -left-3 bg-amber-400 p-1.5 rounded-xl shadow-lg border-2 border-white">
+                                  <TrophyIcon className="w-4 h-4 text-white" />
+                                </div>
                               )}
                             </div>
-                            {idx === 0 && (
-                              <div className="absolute -top-3 -left-3 bg-amber-400 p-1.5 rounded-xl shadow-lg border-2 border-white">
-                                <TrophyIcon className="w-4 h-4 text-white" />
-                              </div>
-                            )}
-                          </div>
 
-                          <div className="flex-1 w-full space-y-3">
-                            <div className="flex justify-between items-end">
-                              <div>
-                                <h4 className="text-xl font-black text-slate-900 tracking-tight">{candidate.name}</h4>
-                                <p className="text-xs text-slate-500 font-bold line-clamp-1 italic">{candidate.bio || candidate.description || "Aucune description"}</p>
+                            <div className="flex-1 w-full space-y-3">
+                              <div className="flex justify-between items-end">
+                                <div>
+                                  <h4 className="text-xl font-black text-slate-900 tracking-tight">{candidate.name || candidate.title}</h4>
+                                  <p className="text-xs text-slate-500 font-bold line-clamp-1 italic">{candidate.bio || candidate.description || "Aucune description"}</p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-3xl font-black text-primary-600 leading-none">{percentage}%</span>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{voteCount} voix scellées</p>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <span className="text-3xl font-black text-primary-600 leading-none">{percentage}%</span>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{voteCount} voix scellées</p>
+                              <div className="w-full bg-slate-100/50 h-3 rounded-full overflow-hidden p-0.5 border border-slate-50">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ duration: 1.5, ease: "easeOut" }}
+                                  className={`h-full rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] ${rank === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-gradient-to-r from-primary-500 to-blue-400'}`}
+                                ></motion.div>
                               </div>
                             </div>
-                            <div className="w-full bg-slate-100/50 h-3 rounded-full overflow-hidden p-0.5 border border-slate-50">
+
+                            <div className="p-2 text-slate-400 bg-white shadow-sm rounded-xl border border-slate-100">
+                              {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+                            </div>
+                          </div>
+
+                          <AnimatePresence>
+                            {isExpanded && (
                               <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${percentage}%` }}
-                                transition={{ duration: 1.5, ease: "easeOut" }}
-                                className={`h-full rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)] ${idx === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-gradient-to-r from-primary-500 to-blue-400'}`}
-                              ></motion.div>
-                            </div>
-                          </div>
-
-                          <div className="p-2 text-slate-400 bg-white shadow-sm rounded-xl border border-slate-100">
-                            {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
-                          </div>
-                        </div>
-
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="px-8 pb-8 pt-4 bg-white/80 border-t border-white/40"
-                            >
-                              <h5 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-4">Détails de l'Option / Manifesto</h5>
-                              <div className="prose prose-slate max-w-none text-slate-600 font-semibold leading-relaxed">
-                                {candidate.bio || candidate.description || "Détails non renseignés."}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </Card>
-                    )
-                  })}
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="px-8 pb-8 pt-4 bg-white/80 border-t border-white/40"
+                              >
+                                <h5 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-4">Détails de l'Option / Manifesto</h5>
+                                <div className="prose prose-slate max-w-none text-slate-600 font-semibold leading-relaxed">
+                                  {candidate.bio || candidate.description || "Détails non renseignés."}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </Card>
+                      )
+                    })}
                 </div>
               </motion.div>
             )}
@@ -237,16 +292,24 @@ const Statistics = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={election?.candidates.map(c => ({ name: c.name, votes: election.votes?.[c.id] || 0 })) || [{ name: 'Aucun', votes: 1 }]}
+                        data={candidates.map((c, i) => {
+                          const cId = c.id !== undefined ? c.id : i;
+                          return { name: c.name || c.title, value: election?.votes?.[cId] || 0 };
+                        }).filter(d => d.value > 0).length > 0
+                          ? candidates.map((c, i) => {
+                            const cId = c.id !== undefined ? c.id : i;
+                            return { name: c.name || c.title, value: election?.votes?.[cId] || 0 };
+                          }).filter(d => d.value > 0)
+                          : [{ name: 'Aucun vote', value: 1 }]}
                         cx="50%"
                         cy="50%"
                         innerRadius={70}
                         outerRadius={100}
                         paddingAngle={8}
-                        dataKey="votes"
+                        dataKey="value"
                         stroke="none"
                       >
-                        {election?.candidates.map((_, index) => (
+                        {candidates.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         )) || <Cell fill="#1e293b" />}
                       </Pie>
@@ -257,21 +320,24 @@ const Statistics = () => {
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-3xl font-black text-white">{election?.voters?.length || 0}</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Electeurs</span>
+                    <span className="text-3xl font-black text-white">{Object.values(election?.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Votes Scellés</span>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {election ? election.candidates.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{c.name}</span>
+                  {election ? candidates.map((c, i) => {
+                    const cId = c.id !== undefined ? c.id : i;
+                    return (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{c.name || c.title}</span>
+                        </div>
+                        <span className="text-xs font-black text-white">{election.votes?.[cId] || 0} v.</span>
                       </div>
-                      <span className="text-xs font-black text-white">{election.votes?.[c.id] || 0} v.</span>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <p className="text-center text-slate-500 text-[10px] font-black uppercase tracking-widest py-8">Veuillez sélectionner un scrutin</p>
                   )}
                 </div>

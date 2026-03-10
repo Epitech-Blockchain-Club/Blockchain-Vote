@@ -8,10 +8,21 @@ const router = express.Router();
 // POST /api/votes/cast - Cast a vote
 router.post('/cast', async (req, res) => {
     try {
-        const { sessionId, voterEmail, optionIndex } = req.body;
+        const { sessionId, voterEmail, optionIndex, scrutinId } = req.body;
 
         if (!sessionId || !voterEmail || optionIndex === undefined) {
             return res.status(400).json({ success: false, error: "Missing parameters" });
+        }
+
+        // If scrutinId is provided, check for double voting
+        if (scrutinId) {
+            const hasVoted = storage.hasVoterVoted(voterEmail, scrutinId);
+            if (hasVoted) {
+                return res.status(409).json({
+                    success: false,
+                    error: "Voter has already voted in this scrutin"
+                });
+            }
         }
 
         const sessionContract = getVoteSessionContract(sessionId);
@@ -29,6 +40,13 @@ router.post('/cast', async (req, res) => {
             optionIndex,
             txHash: receipt.hash
         });
+
+        // Mark voter as voted if scrutinId is provided
+        if (scrutinId) {
+            storage.markVoterAsVoted(voterEmail, scrutinId, receipt.hash);
+        }
+
+        console.log(`[VOTE] Vote cast for session ${sessionId}, option ${optionIndex} by ${voterHash.substring(0, 10)}...`);
 
         res.json({ success: true, txHash: receipt.hash });
     } catch (error) {

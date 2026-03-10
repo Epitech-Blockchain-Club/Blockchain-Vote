@@ -1,3 +1,6 @@
+WARNING: You are currently using Node.js v18.19.0, which is not supported by Hardhat. This can lead to unexpected behavior. See https://v2.hardhat.org/nodejs-versions
+
+
 Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:1337/
 
 Accounts
@@ -102,109 +105,7 @@ Any funds sent to them on Mainnet or any other live network WILL BE LOST.
   From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
   Value:               0 ETH
   Gas used:            3969038 of 16777216
-  Block #1:            0xe0c30a3d7932910b243cd3a421ea8fd1b9c2ea4e114f86b73e8a69f025b7efea
+  Block #1:            0x9efd1f10be57230c3aa3420a0948e9d5620bc70457483678f81dddd446cef9fe
 
 [32meth_getTransactionByHash[0m
 [32meth_getTransactionReceipt[0m
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       ScrutinFactory#getDeployedScrutins
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       ScrutinFactory#getDeployedScrutins
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-
-[32meth_chainId[0m
-[32meth_getTransactionCount[0m
-[32meth_estimateGas[0m
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_getBlockByNumber[0m
-[32meth_maxPriorityFeePerGas[0m
-[32meth_gasPrice[0m
-[32meth_blockNumber[0m
-[32meth_sendRawTransaction[0m
-  Contract call:       ScrutinFactory#createScrutin
-  Transaction:         0xa88ce2885809928d562c6675f3bf8ea3a7496393d4b0db246e368887b2fdcbd7
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-  Value:               0 ETH
-  Gas used:            3018847 of 3018847
-  Block #2:            0x05f228a1ba3df431bf6c6eb874fcd85096c96cc1617ef1b3a7fa19ece0c391e9
-
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_getTransactionReceipt[0m
-[32meth_estimateGas[0m
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_sendRawTransaction[0m
-  Contract call:       Scrutin#addVoteSession
-  Transaction:         0xcd583afe626261e20f29a8f4952868422f3abab1f1d4284482f412bf04f9a6c7
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0xa16e02e87b7454126e5e10d957a927a7f5b5d2be
-  Value:               0 ETH
-  Gas used:            1477182 of 1477182
-  Block #3:            0x04641bcb2d3dd7c2049892f97a7e238cf0a6f4af89168454b6a26724e039913d
-
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_getTransactionReceipt[0m
-[32meth_call[0m
-  Contract call:       ScrutinFactory#getDeployedScrutins
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       Scrutin#getSessions
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0xa16e02e87b7454126e5e10d957a927a7f5b5d2be
-
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       VoteSession#isValidated
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x8ff3801288a85ea261e4277d44e1131ea736f77b
-
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_call[0m
-  Contract call:       ScrutinFactory#getDeployedScrutins
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-
-[32meth_call[0m
-  Contract call:       Scrutin#getSessions
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0xa16e02e87b7454126e5e10d957a927a7f5b5d2be
-
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       VoteSession#isValidated
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x8ff3801288a85ea261e4277d44e1131ea736f77b
-
-[32meth_chainId[0m
-[32meth_chainId (2)[0m
-[32meth_call[0m
-  Contract call:       ScrutinFactory#getDeployedScrutins
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
-
-[32meth_chainId[0m
-[32meth_call[0m
-  Contract call:       Scrutin#getSessions
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0xa16e02e87b7454126e5e10d957a927a7f5b5d2be
-
-[32meth_call[0m
-  Contract call:       VoteSession#isValidated
-  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  To:                  0x8ff3801288a85ea261e4277d44e1131ea736f77b
-
-[32meth_chainId[0m

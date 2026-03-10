@@ -7,12 +7,28 @@ import Button from '../components/common/Button'
 
 const ResultsPage = () => {
   const { id } = useParams()
-  const { elections } = useElections()
+  const { elections, getResults } = useElections()
   const [selectedElection, setSelectedElection] = useState(id || '')
+  const [backendResults, setBackendResults] = useState(null)
+  const [loadingResults, setLoadingResults] = useState(false)
 
   const election = elections.find(e => e.id === selectedElection)
   const now = new Date()
   const isEnded = election && new Date(election.endDate) < now
+
+  React.useEffect(() => {
+    if (selectedElection) {
+      const fetchResults = async () => {
+        setLoadingResults(true)
+        const results = await getResults(selectedElection)
+        setBackendResults(results)
+        setLoadingResults(false)
+      }
+      fetchResults()
+    } else {
+      setBackendResults(null)
+    }
+  }, [selectedElection, getResults])
 
   const handleExport = () => {
     if (!election) return
@@ -87,7 +103,7 @@ const ResultsPage = () => {
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total participation</p>
               <p className="text-primary-600 font-black text-xl">
-                {Object.values(election.votes || {}).reduce((a, b) => a + b, 0)} <span className="text-slate-400 text-xs font-medium uppercase tracking-tighter">Votants certifiés</span>
+                {backendResults ? backendResults.reduce((acc, s) => acc + s.totalVotes, 0) : 0} <span className="text-slate-400 text-xs font-medium uppercase tracking-tighter">Votants certifiés</span>
               </p>
             </div>
           </div>
@@ -110,41 +126,54 @@ const ResultsPage = () => {
             <ResultsChart election={election} />
           </div>
 
-          {/* Tableau détaillé */}
-          <div className="overflow-x-auto border border-slate-100 rounded-3xl mb-10">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Participant / Option</th>
-                  <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Nombre de voix</th>
-                  <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Pourcentage</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {election.candidates.map(candidate => {
-                  const votes = election.votes?.[candidate.id] || 0
-                  const total = Object.values(election.votes || {}).reduce((a, b) => a + b, 0)
-                  const percentage = total > 0 ? ((votes / total) * 100).toFixed(1) : 0
+          {/* Tableau détaillé (multi-session) */}
+          <div className="space-y-10 mb-10">
+            {loadingResults ? (
+              <div className="flex items-center justify-center py-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+              </div>
+            ) : backendResults?.map((session, sIdx) => (
+              <div key={session.address}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black flex items-center justify-center italic">#{sIdx + 1}</span>
+                  <h3 className="font-black text-slate-900 tracking-tight">{session.title}</h3>
+                </div>
+                <div className="overflow-x-auto border border-slate-100 rounded-3xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Participant / Option</th>
+                        <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Nombre de voix</th>
+                        <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Pourcentage</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {session.candidates.map(candidate => {
+                        const votes = candidate.voteCount || 0
+                        const percentage = candidate.percentage || 0
 
-                  return (
-                    <tr key={candidate.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6">
-                        <p className="text-slate-900 font-bold group-hover:text-primary-600 transition-colors">{candidate.name}</p>
-                      </td>
-                      <td className="text-right py-4 px-6 text-slate-900 font-black">{votes}</td>
-                      <td className="text-right py-4 px-6">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className="text-slate-400 text-xs font-bold">{percentage}%</span>
-                          <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary-500 transition-all duration-1000" style={{ width: `${percentage}%` }}></div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        return (
+                          <tr key={candidate.id} className="group hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4 px-6">
+                              <p className="text-slate-900 font-bold group-hover:text-primary-600 transition-colors">{candidate.title}</p>
+                            </td>
+                            <td className="text-right py-4 px-6 text-slate-900 font-black">{votes}</td>
+                            <td className="text-right py-4 px-6">
+                              <div className="flex items-center justify-end gap-3">
+                                <span className="text-slate-400 text-xs font-bold">{percentage}%</span>
+                                <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                  <div className="h-full bg-primary-500 transition-all duration-1000" style={{ width: `${percentage}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Lien de vérification blockchain */}

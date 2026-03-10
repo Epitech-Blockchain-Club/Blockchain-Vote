@@ -17,6 +17,7 @@ import { ROUTES } from '../../constants/routes'
 import epitechLogo from '../../assets/epitech-logo.png'
 import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
+import Modal from '../common/Modal'
 
 const Navbar = () => {
   const { user, logout } = useAuth()
@@ -25,6 +26,24 @@ const Navbar = () => {
   const location = useLocation()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [notifLoading, setNotifLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/moderators/notifications')
+        const result = await res.json()
+        if (result.success) setNotifications(result.data)
+      } catch (err) { console.error(err) }
+      finally { setNotifLoading(false) }
+    }
+    fetchNotifs()
+    const interval = setInterval(fetchNotifs, 10000)
+    return () => clearInterval(interval)
+  }, [user])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -107,11 +126,15 @@ const Navbar = () => {
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
             {/* Notification Bell (Restored for Admin/SuperAdmin, hidden on Landing) */}
-            {user && location.pathname !== '/' && (
-              <button className="p-2 text-slate-400 hover:text-primary-600 transition-colors relative group">
+            {user && user.role === 'admin' && location.pathname !== '/' && (
+              <button
+                onClick={() => setIsNotifModalOpen(true)}
+                className="p-2 text-slate-400 hover:text-primary-600 transition-colors relative group"
+              >
                 <BellIcon className="h-6 w-6" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                {/* Dropdown would go here */}
+                {notifications.length > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                )}
               </button>
             )}
 
@@ -204,7 +227,46 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-    </nav>
+      <Modal
+        isOpen={isNotifModalOpen}
+        onClose={() => setIsNotifModalOpen(false)}
+        title={t({ fr: 'Notifications Activité', en: 'Activity Notifications' })}
+        size="md"
+      >
+        <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+          {notifications.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                <BellIcon className="h-8 w-8 text-slate-300" />
+              </div>
+              <p className="text-sm text-slate-400 font-medium italic">Aucune activité récente.</p>
+            </div>
+          ) : (
+            notifications.map((n, i) => (
+              <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100/50 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className={`mt-1 h-3 w-3 rounded-full shrink-0 ${n.decision === 'validate' ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-rose-500 shadow-lg shadow-rose-200'}`}></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-slate-900 truncate mb-0.5">{n.email}</p>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      {n.decision === 'validate' ? 'A validé une session' : 'A invalidé une session'}
+                    </p>
+                    {n.reason && (
+                      <div className="mt-2 text-[11px] bg-white border border-rose-100 text-rose-600 p-2.5 rounded-xl italic font-medium">
+                        "{n.reason}"
+                      </div>
+                    )}
+                    <p className="text-[10px] text-slate-400 mt-2 font-mono uppercase tracking-wider">
+                      {new Date(n.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
+    </nav >
   )
 }
 

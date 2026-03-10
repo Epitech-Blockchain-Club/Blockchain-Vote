@@ -15,13 +15,29 @@ import {
 } from '@heroicons/react/24/outline'
 import Card from '../common/Card'
 import Button from '../common/Button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const AdminDashboard = () => {
   const { elections } = useElections()
   const { user } = useAuth()
   const { t } = useSettings()
   const navigate = useNavigate()
+  const [notifications, setNotifications] = useState([])
+  const [notifLoading, setNotifLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/moderators/notifications')
+        const result = await res.json()
+        if (result.success) setNotifications(result.data)
+      } catch (err) { console.error(err) }
+      finally { setNotifLoading(false) }
+    }
+    fetchNotifs()
+    const interval = setInterval(fetchNotifs, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const stats = {
     totalElections: elections.length,
@@ -40,6 +56,7 @@ const AdminDashboard = () => {
     const start = new Date(election.startDate)
     const end = new Date(election.endDate)
 
+    if (election.isInvalidated) return 'invalidated'
     if (election.status === 'pending') return 'pending'
     if (election.timingMode === 'manual') return 'manual'
     if (now < start) return 'not started'
@@ -152,84 +169,130 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Recent Elections List */}
-      <div>
-        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Vos sessions récentes</h2>
-        <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
-          {filteredElections.length === 0 ? (
-            <div className="p-16 text-center">
-              <p className="text-slate-500 font-medium mb-6">Aucun scrutin correspondant trouvé.</p>
-              {searchQuery || statusFilter !== 'all' ? (
-                <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>Réinitialiser les filtres</Button>
-              ) : (
-                <Link to="/admin/elections/new">
-                  <Button variant="outline">Créer votre premier scrutin</Button>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredElections.map(election => {
-                const now = new Date()
-                const start = new Date(election.startDate)
-                const end = new Date(election.endDate)
+      {/* Main Content Area: Elections + Notifications */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Recent Elections List */}
+        <div className="lg:col-span-3">
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Vos sessions récentes</h2>
+          <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
+            {filteredElections.length === 0 ? (
+              <div className="p-16 text-center">
+                <p className="text-slate-500 font-medium mb-6">Aucun scrutin correspondant trouvé.</p>
+                {searchQuery || statusFilter !== 'all' ? (
+                  <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>Réinitialiser les filtres</Button>
+                ) : (
+                  <Link to="/admin/elections/new">
+                    <Button variant="outline">Créer votre premier scrutin</Button>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredElections.map(election => {
+                  const now = new Date()
+                  const start = new Date(election.startDate)
+                  const end = new Date(election.endDate)
 
-                let statusLabel = 'Terminé'
-                let statusClasses = 'bg-slate-50 text-slate-600 border-slate-200'
+                  let statusLabel = 'Terminé'
+                  let statusClasses = 'bg-slate-50 text-slate-600 border-slate-200'
 
-                const currentStatus = getStatus(election)
+                  const currentStatus = getStatus(election)
 
-                if (currentStatus === 'not started') {
-                  statusLabel = 'Pas encore commencé'
-                  statusClasses = 'bg-amber-50 text-amber-700 border-amber-200'
-                } else if (currentStatus === 'pending') {
-                  statusLabel = 'En attente'
-                  statusClasses = 'bg-blue-50 text-blue-700 border-blue-200'
-                } else if (currentStatus === 'manual') {
-                  statusLabel = 'Manuel'
-                  statusClasses = 'bg-purple-50 text-purple-700 border-purple-200'
-                } else if (currentStatus === 'active') {
-                  statusLabel = 'En cours'
-                  statusClasses = 'bg-primary-50 text-primary-700 border-primary-200'
-                }
+                  if (currentStatus === 'not started') {
+                    statusLabel = 'Pas encore commencé'
+                    statusClasses = 'bg-amber-50 text-amber-700 border-amber-200'
+                  } else if (currentStatus === 'pending') {
+                    statusLabel = 'En attente'
+                    statusClasses = 'bg-blue-50 text-blue-700 border-blue-200'
+                  } else if (currentStatus === 'manual') {
+                    statusLabel = 'Manuel'
+                    statusClasses = 'bg-purple-50 text-purple-700 border-purple-200'
+                  } else if (currentStatus === 'active') {
+                    statusLabel = 'En cours'
+                    statusClasses = 'bg-primary-50 text-primary-700 border-primary-200'
+                  } else if (currentStatus === 'invalidated') {
+                    statusLabel = 'Invalidée'
+                    statusClasses = 'bg-rose-50 text-rose-700 border-rose-200 shadow-sm shadow-rose-100'
+                  }
 
-                return (
-                  <div
-                    key={election.id}
-                    onClick={() => handleRowClick(election.id)}
-                    className="p-6 md:p-8 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer group"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
-                        <h3 className="text-xl font-black text-slate-900 group-hover:text-primary-600 transition-colors">{election.title}</h3>
-                        <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${statusClasses}`}>
-                          {statusLabel}
-                        </span>
-                        {election.scope && (
-                          <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border bg-slate-100 text-slate-500 border-slate-200">
-                            {election.scope}
+                  return (
+                    <div
+                      key={election.id}
+                      onClick={() => handleRowClick(election.id)}
+                      className="p-6 md:p-8 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer group"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4 mb-2">
+                          <h3 className="text-xl font-black text-slate-900 group-hover:text-primary-600 transition-colors">{election.title}</h3>
+                          <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${statusClasses}`}>
+                            {statusLabel}
                           </span>
-                        )}
+                        </div>
+                        <p className="text-sm text-slate-500 font-medium line-clamp-1 max-w-2xl">{election.description}</p>
                       </div>
-                      <p className="text-sm text-slate-500 font-medium line-clamp-1 max-w-2xl">{election.description}</p>
-                    </div>
 
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                      <div className="text-left md:text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Période</p>
-                        <p className="text-sm font-semibold text-slate-700">
-                          {start.toLocaleDateString()} - {end.toLocaleDateString()}
-                        </p>
+                      <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <div className="text-left md:text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Période</p>
+                          <p className="text-sm font-semibold text-slate-700">
+                            {start.toLocaleDateString()} - {end.toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="hidden md:flex items-center justify-center h-10 w-10 bg-white rounded-full border border-slate-200 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all">
+                          <ChevronRightIcon className="h-5 w-5 text-slate-400 group-hover:text-primary-600" />
+                        </div>
                       </div>
-                      <div className="hidden md:flex items-center justify-center h-10 w-10 bg-white rounded-full border border-slate-200 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all">
-                        <ChevronRightIcon className="h-5 w-5 text-slate-400 group-hover:text-primary-600" />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Notifications Sidebar */}
+        <div className="lg:col-span-1">
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Live Activity
+          </h2>
+          <Card className="bg-white border-slate-100 shadow-sm p-0 overflow-hidden rounded-[32px]">
+            <div className="p-6 border-b border-slate-50">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Décisions Modérateurs</p>
+            </div>
+            <div className="max-h-[600px] overflow-y-auto divide-y divide-slate-50">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-xs text-slate-400 font-medium italic">Aucune activité récente.</p>
+                </div>
+              ) : (
+                notifications.map((n, i) => (
+                  <div key={i} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${n.decision === 'validate' ? 'bg-emerald-500 shadow-lg shadow-emerald-200' : 'bg-rose-500 shadow-lg shadow-rose-200'}`}></div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{n.email}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          {n.decision === 'validate' ? 'A validé une session' : 'A invalidé une session'}
+                        </p>
+                        {n.reason && (
+                          <p className="text-[10px] bg-rose-50 text-rose-600 px-2 py-1 rounded-lg mt-2 border border-rose-100 italic">
+                            "{n.reason}"
+                          </p>
+                        )}
+                        <p className="text-[9px] text-slate-400 mt-1 font-mono uppercase">
+                          {new Date(n.timestamp).toLocaleTimeString()}
+                        </p>
                       </div>
                     </div>
                   </div>
-                )
-              })}
+                ))
+              )}
             </div>
-          )}
+          </Card>
         </div>
       </div>
     </div>

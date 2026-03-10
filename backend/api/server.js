@@ -8,6 +8,7 @@ import scrutinRoutes from './routes/scrutins.js';
 import voteRoutes from './routes/votes.js';
 import moderatorRoutes from './routes/moderators.js';
 import authRoutes from './routes/auth.js';
+import requestVoteRoutes from './routes/request-votes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +29,7 @@ app.use('/api/scrutins', scrutinRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/moderators', moderatorRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/request-vote', requestVoteRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

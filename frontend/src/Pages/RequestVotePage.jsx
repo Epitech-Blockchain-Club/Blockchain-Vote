@@ -15,15 +15,28 @@ const RequestVotePage = () => {
     const [submitted, setSubmitted] = useState(false)
     const [loading, setLoading] = useState(false)
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const res = await fetch('http://localhost:3001/api/request-vote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, description })
+            });
+            const result = await res.json();
+            if (result.success) {
+                setSubmitted(true)
+                toast.success(t({ fr: 'Demande envoyée !', en: 'Request sent!' }))
+            } else {
+                toast.error(result.error || 'Erreur lors de l\'envoi')
+            }
+        } catch (error) {
+            console.error('Submit error:', error)
+            toast.error('Erreur de connexion au serveur')
+        } finally {
             setLoading(false)
-            setSubmitted(true)
-            toast.success(t({ fr: 'Demande envoyée !', en: 'Request sent!' }))
-        }, 1500)
+        }
     }
 
     if (submitted) {

@@ -15,7 +15,6 @@ import { useSettings } from '../contexts/SettingsContext'
 // Sub-components (to be created)
 import SuperAdminDashboard from '../components/superadmin/SuperAdminDashboard'
 import OrganizationManager from '../components/superadmin/OrganizationManager'
-import AdminManager from '../components/superadmin/AdminManager'
 import SuperAdminManager from '../components/superadmin/SuperAdminManager'
 import ActivityStream from '../components/superadmin/ActivityStream'
 
@@ -26,8 +25,7 @@ const SuperAdminPage = () => {
 
     const navigation = [
         { name: t({ fr: 'Tableau de bord', en: 'Dashboard' }), href: '/superadmin', icon: Squares2X2Icon },
-        { name: t({ fr: 'Organisations', en: 'Organizations' }), href: '/superadmin/organizations', icon: BuildingOfficeIcon },
-        { name: t({ fr: 'Administrateurs', en: 'Administrators' }), href: '/superadmin/admins', icon: UserGroupIcon },
+        { name: t({ fr: 'Organisations & Admins', en: 'Organizations & Admins' }), href: '/superadmin/organizations', icon: BuildingOfficeIcon },
         { name: t({ fr: 'Super Admins', en: 'Super Admins' }), href: '/superadmin/supers', icon: ShieldCheckIcon },
         { name: t({ fr: 'Activités', en: 'Activities' }), href: '/superadmin/activities', icon: ChartPieIcon },
     ]
@@ -85,7 +83,6 @@ const SuperAdminPage = () => {
                         <Routes>
                             <Route index element={<SuperAdminDashboard />} />
                             <Route path="organizations" element={<OrganizationManager />} />
-                            <Route path="admins" element={<AdminManager />} />
                             <Route path="supers" element={<SuperAdminManager />} />
                             <Route path="activities" element={<ActivityStream />} />
                             <Route path="*" element={<Navigate to="/superadmin" replace />} />

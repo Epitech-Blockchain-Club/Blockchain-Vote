@@ -1,220 +1,180 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useElections } from '../contexts/ElectionContext'
-import { useAuth } from '../contexts/AuthContext'
-import { useBlockchain } from '../contexts/BlockchainContext'
-import EmailVerification from '../components/auth/EmailVerification'
-import CandidateCard from '../components/elections/CandidateCard'
-import Button from '../components/common/Button'
-import Modal from '../components/common/Modal'
-import { ShieldCheckIcon, FunnelIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
-import toast from 'react-hot-toast'
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Card from '../components/common/Card';
+import Button from '../components/common/Button';
+import {
+    GlobeAltIcon,
+    MagnifyingGlassIcon,
+    InboxArrowDownIcon,
+    ChevronRightIcon,
+    ShieldCheckIcon,
+    LockClosedIcon
+} from '@heroicons/react/24/outline';
+import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
+import toast from 'react-hot-toast';
 
 const VoterPage = () => {
-  const [step, setStep] = useState('verify') // verify, elections, vote
-  const [verifiedEmail, setVerifiedEmail] = useState(null)
-  const [selectedElection, setSelectedElection] = useState(null)
-  const [selectedCandidate, setSelectedCandidate] = useState(null)
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [voting, setVoting] = useState(false)
+    const navigate = useNavigate();
+    const { loginWithGoogle, loginWithOffice365 } = useAuth();
+    const [email, setEmail] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [availableElections, setAvailableElections] = useState([]);
+    const [selectedElection, setSelectedElection] = useState('');
 
-  const { elections, castVote } = useElections()
-  const { user } = useAuth()
-  const { sendTransaction } = useBlockchain()
-  const navigate = useNavigate()
+    const autoSearch = async (userEmail) => {
+        if (!userEmail) return;
+        setEmail(userEmail);
+        setSearching(true);
+        try {
+            const res = await fetch(`http://localhost:3001/api/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
+            const result = await res.json();
+            if (result.success) {
+                // Backend already returns ONLY scrutins with at least one
+                // validated, non-invalidated session for this specific voter
+                const elections = result.data || [];
+                setAvailableElections(elections);
+                if (elections.length === 0) {
+                    toast.error("Aucun scrutin avec session validée trouvé pour votre compte.");
+                } else {
+                    toast.success(`${elections.length} scrutin(s) disponible(s) !`);
+                }
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (err) {
+            console.error("Discovery error:", err);
+            toast.error("Erreur lors de la recherche des scrutins.");
+        } finally {
+            setSearching(false);
+        }
+    };
 
-  // Filtrer les élections accessibles (ayant au moins une session validée)
-  const availableElections = elections.filter(election => {
-    const now = new Date()
-    const isToday = now >= new Date(election.startDate) && now <= new Date(election.endDate)
-    return isToday && election.status === 'active'
-  })
+    const handleGoogleLogin = async () => {
+        const u = await loginWithGoogle();
+        if (u && u.email) {
+            autoSearch(u.email);
+        }
+    };
 
-  const handleVerified = (data) => {
-    setVerifiedEmail(data)
-    setStep('elections')
-    toast.success('Email vérifié avec succès')
-  }
+    const handleMicrosoftLogin = async () => {
+        const u = await loginWithOffice365();
+        if (u && u.email) {
+            autoSearch(u.email);
+        }
+    };
 
-  const handleVoteClick = (election, session, candidateId) => {
-    setSelectedElection({ ...election, currentSession: session })
-    setSelectedCandidate(candidateId)
-    setShowConfirmModal(true)
-  }
+    const handleGoToVote = () => {
+        if (!selectedElection) return;
+        navigate(`/vote/${selectedElection}`, { state: { intendedEmail: email } });
+    };
 
-  const confirmVote = async () => {
-    setVoting(true)
-    setShowConfirmModal(false)
-
-    try {
-      // Utiliser l'adresse de la session pour le vote
-      const sessionAddress = selectedElection.currentSession.address
-
-      // Enregistrer le vote via l'API (qui gère la transaction blockchain)
-      const success = await castVote({
-        electionId: sessionAddress,
-        candidateId: selectedCandidate,
-        email: verifiedEmail.email,
-        country: verifiedEmail.country
-      })
-
-      if (success) {
-        toast.success('Vote enregistré avec succès !')
-        // Optionnel: rediriger vers une page de confirmation ou rafraîchir
-      }
-    } catch (error) {
-      toast.error('Erreur lors du vote')
-    } finally {
-      setVoting(false)
-      setSelectedElection(null)
-      setSelectedCandidate(null)
-    }
-  }
-
-  if (step === 'verify') {
     return (
-      <div className="container mx-auto px-4 py-12 relative">
-        <div className="max-w-xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">
-              Vote sécurisé
-            </h1>
-            <p className="text-slate-500 font-medium max-w-md mx-auto">
-              Identifiez-vous pour accéder à vos scrutins. Votre vote est protégé par la blockchain.
-            </p>
-          </div>
-          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-xl shadow-slate-200/50">
-            <EmailVerification onVerified={handleVerified} />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'elections') {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="mb-12 flex flex-col md:flex-row md:justify-between md:items-end gap-6 bg-slate-50 p-8 rounded-3xl border border-slate-100">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
-              Scrutins en cours
-            </h1>
-            <div className="flex items-center space-x-2">
-              <span className="h-2 w-2 bg-primary-500 rounded-full animate-pulse"></span>
-              <p className="text-slate-500 text-sm font-bold uppercase tracking-widest leading-none">
-                Identifié : <span className="text-primary-600 italic">{verifiedEmail?.email}</span>
-              </p>
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 pb-20 font-sans">
+            {/* Header Section */}
+            <div className="text-center mb-10">
+                <h1 className="text-[44px] font-black text-[#0F172A] mb-3 tracking-tight">Voter Authentication</h1>
+                <p className="text-[#64748B] font-medium text-lg">Veuillez vous identifier pour accéder au scrutin en cours.</p>
             </div>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setStep('verify')} className="border-slate-200 text-slate-500">Changer d'email</Button>
-        </div>
 
-        {availableElections.length === 0 ? (
-          <div className="text-center py-24 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-            <div className="h-16 w-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-6 mx-auto">
-              <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m0 0l2 2 2-2M8 21l4-4 4 4" />
-              </svg>
-            </div>
-            <p className="text-slate-500 font-bold uppercase text-xs tracking-[0.2em]">Aucun scrutin validé et ouvert pour le moment</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {availableElections.map(election => (
-              <div key={election.id} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-xl shadow-slate-100/50 hover:border-primary-100 transition-all duration-300">
-                <div className="flex justify-between items-start mb-6">
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {election.title}
-                  </h2>
-                </div>
-                <p className="text-slate-500 mb-8 font-medium leading-relaxed line-clamp-2">{election.description}</p>
-
-                <div className="space-y-8">
-                  {election.sessions?.filter(s => s.isValidated).map((session, sIdx) => (
-                    <div key={sIdx} className="space-y-4">
-                      <div className="flex items-center justify-between px-1">
-                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">Session: {session.title}</p>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-lg border border-emerald-100 uppercase tracking-wider">Validé</span>
-                      </div>
-                      <div className="space-y-3">
-                        {session.options?.map((candidate, cIdx) => (
-                          <CandidateCard
-                            key={cIdx}
-                            candidate={candidate}
-                            onVote={() => handleVoteClick(election, session, cIdx)}
-                            disabled={election.voters?.includes(verifiedEmail?.email)}
-                          />
-                        ))}
-                      </div>
+            <div className="max-w-[480px] w-full bg-white rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden border border-slate-100 flex flex-col transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
+                {/* Visual Header Section (Template Style) */}
+                <div className="h-[200px] bg-[#F1F5F9] relative flex flex-col items-center justify-center overflow-hidden">
+                    <div className="absolute inset-0 opacity-[0.4] pointer-events-none"
+                        style={{ backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                    <div className="w-16 h-16 bg-white rounded-[24px] shadow-sm flex items-center justify-center mb-4 relative z-10">
+                        <ShieldCheckIconSolid className="h-8 w-8 text-primary-600" />
                     </div>
-                  ))}
+                    <h2 className="text-xl font-black text-[#334155] uppercase tracking-[0.1em] relative z-10">Portail de vote sécurisé</h2>
                 </div>
 
-                {election.voters?.includes(verifiedEmail?.email) && (
-                  <div className="mt-6 flex items-center p-4 bg-primary-50 rounded-2xl border border-primary-100">
-                    <ShieldCheckIcon className="h-5 w-5 text-primary-600 mr-2" />
-                    <p className="text-primary-700 text-xs font-black uppercase tracking-wider leading-none">
-                      ✓ Vote déjà enregistré
+                <div className="p-10">
+                    <div className="mb-0">
+                        <h3 className="text-2xl font-black text-[#0F172A] mb-2 leading-tight">Connectez-vous pour voter</h3>
+                        <p className="text-[#64748B] text-sm font-medium mb-10 leading-relaxed">
+                            Choisissez votre méthode d'authentification préférée pour continuer.
+                        </p>
+                    </div>
+
+                    {/* Authentication Section */}
+                    <div className="space-y-4">
+                        <button
+                            onClick={handleGoogleLogin}
+                            disabled={searching}
+                            className="w-full h-15 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-bold text-[#334155] shadow-sm active:scale-[0.98] py-4 disabled:opacity-60"
+                        >
+                            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+                            {searching ? 'Recherche en cours...' : 'Se connecter avec Google'}
+                        </button>
+
+                        <button
+                            onClick={handleMicrosoftLogin}
+                            disabled={searching}
+                            className="w-full h-15 bg-[#2563EB] rounded-2xl flex items-center justify-center gap-3 hover:bg-blue-700 transition-all font-bold text-white shadow-md active:scale-[0.98] py-4 disabled:opacity-60"
+                        >
+                            <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="Microsoft" />
+                            Se connecter avec Office 365
+                        </button>
+                    </div>
+
+                    {availableElections.length > 0 && (
+                        <div className="mt-10 pt-10 border-t border-slate-100 animate-fade-in">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Sessions de vote disponibles</label>
+                            <div className="relative mb-6">
+                                <InboxArrowDownIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 shadow-sm" />
+                                <select
+                                    value={selectedElection}
+                                    onChange={(e) => setSelectedElection(e.target.value)}
+                                    className="w-full pl-12 pr-10 py-4 bg-primary-50 border border-primary-100 rounded-2xl appearance-none focus:ring-2 focus:ring-primary-500 font-black text-primary-900 cursor-pointer transition-all text-sm"
+                                >
+                                    <option value="">Choisir un scrutin...</option>
+                                    {availableElections.map(el => (
+                                        <option key={el.address} value={el.address}>
+                                            {el.title} ({el.country})
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-primary-400">
+                                    <ChevronRightIcon className="w-5 h-5 rotate-90" />
+                                </div>
+                            </div>
+
+                            <Button
+                                onClick={handleGoToVote}
+                                disabled={!selectedElection}
+                                className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-black text-white shadow-xl transition-all active:scale-[0.98]"
+                            >
+                                Accéder au portail de vote
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="mt-10 p-5 bg-slate-50 border border-slate-100 rounded-2xl">
+                        <p className="text-[11px] text-slate-500 font-bold leading-relaxed text-center">
+                            L'identification par certificat Google ou Office 365 est requise pour garantir l'unicité de votre vote sur la blockchain.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom Info Section (Blockchain Badge) */}
+            <div className="mt-8 max-w-[440px] w-full bg-[#F1F5F9]/50 backdrop-blur-sm border border-slate-200 rounded-[28px] p-5 flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
+                    <ShieldCheckIcon className="w-6 h-6 text-primary-600" />
+                </div>
+                <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">SÉCURISATION</span>
+                        <div className="h-1 w-1 rounded-full bg-slate-300"></div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vérification par Blockchain</span>
+                    </div>
+                    <p className="text-[9px] font-bold text-primary-500 uppercase tracking-[0.2em] flex items-center gap-1.5 line-clamp-1">
+                        <LockClosedIcon className="w-3 h-3" /> INTÉGRITÉ GARANTIE
                     </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Modal
-          isOpen={showConfirmModal}
-          onClose={() => setShowConfirmModal(false)}
-          title="Confirmer votre vote"
-        >
-          <div className="py-2">
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-8">
-              <div className="flex items-center text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
-                <FunnelIcon className="h-3 w-3 mr-2" /> Détails du scrutin
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Élection</p>
-                  <p className="text-slate-900 font-bold">{selectedElection?.title}</p>
                 </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-1">Votre choix</p>
-                  <p className="text-primary-600 font-black text-xl">
-                    {selectedElection?.candidates.find(c => c.id === selectedCandidate)?.name}
-                  </p>
-                </div>
-              </div>
             </div>
+        </div>
+    );
+};
 
-            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex items-start space-x-3 mb-8">
-              <ExclamationTriangleIcon className="h-6 w-6 text-amber-500 flex-shrink-0" />
-              <p className="text-amber-700 text-sm font-medium leading-relaxed">
-                Cette action est irréversible. Une fois confirmé, votre vote sera crypté et enregistré définitivement sur le registre décentralisé de la blockchain.
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 border-slate-200"
-              >
-                Annuler
-              </Button>
-              <Button
-                variant="primary"
-                onClick={confirmVote}
-                loading={voting}
-                className="flex-1 shadow-lg shadow-primary-500/20"
-              >
-                Confirmer mon vote
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      </div>
-    )
-  }
-}
-
-export default VoterPage
+export default VoterPage;

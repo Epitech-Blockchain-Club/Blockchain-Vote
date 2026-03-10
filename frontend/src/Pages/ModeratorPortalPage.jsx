@@ -16,8 +16,6 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 
-// Scrutin data loaded from API
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const InfoRow = ({ label, value }) => (
     <div className="flex justify-between items-start py-3 border-b border-slate-100 last:border-0">
@@ -31,6 +29,8 @@ const StatusBadge = ({ status }) => {
         pending: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
         validated: { label: 'Validé', cls: 'bg-primary-100 text-primary-700' },
         invalidated: { label: 'Invalidé', cls: 'bg-red-100 text-red-700' },
+        validate: { label: 'Validé (Brouillon)', cls: 'bg-primary-50 text-primary-600 border border-primary-100' },
+        invalidate: { label: 'Invalidé (Brouillon)', cls: 'bg-red-50 text-red-600 border border-red-100' },
     }
     const { label, cls } = map[status] || map.pending
     return <span className={`inline-block text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${cls}`}>{label}</span>
@@ -48,7 +48,9 @@ const ModeratorPortalPage = () => {
     const [expandedSessions, setExpandedSessions] = useState({})
     const [showReasonFor, setShowReasonFor] = useState(null)
     const [reasonDraft, setReasonDraft] = useState('')
-    const [isSocialVerified, setIsSocialVerified] = useState(false) // OAuth2 simulation
+    const [isSocialVerified, setIsSocialVerified] = useState(false)
+    const [isSubmittingAll, setIsSubmittingAll] = useState(false)
+    const [isSubmitted, setIsSubmitted] = useState(false)
 
     React.useEffect(() => {
         const init = async () => {
@@ -70,7 +72,7 @@ const ModeratorPortalPage = () => {
                 const res = await fetch(`http://localhost:3001/api/scrutins`)
                 const result = await res.json()
                 if (result.success) {
-                    const found = result.data.find(s => s.address === id)
+                    const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
                     if (found) {
                         setScrutin(found)
                         const initialDecisions = {}
@@ -92,7 +94,7 @@ const ModeratorPortalPage = () => {
             }
         }
         init()
-    }, [id, loginWithToken])
+    }, [id, loginWithToken, user])
 
     const sessionsToShow = scrutin
         ? (sessionId ? scrutin.sessions.filter(s => s.address === sessionId) : scrutin.sessions)
@@ -100,43 +102,97 @@ const ModeratorPortalPage = () => {
 
     const toggleExpand = (sid) => setExpandedSessions(prev => ({ ...prev, [sid]: !prev[sid] }))
 
-    const handleVoteDecision = async (sid, decision, reason = '') => {
-        if (!isSocialVerified && user?.role !== 'superadmin') {
-            toast.error("Veuillez d'abord vérifier votre identité (Google/Office 365)")
-            return
+    // --- SUBMISSION LOGIC & PERMISSIONS ---
+    const getSessionModeratorStatus = (session) => {
+        return session.moderators?.some(m => {
+            const modEmail = typeof m === 'string' ? m : m?.email;
+            return modEmail?.toLowerCase() === user?.email?.toLowerCase();
+        }) || user?.role === 'superadmin';
+    }
+
+    const allDecided = scrutin && scrutin.sessions.every(s => {
+        if (!getSessionModeratorStatus(s)) return true; // Only require for assigned sessions
+        return decisions[s.address]?.status !== 'pending';
+    })
+
+    const allValidated = scrutin && scrutin.sessions.every(s => {
+        if (!getSessionModeratorStatus(s)) return true;
+        const d = decisions[s.address]
+        return d?.status === 'validate' || d?.status === 'validated';
+    })
+
+    const authorizedSessionsCount = scrutin ? scrutin.sessions.filter(getSessionModeratorStatus).length : 0;
+    const decisionsReachedCount = scrutin ? scrutin.sessions.filter(s => getSessionModeratorStatus(s) && decisions[s.address]?.status !== 'pending').length : 0;
+
+    const getFinalDecisions = () => {
+        const final = {};
+        if (!scrutin) return final;
+        scrutin.sessions.forEach(s => {
+            if (getSessionModeratorStatus(s) && decisions[s.address]?.status !== 'pending') {
+                final[s.address] = decisions[s.address];
+            }
+        });
+        return final;
+    };
+
+    const handleVoteDecision = (sid, decision, reason = '') => {
+        setDecisions(prev => ({ ...prev, [sid]: { status: decision, reason } }))
+        toast.success(decision === 'validate' ? 'Décision (Brouillon) : Validé' : 'Décision (Brouillon) : Invalidé')
+    }
+
+    const submitAllDecisions = async () => {
+        const finalDecisions = getFinalDecisions();
+        if (Object.keys(finalDecisions).length === 0) {
+            toast.error("Aucune décision à soumettre.");
+            return;
         }
+
+        if (!isSocialVerified && user?.role !== 'superadmin') {
+            toast.error("Veuillez d'abord vérifier votre identité via Google ou Microsoft.");
+            return;
+        }
+
+        setIsSubmittingAll(true);
+        const toastId = toast.loading("Enregistrement des décisions sur la Blockchain...");
 
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
 
-            const res = await fetch('http://localhost:3001/api/moderators/decision', {
+            // Format decisions for batch processing
+            const batchDecisions = Object.entries(finalDecisions).map(([sid, dec]) => ({
+                sessionId: sid,
+                decision: dec.status,
+                reason: dec.reason
+            }));
+
+            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sessionId: sid, // This is the contract address
-                    decision: decision,
-                    reason: reason,
-                    token: token // Security token mandatory
+                    decisions: batchDecisions,
+                    token: token
                 })
-            })
-            const result = await res.json()
-            if (result.success) {
-                setDecisions(prev => ({ ...prev, [sid]: { status: decision, reason } }))
-                toast.success(decision === 'validate' ? 'Session validée ✓' : 'Session invalidée.', {
-                    icon: decision === 'validate' ? '✅' : '❌'
-                })
+            });
 
-                // Cleanup after decision (one-time use)
-                setTimeout(() => {
-                    localStorage.removeItem('user')
-                    window.location.href = `/results?success=true&decision=${decision}`
-                }, 2000)
-            } else {
-                throw new Error(result.error)
+            const result = await res.json();
+            if (!result.success) {
+                throw new Error(result.error || "Une erreur est survenue lors du scellage.");
             }
+
+            // Check if any specific session failed in the batch
+            const failures = (result.results || []).filter(r => !r.success);
+            if (failures.length > 0) {
+                console.warn("Certaines sessions n'ont pas pu être traitées:", failures);
+                toast.error(`${failures.length} session(s) en échec.`);
+            }
+
+            toast.success("Toutes les décisions ont été scellées !", { id: toastId })
+            setIsSubmitted(true)
         } catch (err) {
-            toast.error(err.message)
+            toast.error(err.message, { id: toastId })
+        } finally {
+            setIsSubmittingAll(false)
         }
     }
 
@@ -164,17 +220,13 @@ const ModeratorPortalPage = () => {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
             const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
             const config = await configRes.json();
-            console.log("OAuth Debug:", { provider, config });
             toast.dismiss('oauth-init');
 
             if (provider === 'google' && config.googleClientId) {
-                console.log("OAuth Debug: Using REAL Google Flow");
                 url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.googleClientId}&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&response_type=token&scope=email%20profile`;
             } else if (provider === 'microsoft' && config.microsoftClientId) {
-                console.log("OAuth Debug: Using REAL Microsoft Flow");
                 url = `https://login.microsoftonline.com/${config.microsoftTenantId || 'common'}/oauth2/v2.0/authorize?client_id=${config.microsoftClientId}&response_type=token&redirect_uri=${encodeURIComponent(window.location.origin + '/oauth-callback')}&scope=User.Read%20email%20openid%20profile`;
             } else {
-                console.log("OAuth Debug: Using SIMULATION Fallback");
                 const popupContent = `
                     <html>
                         <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0; padding: 20px; text-align: center;">
@@ -208,7 +260,6 @@ const ModeratorPortalPage = () => {
 
                     try {
                         let email = null;
-
                         if (provider === 'google') {
                             const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                                 headers: { Authorization: `Bearer ${event.data.token}` }
@@ -245,11 +296,25 @@ const ModeratorPortalPage = () => {
         }
     }
 
-    const handleValidate = (sid) => handleVoteDecision(sid, 'validate')
+    const handleValidate = (sid) => {
+        if (!isSocialVerified && user?.role !== 'superadmin') {
+            toast.error("Veuillez d'abord vérifier votre identité via Google ou Microsoft.");
+            return;
+        }
+        handleVoteDecision(sid, 'validate');
+    }
 
-    const openInvalidateDialog = (sid) => {
-        setShowReasonFor(sid)
-        setReasonDraft('')
+    const openInvalidateDialog = (sid, isAuthorized) => {
+        if (!isAuthorized) {
+            toast.error("Vous n'êtes pas modérateur assigné pour cette session.");
+            return;
+        }
+        if (!isSocialVerified && user?.role !== 'superadmin') {
+            toast.error("Veuillez d'abord vérifier votre identité via Google ou Microsoft.");
+            return;
+        }
+        setShowReasonFor(sid);
+        setReasonDraft('');
     }
 
     const confirmInvalidate = () => {
@@ -273,15 +338,17 @@ const ModeratorPortalPage = () => {
         </div>
     )
 
-    // Authorization check
     const userEmail = user?.email?.toLowerCase()
     const isAuthorized = sessionsToShow.some(s =>
-        (s.moderators || []).some(m => m?.toLowerCase() === userEmail)
+        (s.moderators || []).some(m => {
+            const modEmail = typeof m === 'string' ? m : m?.email
+            return modEmail?.toLowerCase() === userEmail
+        })
     )
 
     if (!isAuthorized && user?.role !== 'superadmin') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900 px-6">
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 px-6 text-left">
                 <div className="max-w-md w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-[40px] p-12 text-center">
                     <XCircleIcon className="h-20 w-20 text-red-500 mx-auto mb-6" />
                     <h2 className="text-2xl font-black text-white mb-4">Accès Refusé</h2>
@@ -297,12 +364,9 @@ const ModeratorPortalPage = () => {
         )
     }
 
-    const allDecided = sessionsToShow.every(s => decisions[s.address]?.status && decisions[s.address]?.status !== 'pending')
-    const allValidated = sessionsToShow.every(s => decisions[s.address]?.status === 'validate')
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-            {/* Invalidation reason modal */}
             {showReasonFor && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
                     <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8">
@@ -341,8 +405,7 @@ const ModeratorPortalPage = () => {
             )}
 
             <div className="max-w-3xl mx-auto">
-                {/* Portal header */}
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-4 mb-8 text-left">
                     <div className="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-900/30">
                         <ShieldCheckIcon className="w-6 h-6 text-white" />
                     </div>
@@ -352,44 +415,48 @@ const ModeratorPortalPage = () => {
                     </div>
                 </div>
 
-                {/* Scrutin summary */}
-                <div className="bg-white/5 backdrop-blur rounded-3xl border border-white/10 p-6 mb-6">
-                    <h2 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">Informations du Scrutin</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Titre</p>
-                            <p className="font-black text-white text-lg tracking-tight">{scrutin.title}</p>
+                <div className="bg-white/5 backdrop-blur rounded-3xl border border-white/10 p-6 mb-6 flex items-start gap-6 text-left">
+                    {scrutin?.logoUrl && (
+                        <div className="h-24 w-24 bg-white rounded-2xl border-2 border-white/10 shadow-lg flex-shrink-0 flex items-center justify-center p-2">
+                            <img src={scrutin.logoUrl} alt="Logo" className="h-full w-full object-contain" />
                         </div>
-                        {scrutin.description && (
+                    )}
+                    <div className="flex-1 text-left">
+                        <h2 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">Informations du Scrutin</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                             <div>
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Description</p>
-                                <p className="text-white/70 text-sm font-medium leading-relaxed">{scrutin.description}</p>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Titre</p>
+                                <p className="font-black text-white text-lg tracking-tight">{scrutin.title}</p>
                             </div>
-                        )}
-                        <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Portée</p>
-                            <p className="text-white/80 font-bold text-sm capitalize">{scrutin.scope} {scrutin.country ? `· ${scrutin.country}` : ''}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Pilotage</p>
-                            <p className="text-white/80 font-bold text-sm">
-                                {scrutin.timingMode === 'scheduled'
-                                    ? `Du ${new Date(scrutin.startDate).toLocaleDateString('fr-FR')} au ${new Date(scrutin.endDate).toLocaleDateString('fr-FR')}`
-                                    : 'Manuel'}
-                            </p>
+                            {scrutin.description && (
+                                <div>
+                                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Description</p>
+                                    <p className="text-white/70 text-sm font-medium leading-relaxed">{scrutin.description}</p>
+                                </div>
+                            )}
+                            <div>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Portée</p>
+                                <p className="text-white/80 font-bold text-sm capitalize">{scrutin.scope} {scrutin.country ? `· ${scrutin.country}` : ''}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Pilotage</p>
+                                <p className="text-white/80 font-bold text-sm">
+                                    {scrutin.timingMode === 'scheduled'
+                                        ? `Du ${new Date(scrutin.startDate).toLocaleDateString('fr-FR')} au ${new Date(scrutin.endDate).toLocaleDateString('fr-FR')}`
+                                        : 'Manuel'}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Instruction banner */}
-                <div className="bg-amber-500/10 border border-amber-400/20 rounded-2xl px-5 py-4 mb-8 flex items-start gap-3">
+                <div className="bg-amber-500/10 border border-amber-400/20 rounded-2xl px-5 py-4 mb-8 flex items-start gap-3 text-left">
                     <ShieldCheckIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-amber-200 text-sm font-medium leading-relaxed">
                         En tant que modérateur, votre validation est requise pour chaque session. Un seul refus suffit à bloquer l'ouverture de la session concernée.
                     </p>
                 </div>
 
-                {/* OAuth2 Verification Banner */}
                 {!isSocialVerified && user?.role !== 'superadmin' && (
                     <div className="bg-primary-600/20 border-2 border-primary-500/30 rounded-[32px] p-8 mb-8 text-center backdrop-blur-sm shadow-xl shadow-primary-900/10">
                         <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -418,11 +485,18 @@ const ModeratorPortalPage = () => {
                     </div>
                 )}
 
-                {/* Sessions to validate */}
                 <div className="space-y-6">
                     {sessionsToShow.map((session, si) => {
-                        const decision = decisions[session.address]
+                        const decision = decisions[session.address] || { status: 'pending' }
                         const expanded = expandedSessions[session.address]
+
+                        // Check if current user is assigned as a moderator for THIS specific session
+                        const userIsModerator = session.moderators?.some(m => {
+                            const modEmail = typeof m === 'string' ? m : m?.email;
+                            return modEmail?.toLowerCase() === user?.email?.toLowerCase();
+                        }) || user?.role === 'superadmin';
+
+                        const isLocked = (!isSocialVerified && user?.role !== 'superadmin') || !userIsModerator;
 
                         return (
                             <div key={session.address} className={`bg-white rounded-3xl shadow-xl overflow-hidden border-2
@@ -430,14 +504,21 @@ const ModeratorPortalPage = () => {
                                     : decision.status === 'invalidate' ? 'border-red-200'
                                         : 'border-transparent'}`}>
 
-                                {/* Session header */}
                                 <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/60 cursor-pointer"
                                     onClick={() => toggleExpand(session.address)}>
                                     <div className="flex items-center gap-3">
                                         <span className="w-8 h-8 rounded-xl bg-primary-100 text-primary-700 text-sm font-black flex items-center justify-center">{si + 1}</span>
-                                        <div>
+                                        <div className="text-left">
                                             <p className="font-black text-slate-900 text-base leading-tight">{session.title}</p>
-                                            <div className="mt-1"><StatusBadge status={decision.status} /></div>
+                                            <div className="mt-1 flex gap-2">
+                                                <StatusBadge status={decision.status} />
+                                                {!userIsModerator && (
+                                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Non assigné</span>
+                                                )}
+                                                {decision.status !== 'pending' && !isSubmitted && (
+                                                    <span className="text-[8px] font-black uppercase text-secondary-500 bg-secondary-50 px-2 py-0.5 rounded-md border border-secondary-100">Brouillon</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <button className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors">
@@ -446,8 +527,7 @@ const ModeratorPortalPage = () => {
                                 </div>
 
                                 {expanded && (
-                                    <div className="p-6 space-y-6">
-                                        {/* Session info */}
+                                    <div className="p-6 space-y-6 text-left">
                                         <div>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                 <DocumentTextIcon className="w-3.5 h-3.5" /> Informations de la session
@@ -460,7 +540,6 @@ const ModeratorPortalPage = () => {
                                             </div>
                                         </div>
 
-                                        {/* Voter List */}
                                         {((session.voters && session.voters.length > 0) || (scrutin.voters && scrutin.voters.length > 0)) ? (
                                             <div>
                                                 <div className="flex items-center justify-between mb-3">
@@ -468,7 +547,7 @@ const ModeratorPortalPage = () => {
                                                         <UserCircleIcon className="w-3.5 h-3.5" /> Liste des Électeurs ({session.voters && session.voters.length > 0 ? session.voters.length : scrutin.voters?.length || 0} inscrits)
                                                     </p>
                                                     <button
-                                                        onClick={() => downloadVotersList(session.voters && session.voters.length > 0 ? session.voters : (scrutin.voters || []), session.title)}
+                                                        onClick={(e) => { e.stopPropagation(); downloadVotersList(session.voters && session.voters.length > 0 ? session.voters : (scrutin.voters || []), session.title); }}
                                                         className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-primary-50 transition-colors"
                                                     >
                                                         <ArrowDownTrayIcon className="w-3 h-3" /> Exporter (.txt)
@@ -491,55 +570,57 @@ const ModeratorPortalPage = () => {
                                             </div>
                                         )}
 
-                                        {/* Moderators List */}
                                         {session.moderators && session.moderators.length > 0 && (
                                             <div>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                     <ShieldCheckIcon className="w-3.5 h-3.5" /> Collège des Modérateurs ({session.moderators.length})
                                                 </p>
-                                                <div className="bg-primary-50/30 border border-primary-100/50 rounded-2xl p-4">
+                                                <div className="bg-primary-50/30 border border-primary-100/50 rounded-2xl p-4 text-left">
                                                     <div className="flex flex-wrap gap-2">
-                                                        {session.moderators.map((m, mi) => (
-                                                            <div key={mi} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-tight 
-                                                                ${m?.toLowerCase() === user?.email?.toLowerCase()
-                                                                    ? 'bg-primary-600 border-primary-700 text-white shadow-lg shadow-primary-500/20'
-                                                                    : 'bg-white border-slate-200 text-slate-500'}`}>
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${m?.toLowerCase() === user?.email?.toLowerCase() ? 'bg-white' : 'bg-primary-400'}`} />
-                                                                {m}
-                                                                {m?.toLowerCase() === user?.email?.toLowerCase() && <span className="text-[8px] bg-white/20 px-1 rounded ml-1">VOUS</span>}
-                                                            </div>
-                                                        ))}
+                                                        {session.moderators.map((m, mi) => {
+                                                            const modEmail = typeof m === 'string' ? m : m?.email
+                                                            const isCurrentUser = modEmail?.toLowerCase() === user?.email?.toLowerCase()
+                                                            return (
+                                                                <div key={mi} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-tight 
+                                                                ${isCurrentUser
+                                                                        ? 'bg-primary-600 border-primary-700 text-white shadow-lg shadow-primary-500/20'
+                                                                        : 'bg-white border-slate-200 text-slate-500'}`}>
+                                                                    <div className={`w-1.5 h-1.5 rounded-full ${isCurrentUser ? 'bg-white' : 'bg-primary-400'}`} />
+                                                                    {modEmail}
+                                                                    {isCurrentUser && <span className="text-[8px] bg-white/20 px-1 rounded ml-1">VOUS</span>}
+                                                                </div>
+                                                            )
+                                                        })}
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* Candidates / Parts */}
                                         <div>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                 <UsersIcon className="w-3.5 h-3.5" /> Options / Listes candidates
                                             </p>
-                                            <div className="space-y-4">
+                                            <div className="space-y-4 text-left">
                                                 {(session.options || []).map((part, pi) => (
-                                                    <div key={pi} className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                                                        <div className="flex items-center gap-3 mb-3">
+                                                    <div key={pi} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left">
+                                                        <div className="flex items-center gap-3 mb-3 text-left">
                                                             <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
                                                                 {part.imageUrl
                                                                     ? <img src={part.imageUrl} alt={part.title} className="h-full w-full object-cover" />
                                                                     : <span className="font-black text-slate-400 text-sm">{pi + 1}</span>}
                                                             </div>
-                                                            <div>
+                                                            <div className="text-left">
                                                                 <p className="font-black text-slate-900">{part.title}</p>
                                                                 {part.description && <p className="text-xs text-slate-500 font-medium mt-0.5">{part.description}</p>}
                                                             </div>
                                                         </div>
-                                                        {part.members.length > 0 && (
-                                                            <div className="pl-13">
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-14">Membres</p>
-                                                                <div className="flex flex-wrap gap-2 ml-14">
+                                                        {part.members && part.members.length > 0 && (
+                                                            <div className="pl-13 text-left">
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-14 text-left">Membres</p>
+                                                                <div className="flex flex-wrap gap-2 ml-14 text-left">
                                                                     {part.members.map(m => (
-                                                                        <div key={m.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
-                                                                            <div className="h-5 w-5 rounded-md bg-slate-100 overflow-hidden flex items-center justify-center">
+                                                                        <div key={m.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-left">
+                                                                            <div className="h-5 w-5 rounded-md bg-slate-100 overflow-hidden flex items-center justify-center text-center">
                                                                                 {m.photoUrl
                                                                                     ? <img src={m.photoUrl} alt={m.name} className="h-full w-full object-cover" />
                                                                                     : <UserCircleIcon className="w-4 h-4 text-slate-400" />}
@@ -555,47 +636,50 @@ const ModeratorPortalPage = () => {
                                             </div>
                                         </div>
 
-                                        {/* Decision area */}
-                                        {decision.status === 'pending' ? (
+                                        {(!isSubmitted && !isSubmittingAll) ? (
                                             <div className="flex gap-4 pt-2">
                                                 <button
-                                                    onClick={() => openInvalidateDialog(session.address)}
-                                                    disabled={!isSocialVerified && user?.role !== 'superadmin'}
-                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 border-2 rounded-2xl font-bold transition-all
-                                                        ${(!isSocialVerified && user?.role !== 'superadmin')
-                                                            ? 'border-slate-100 text-slate-300 cursor-not-allowed'
-                                                            : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+                                                    onClick={(e) => { e.stopPropagation(); openInvalidateDialog(session.address, userIsModerator); }}
+                                                    disabled={isLocked}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 border-2 rounded-2xl font-bold transition-all text-center
+                                                    ${isLocked ? 'border-slate-200 text-slate-400 cursor-not-allowed opacity-50' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
                                                 >
-                                                    <XCircleIcon className="w-5 h-5" /> Invalider
+                                                    <XCircleIcon className="w-5 h-5" />
+                                                    {decision.status === 'invalidate' ? 'Modifier Invalidation' : 'Invalider'}
                                                 </button>
                                                 <button
-                                                    onClick={() => handleValidate(session.address)}
-                                                    disabled={!isSocialVerified && user?.role !== 'superadmin'}
-                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black shadow-lg transition-all
-                                                        ${(!isSocialVerified && user?.role !== 'superadmin')
-                                                            ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
-                                                            : 'bg-primary-600 hover:bg-primary-700 text-white shadow-primary-500/20'}`}
+                                                    onClick={(e) => { e.stopPropagation(); handleValidate(session.address); }}
+                                                    disabled={isLocked}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black shadow-lg transition-all text-center
+                                                    ${isLocked ? 'bg-slate-400 text-white cursor-not-allowed opacity-50 shadow-none' : (decision.status === 'validate' ? 'bg-primary-700' : 'bg-primary-600') + ' hover:bg-primary-700 text-white shadow-primary-500/20'}`}
                                                 >
-                                                    <CheckCircleIcon className="w-5 h-5" /> Valider
+                                                    <CheckCircleIcon className="w-5 h-5" />
+                                                    {decision.status === 'validate' ? 'Validé (Brouillon)' : 'Valider'}
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className={`rounded-2xl p-4 border flex items-start gap-3
-                        ${decision.status === 'validated'
+                                            <div className={`rounded-2xl p-4 border flex items-start gap-3 text-left
+                                                ${decision.status === 'validated' || decision.status === 'validate'
                                                     ? 'bg-primary-50 border-primary-100'
                                                     : 'bg-red-50 border-red-100'}`}>
-                                                {decision.status === 'validated'
+                                                {(decision.status === 'validated' || decision.status === 'validate')
                                                     ? <CheckCircleIcon className="w-5 h-5 text-primary-600 shrink-0" />
                                                     : <XCircleIcon className="w-5 h-5 text-red-600 shrink-0" />}
                                                 <div>
-                                                    <p className={`font-black text-sm ${decision.status === 'validated' ? 'text-primary-700' : 'text-red-700'}`}>
-                                                        {decision.status === 'validated' ? 'Session validée par vous.' : 'Session invalidée par vous.'}
+                                                    <p className={`font-black text-sm ${(decision.status === 'validated' || decision.status === 'validate') ? 'text-primary-700' : 'text-red-700'}`}>
+                                                        {(decision.status === 'validated' || decision.status === 'validate') ? 'Session validée.' : 'Session invalidée.'}
                                                     </p>
                                                     {decision.reason && (
                                                         <p className="text-xs text-red-600/80 font-medium mt-1">Raison : {decision.reason}</p>
                                                     )}
                                                 </div>
                                             </div>
+                                        )}
+
+                                        {!userIsModerator && (
+                                            <p className="mt-2 text-[10px] text-amber-600 font-bold italic">
+                                                * Vous ne figurez pas dans la liste des modérateurs pour cette session spécifique. Vos décisions ne seront pas prises en compte.
+                                            </p>
                                         )}
                                     </div>
                                 )}
@@ -604,19 +688,50 @@ const ModeratorPortalPage = () => {
                     })}
                 </div>
 
-                {/* Summary panel */}
-                {allDecided && (
-                    <div className={`mt-8 rounded-3xl p-8 text-center border
-            ${allValidated
+                <div className="h-40" />
+
+                {allDecided && !isSubmitted && (
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-6 z-40 text-center">
+                        <div className="bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col items-center gap-4">
+                            <div className="text-center">
+                                <h4 className="text-white font-black text-sm tracking-tight">Prêt pour la soumission globale</h4>
+                                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                                    {decisionsReachedCount} / {authorizedSessionsCount} session(s) assignée(s) prêtes
+                                </p>
+                            </div>
+                            <button
+                                onClick={submitAllDecisions}
+                                disabled={isSubmittingAll}
+                                className="w-full h-14 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl font-black transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary-900/40"
+                            >
+                                {isSubmittingAll ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Scellage en cours...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShieldCheckIcon className="w-5 h-5" />
+                                        Soumettre toutes les décisions
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {isSubmitted && (
+                    <div className={`mt-8 rounded-3xl p-8 text-center border text-center
+                        ${allValidated
                             ? 'bg-primary-600 border-primary-500'
                             : 'bg-red-600/90 border-red-500'}`}>
                         {allValidated
                             ? <CheckCircleIcon className="w-12 h-12 text-white mx-auto mb-4" />
                             : <XCircleIcon className="w-12 h-12 text-white mx-auto mb-4" />}
-                        <h2 className="text-2xl font-black text-white mb-2">
+                        <h2 className="text-2xl font-black text-white mb-2 text-center">
                             {allValidated ? 'Toutes les sessions validées !' : 'Validation incomplète'}
                         </h2>
-                        <p className="text-white/70 font-medium text-sm">
+                        <p className="text-white/70 font-medium text-sm text-center">
                             {allValidated
                                 ? 'Le scrutin peut maintenant être ouvert aux électeurs une fois que tous les modérateurs ont validé.'
                                 : 'Certaines sessions ont été invalidées. L\'organisateur sera notifié.'}

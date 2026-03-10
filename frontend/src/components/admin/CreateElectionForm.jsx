@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   XMarkIcon, PlusIcon, ShieldCheckIcon, DocumentArrowUpIcon,
-  LinkIcon, CheckCircleIcon, CameraIcon, UserCircleIcon,
+  LinkIcon, CheckCircleIcon, CameraIcon, UserCircleIcon
 } from '@heroicons/react/24/outline'
 import Button from '../common/Button'
 import Card from '../common/Card'
@@ -124,7 +124,11 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
                 }
               }} />
           </div>
-          <textarea rows="2" value={session.moderatorsText || ''} onChange={e => set('moderatorsText', e.target.value)}
+          <textarea rows="2" value={session.moderatorsText || ''}
+            onChange={e => {
+              const val = e.target.value;
+              set('moderatorsText', val);
+            }}
             className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-secondary-500 font-medium text-sm text-slate-700 leading-relaxed"
             placeholder="mod1@epitech.eu&#10;mod2@epitech.eu" />
         </div>
@@ -142,9 +146,11 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Liste des électeurs</label>
-            <div className="h-16 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-primary-50 transition-colors cursor-pointer group mb-3 relative overflow-hidden">
+
+            {/* CSV Upload Button */}
+            <div className="h-16 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-primary-50 transition-colors cursor-pointer group mb-4 relative overflow-hidden">
               <DocumentArrowUpIcon className="w-6 h-6 text-slate-400 group-hover:text-primary-600 mb-1 transition-colors" />
-              <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600 transition-colors uppercase">CSV des votants</span>
+              <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600 transition-colors uppercase">Importer CSV / TXT</span>
               <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={e => {
                   const file = e.target.files[0]
@@ -154,17 +160,30 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
                       const emails = parseCSV(re.target.result)
                       const current = session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean)
                       const combined = [...new Set([...current, ...emails])]
-                      set('votersText', combined.join('\n'))
-                      set('voterCount', combined.length)
+                      onChange({
+                        ...session,
+                        votersText: combined.join('\n'),
+                        voterCount: combined.length
+                      })
                       toast.success(`${emails.length} électeurs importés`)
                     }
                     reader.readAsText(file)
                   }
                 }} />
             </div>
-            <textarea rows="2" value={session.votersText} onChange={e => set('votersText', e.target.value)}
-              placeholder="Emails séparés par virgules ou retours à la ligne..."
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-primary-500" />
+
+            <textarea rows="2" value={session.votersText}
+              onChange={e => {
+                const val = e.target.value;
+                const count = val.split(/[\n,;]/).map(s => s.trim()).filter(Boolean).length;
+                onChange({
+                  ...session,
+                  votersText: val,
+                  voterCount: count
+                });
+              }}
+              placeholder="Ou collez les emails manuellement ici..."
+              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-medium focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all placeholder:italic shadow-sm" />
           </div>
         </div>
       </Card>
@@ -264,7 +283,8 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
 // ─── CreateElectionForm ───────────────────────────────────────────────────────
 const CreateElectionForm = () => {
   const navigate = useNavigate()
-  const { addElection } = useElections()
+  const { id } = useParams()
+  const { elections, addElection } = useElections()
   const [loading, setLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('')
@@ -278,9 +298,43 @@ const CreateElectionForm = () => {
     timingMode: 'manual',
     startDate: '',
     endDate: '',
+    logoUrl: '',
     // ── Per vote session
     voteSessions: [makeSession()],
   })
+
+  useEffect(() => {
+    if (id && elections.length > 0) {
+      const el = elections.find(e => e.id === id)
+      if (el) {
+        setFormData({
+          title: el.title || '',
+          description: el.description || '',
+          scope: el.type || 'international',
+          country: el.country || '',
+          timingMode: el.timingMode || 'manual',
+          startDate: el.startDate ? new Date(el.startDate).toISOString().split('T')[0] : '',
+          endDate: el.endDate ? new Date(el.endDate).toISOString().split('T')[0] : '',
+          logoUrl: el.logoUrl || '',
+          voteSessions: el.sessions?.map(s => ({
+            id: s.address || Math.random(),
+            title: s.title || '',
+            description: s.description || '',
+            moderatorsText: (s.moderators || []).map(m => typeof m === 'string' ? m : m.email).join('\n'),
+            voterCount: s.voters?.length || s.voterCount || 0,
+            votersText: (s.voters || []).join('\n'),
+            parts: (s.options || []).map(o => ({
+              id: o.id || Math.random(),
+              title: o.title || '',
+              description: o.description || '',
+              imageUrl: o.imageUrl || '',
+              members: o.members || []
+            }))
+          })) || [makeSession()]
+        })
+      }
+    }
+  }, [id, elections])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -406,6 +460,39 @@ const CreateElectionForm = () => {
                   <input type="text" name="title" required value={formData.title} onChange={handleChange}
                     className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
                     placeholder="Ex: Élections BDE 2024" />
+                </div>
+                <div className="flex items-end gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Logo du Scrutin (Optionnel)</label>
+                    <div className="relative group">
+                      <div className="h-24 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden group-hover:bg-slate-100 transition-all cursor-pointer">
+                        {formData.logoUrl ? (
+                          <div className="relative w-full h-full">
+                            <img src={formData.logoUrl} alt="Logo Scrutin" className="w-full h-full object-contain" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <CameraIcon className="w-8 h-8 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            <CameraIcon className="w-6 h-6 text-slate-300" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Choisir une image</span>
+                          </div>
+                        )}
+                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*"
+                          onChange={e => readPhoto(e.target.files[0], v => setFormData(p => ({ ...p, logoUrl: v })))} />
+                      </div>
+                      {formData.logoUrl && (
+                        <button type="button" onClick={() => setFormData(p => ({ ...p, logoUrl: '' }))}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg hover:bg-red-600 transition-colors">
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-400 font-medium pb-1 flex-1">
+                    Cet emblème apparaîtra sur les portails de vote et les rapports officiels.
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Description</label>
