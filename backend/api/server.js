@@ -6,12 +6,12 @@ import { fileURLToPath } from 'url';
 import morgan from 'morgan';
 import 'dotenv/config';
 
+import * as BlockchainService from './services/blockchain.js';
 import scrutinRoutes from './routes/scrutins.js';
 import voteRoutes from './routes/votes.js';
 import moderatorRoutes from './routes/moderators.js';
 import authRoutes from './routes/auth.js';
 import requestVoteRoutes from './routes/request-votes.js';
-import { provider } from './services/blockchain.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,10 +72,11 @@ app.get('/health', async (req, res) => {
     };
 
     try {
-        const net = await provider.getNetwork().catch(() => null);
+        const net = await BlockchainService.provider.getNetwork().catch(() => null);
         diagnostics.blockchain = net ? { name: net.name, chainId: net.chainId.toString() } : 'disconnected';
     } catch (e) {
         diagnostics.blockchain = 'error: ' + e.message;
+        console.error('[HEALTH] Blockchain check failed:', e);
     }
 
     res.json(diagnostics);
