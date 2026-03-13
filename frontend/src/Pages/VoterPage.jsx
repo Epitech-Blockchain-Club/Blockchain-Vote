@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
+import { API_URL } from '../api';
 
 const VoterPage = () => {
     const navigate = useNavigate();
@@ -27,7 +28,7 @@ const VoterPage = () => {
         setEmail(userEmail);
         setSearching(true);
         try {
-            const res = await fetch(`http://localhost:3001/api/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
+            const res = await fetch(`${API_URL}/api/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
             const result = await res.json();
             if (result.success) {
                 // Backend already returns ONLY scrutins with at least one

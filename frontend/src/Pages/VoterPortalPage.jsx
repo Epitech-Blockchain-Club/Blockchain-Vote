@@ -9,14 +9,17 @@ import toast from 'react-hot-toast';
 const VoterPortalPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, loginWithGoogle } = useAuth();
-    const { getElectionById } = useElections();
+    const { user, loginWithGoogle, loginWithOffice365 } = useAuth();
+    const { getElectionById, loading: globalLoading } = useElections();
     const [election, setElection] = useState(null);
     const [authorizedSessions, setAuthorizedSessions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const checkAccess = async () => {
+            // Wait for both user auth to be determined AND global election data to load
+            if (globalLoading) return;
+
             if (!user) {
                 setLoading(false);
                 return;
@@ -24,6 +27,7 @@ const VoterPortalPage = () => {
 
             const el = await getElectionById(id);
             if (!el) {
+                // If context is loaded and scrutin is still not found
                 toast.error("Scrutin introuvable.");
                 navigate('/');
                 return;
@@ -60,7 +64,7 @@ const VoterPortalPage = () => {
         };
 
         checkAccess();
-    }, [id, user, getElectionById, navigate]);
+    }, [id, user, getElectionById, navigate, globalLoading]);
 
     if (loading) return <div className="py-20 text-center font-black animate-pulse">Vérification des accès...</div>;
 
@@ -68,8 +72,17 @@ const VoterPortalPage = () => {
         return (
             <div className="max-w-md mx-auto py-20 px-4 text-center">
                 <h2 className="text-3xl font-black mb-6">Authentification Requise</h2>
-                <p className="text-slate-500 mb-8">Veuillez vous connecter avec votre compte institutionnel pour accéder à ce vote.</p>
-                <Button onClick={loginWithGoogle} className="w-full h-14 rounded-2xl">Se connecter avec Google / Office</Button>
+                <p className="text-slate-500 mb-10">Veuillez vous connecter avec votre compte institutionnel pour accéder directement à ce scrutin.</p>
+                <div className="space-y-4">
+                    <Button onClick={() => loginWithGoogle(id)} className="w-full h-14 rounded-2xl flex items-center justify-center gap-3">
+                        <img src="https://www.google.com/favicon.ico" className="w-5 h-5 shadow-sm" alt="Google" />
+                        Se connecter avec Google
+                    </Button>
+                    <Button onClick={() => loginWithOffice365(id)} className="w-full h-14 rounded-2xl bg-[#2563EB] hover:bg-blue-700 flex items-center justify-center gap-3 shadow-lg shadow-blue-500/10">
+                        <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="Microsoft" />
+                        Se connecter avec Office 365
+                    </Button>
+                </div>
             </div>
         );
     }

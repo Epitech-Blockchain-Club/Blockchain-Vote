@@ -219,13 +219,34 @@ router.get('/', async (req, res) => {
                 console.log(`[API] Found ${sessionAddrs.length} sessions for scrutin ${addr}`);
 
                 sessions = await Promise.all(sessionAddrs.map(async (sAddr, idx) => {
-                    const sContract = getVoteSessionContract(sAddr);
-                    const [isValidated, isInvalidated, invalidationReason] = await Promise.all([
-                        sContract.isValidated(),
-                        sContract.isInvalidated(),
-                        sContract.invalidationReason()
-                    ]);
-                    const sessionMetadata = metadata.sessions ? metadata.sessions[idx] : {};
+                    const sessionMetadata = (metadata.sessions && metadata.sessions[idx]) ? metadata.sessions[idx] : {};
+                    // Performance optimization: Only check blockchain if not already validated in storage
+                    let isValidated = sessionMetadata.isValidated;
+                    let isInvalidated = sessionMetadata.isInvalidated;
+                    let invalidationReason = sessionMetadata.invalidationReason;
+
+                    if (!isValidated && !isInvalidated) {
+                        try {
+                            const sContract = getVoteSessionContract(sAddr);
+                            [isValidated, isInvalidated, invalidationReason] = await Promise.all([
+                                sContract.isValidated(),
+                                sContract.isInvalidated(),
+                                sContract.invalidationReason()
+                            ]);
+
+                            // Update metadata with blockchain status
+                            if (isValidated || isInvalidated) {
+                                if (metadata.sessions && metadata.sessions[idx]) {
+                                    metadata.sessions[idx].isValidated = isValidated;
+                                    metadata.sessions[idx].isInvalidated = isInvalidated;
+                                    metadata.sessions[idx].invalidationReason = invalidationReason;
+                                    storage.saveScrutin(addr, metadata);
+                                }
+                            }
+                        } catch (sErr) {
+                            console.warn(`[API] Error checking status for session ${sAddr}: ${sErr.message}`);
+                        }
+                    }
 
                     // Self-healing: Update storage if address is missing
                     if (metadata.sessions && metadata.sessions[idx] && !metadata.sessions[idx].address) {
@@ -264,40 +285,45 @@ router.get('/', async (req, res) => {
                 }));
             } catch (e) {
                 console.warn(`[API] Could not fetch sessions for ${addr}: ${e.message}`);
-                // Fallback to metadata but we won't have the real addresses here
+                // Fallback to metadata
                 sessions = (metadata.sessions || []).map(s => ({ ...s, address: 'unknown' }));
             }
 
-            // Aggregate votes for all sessions
+            // Aggregate votes and prepare time series
             const aggregatedVotes = {};
-            const timeSeriesMap = {}; // Key: HH:mm, Value: count
+            const timeSeriesArray = [];
 
             sessions.forEach(s => {
                 if (!s.address || s.address === 'unknown') return;
 
                 const sessionVotes = storage.getVotesLog(s.address);
                 sessionVotes.forEach(v => {
-                    aggregatedVotes[v.optionIndex] = (aggregatedVotes[v.optionIndex] || 0) + 1;
+                    const optionIdx = v.optionIndex;
+                    aggregatedVotes[optionIdx] = (aggregatedVotes[optionIdx] || 0) + 1;
 
                     const time = new Date(v.timestamp);
                     const timeKey = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-                    timeSeriesMap[timeKey] = (timeSeriesMap[timeKey] || 0) + 1;
+
+                    timeSeriesArray.push({
+                        time: timeKey,
+                        timestamp: v.timestamp,
+                        optionIndex: optionIdx,
+                        sessionId: s.address
+                    });
                 });
             });
 
-            console.log(`[API] Scrutin ${addr} aggregated votes:`, aggregatedVotes);
-
-            // Convert timeSeriesMap to array sorted by time
-            const timeSeries = Object.entries(timeSeriesMap)
-                .map(([time, votes]) => ({ time, votes }))
-                .sort((a, b) => a.time.localeCompare(b.time));
+            // Convert to sorted array
+            const timeSeries = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
             return {
                 address: addr,
                 ...metadata,
                 sessions,
                 votes: aggregatedVotes,
-                timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }]
+                votedCount: storage.getVotersForScrutin(addr).length,
+                timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
+                voters: metadata.voters || []
             };
         }));
 

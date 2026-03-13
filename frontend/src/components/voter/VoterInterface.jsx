@@ -5,16 +5,23 @@ import { motion } from 'framer-motion';
 import {
     CheckBadgeIcon,
     InformationCircleIcon,
-    ArrowPathIcon
+    ArrowPathIcon,
+    UserGroupIcon,
+    UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
 import Button from '../common/Button';
+import { API_URL } from '../../api';
 
 const VoterInterface = ({ election, authorizedSessions, user }) => {
     const navigate = useNavigate();
     const [selections, setSelections] = useState({}); // { [sessionAddress]: optionIndex }
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isVoted, setIsVoted] = useState(false);
+
+    if (!election || election === 'unauthorized') {
+        return <div className="py-20 text-center font-black animate-pulse text-slate-400">Initialisation de l'interface de vote...</div>;
+    }
 
     const totalSessions = authorizedSessions.length;
     const completedSessions = Object.keys(selections).length;
@@ -30,7 +37,7 @@ const VoterInterface = ({ election, authorizedSessions, user }) => {
         try {
             // election.id is the scrutin address (set in ElectionContext: id: scrutin.address)
             const scrutinAddr = election.id || election.address;
-            const res = await fetch(`http://localhost:3001/api/scrutins/${scrutinAddr}/vote`, {
+            const res = await fetch(`${API_URL}/api/scrutins/${scrutinAddr}/vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -186,8 +193,47 @@ const VoterInterface = ({ election, authorizedSessions, user }) => {
                                     <h3 className={`text-lg font-black mb-1 ${selections[session.address] === oIdx ? 'text-primary-700' : 'text-slate-900'}`}>
                                         {option.title}
                                     </h3>
+
+                                    {/* Hover Details Overlay */}
+                                    <div className="absolute inset-0 z-10 bg-white/95 backdrop-blur-md rounded-[32px] p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col pointer-events-none">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="p-2 bg-primary-100 rounded-lg">
+                                                <UserGroupIcon className="w-4 h-4 text-primary-600" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Détails de la liste</span>
+                                        </div>
+
+                                        {option.description ? (
+                                            <p className="text-xs text-slate-600 font-medium leading-relaxed mb-6 line-clamp-4 italic border-l-2 border-primary-200 pl-3">
+                                                "{option.description}"
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-slate-400 font-medium mb-6 italic">Aucune description disponible.</p>
+                                        )}
+
+                                        {option.members && option.members.length > 0 && (
+                                            <div className="mt-auto">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">Membres de la liste</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {option.members.map((member, mi) => (
+                                                        <div key={mi} className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-w-0">
+                                                            <div className="w-5 h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                                {member.photoUrl ? (
+                                                                    <img src={member.photoUrl} alt="" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <UserCircleIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-700 truncate">{member.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {option.description && (
-                                        <p className="text-xs text-slate-400 font-medium mb-2">{option.description}</p>
+                                        <p className="text-xs text-slate-400 font-medium mb-2 line-clamp-2">{option.description}</p>
                                     )}
                                     <div className="mt-auto pt-4">
                                         <div className={`w-full py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest text-center transition-all

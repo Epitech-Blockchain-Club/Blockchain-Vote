@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 import { useAuth } from './AuthContext'
+import { API_URL } from '../api'
 
 const ElectionContext = createContext()
 
@@ -18,7 +19,7 @@ export function ElectionProvider({ children }) {
     console.log('🏁 [CONTEXT] fetchElections triggered');
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3001/api/scrutins')
+      const res = await fetch(`${API_URL}/api/scrutins`)
       const result = await res.json()
       if (result.success) {
         // Map backend scrutin to frontend election model
@@ -28,17 +29,18 @@ export function ElectionProvider({ children }) {
 
           return {
             id: scrutin.address,
-            title: scrutin.title,
-            description: scrutin.description,
+            title: scrutin.title || 'Sans titre',
+            description: scrutin.description || '',
             type: scrutin.scope || 'local',
             country: scrutin.country,
-            startDate: scrutin.startDate || scrutin.createdAt,
-            endDate: scrutin.endDate || new Date(new Date(scrutin.createdAt).getTime() + 86400000 * 7).toISOString(),
+            startDate: scrutin.startDate || scrutin.createdAt || new Date().toISOString(),
+            endDate: scrutin.endDate || new Date(new Date(scrutin.createdAt || Date.now()).getTime() + 86400000 * 7).toISOString(),
             sessions: sessions,
             votes: scrutin.votes || {},
+            votedCount: scrutin.votedCount || 0,
             timeSeries: scrutin.timeSeries || [],
             voters: scrutin.voters || [], // Global voters
-            voterCount: sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0) || (scrutin.voters?.length || 0),
+            voterCount: scrutin.voters?.length || sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0),
             status: allValidated ? 'active' : 'pending_validation',
             // A scrutin is only invalidated when ALL its sessions are invalidated
             isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated)
@@ -56,7 +58,7 @@ export function ElectionProvider({ children }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/users')
+      const res = await fetch(`${API_URL}/api/auth/users`)
       const result = await res.json()
       if (result.success) setUsers(result.data)
     } catch (err) { console.error(err) }
@@ -64,7 +66,7 @@ export function ElectionProvider({ children }) {
 
   const fetchOrganizations = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/organizations')
+      const res = await fetch(`${API_URL}/api/auth/organizations`)
       const result = await res.json()
       if (result.success) setOrganizations(result.data)
     } catch (err) { console.error(err) }
@@ -78,17 +80,17 @@ export function ElectionProvider({ children }) {
     }
     init()
 
-    // Auto-refresh every 15 seconds to pick up blockchain state changes
-    // (session validation, invalidation)
+    // Auto-refresh every 45 seconds to pick up blockchain state changes
+    // (session validation, invalidation) - Increased to reduce server load
     const interval = setInterval(() => {
-      fetchElections()
-    }, 15000)
+      if (!loading) fetchElections()
+    }, 45000)
     return () => clearInterval(interval)
   }, [])
 
   const getResults = async (address) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/scrutins/${address}/results`)
+      const res = await fetch(`${API_URL}/api/scrutins/${address}/results`)
       const result = await res.json()
       if (result.success) return result.data
       throw new Error(result.error)
@@ -100,7 +102,7 @@ export function ElectionProvider({ children }) {
 
   const castVote = async ({ electionId, candidateId, email, country }) => {
     try {
-      const res = await fetch('http://localhost:3001/api/votes/cast', {
+      const res = await fetch(`${API_URL}/api/votes/cast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +127,7 @@ export function ElectionProvider({ children }) {
 
   const addElection = async (newElection) => {
     try {
-      const res = await fetch('http://localhost:3001/api/scrutins', {
+      const res = await fetch(`${API_URL}/api/scrutins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +185,7 @@ export function ElectionProvider({ children }) {
 
   const addUser = async (userData) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/register', {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -203,7 +205,7 @@ export function ElectionProvider({ children }) {
 
   const assignAdminToOrg = async (orgId, adminEmail) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/organizations/assign', {
+      const res = await fetch(`${API_URL}/api/auth/organizations/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orgId, adminEmail })
@@ -221,7 +223,7 @@ export function ElectionProvider({ children }) {
   const createOrganization = async (orgData) => {
     try {
       // Assuming API_URL is defined elsewhere or using direct URL
-      const res = await fetch('http://localhost:3001/api/auth/organizations', {
+      const res = await fetch(`${API_URL}/api/auth/organizations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orgData)

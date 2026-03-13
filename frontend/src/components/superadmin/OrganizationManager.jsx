@@ -15,6 +15,7 @@ import {
     TrashIcon,
 } from '@heroicons/react/24/outline'
 import { useElections } from '../../contexts/ElectionContext'
+import { API_URL } from '../../api'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 
@@ -144,7 +145,7 @@ const OrgDetail = ({ org, elections, users, onBack }) => {
         setIsSubmitting(true)
         const password = generatePassword()
         try {
-            const res = await fetch('http://localhost:3001/api/auth/add-admin-to-org', {
+            const res = await fetch(`${API_URL}/api/auth/add-admin-to-org`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

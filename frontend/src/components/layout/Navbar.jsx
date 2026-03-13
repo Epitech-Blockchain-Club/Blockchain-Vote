@@ -14,6 +14,7 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline'
 import { ROUTES } from '../../constants/routes'
+import { API_URL } from '../../api'
 import epitechLogo from '../../assets/epitech-logo.png'
 import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -34,7 +35,7 @@ const Navbar = () => {
     if (!user || user.role !== 'admin') return
     const fetchNotifs = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/moderators/notifications')
+        const res = await fetch(`${API_URL}/api/moderators/notifications`)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }

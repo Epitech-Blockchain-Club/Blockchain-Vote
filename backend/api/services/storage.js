@@ -180,6 +180,16 @@ export const storage = {
         const key = `${email.toLowerCase()}:${scrutinId.toLowerCase()}`;
         return voterRecords.get(key);
     },
+    getVotersForScrutin: (scrutinId) => {
+        const sid = scrutinId.toLowerCase();
+        const results = [];
+        for (const [key, value] of voterRecords.entries()) {
+            if (key.endsWith(`:${sid}`)) {
+                results.push(key.split(':')[0]);
+            }
+        }
+        return results;
+    },
     // --- Vote Requests ---
     saveVoteRequest: (request) => {
         const newRequest = {

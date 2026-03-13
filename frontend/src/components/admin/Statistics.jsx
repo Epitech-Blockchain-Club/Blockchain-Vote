@@ -5,7 +5,7 @@ import { useElections } from '../../contexts/ElectionContext'
 import Card from '../common/Card'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area
+  PieChart, Pie, Cell, ResponsiveContainer, ScatterChart, Scatter, ZAxis
 } from 'recharts'
 import {
   ChevronDownIcon,
@@ -17,6 +17,8 @@ import {
   CheckBadgeIcon,
   ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline'
+
+const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#64748b']
 
 const Statistics = () => {
   const { elections } = useElections()
@@ -31,30 +33,26 @@ const Statistics = () => {
   const currentSession = sessions[selectedSession] || sessions[0]
   const candidates = currentSession?.candidates || currentSession?.options || []
 
-  // Statistiques globales
-  const globalStats = {
-    totalElections: elections.length,
-    totalSessions: elections.reduce((acc, e) => acc + (e.sessions ? e.sessions.length : 0), 0),
-    activeElections: elections.filter(e => {
-      const now = new Date()
-      return now >= new Date(e.startDate) && now <= new Date(e.endDate)
-    }).length,
-    totalVotes: elections.reduce((acc, e) => acc + Object.values(e.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0),
-    avgParticipation: elections.length > 0
-      ? (() => {
-        let totalPossibleVoters = 0;
-        let totalActualVotes = 0;
-        elections.forEach(e => {
-          totalPossibleVoters += e.voterCount || 0;
-          totalActualVotes += Object.values(e.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0);
-        });
-        return totalPossibleVoters > 0 ? ((totalActualVotes / totalPossibleVoters) * 100).toFixed(1) : 0;
-      })()
+  // Statistiques du scrutin sélectionné (si applicable)
+  const electionStats = election ? {
+    totalVotes: Object.values(election.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0),
+    voterCount: election.voterCount || 0,
+    participation: election.voterCount > 0
+      ? ((election.votedCount / election.voterCount) * 100).toFixed(1)
       : 0
-  }
+  } : null
 
-  // Time series data
-  const timeData = election?.timeSeries || [{ time: '00:00', votes: 0 }]
+  // Session-specific data
+  const currentSessionVotes = currentSession?.votes || {}
+
+  // Time series data filtered for selected session if needed
+  const timeData = election?.timeSeries?.map(pt => ({
+    ...pt,
+    // Add a Y value for scatter plot (let's use (index of the session * small offset) + candidate index for separation)
+    y: (election.sessions.findIndex(s => s.address === pt.sessionId) * 0.2) + pt.optionIndex + 1,
+    // Add the color based on optionIndex
+    color: COLORS[pt.optionIndex % COLORS.length]
+  })) || []
 
   // LOGS FOR REPORT PAGE
   React.useEffect(() => {
@@ -62,11 +60,10 @@ const Statistics = () => {
       console.log('📊 [STATS] Election Selected:', election.title);
       console.log('🗳️ [STATS] Aggregated Votes:', election.votes);
       console.log('📈 [STATS] Time Series Data:', timeData);
-      console.log('👥 [STATS] Participation Tally:', globalStats);
+      console.log('👥 [STATS] Participation Stats:', electionStats);
     }
-  }, [selectedElection, election]);
+  }, [selectedElection, election, electionStats, timeData]);
 
-  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#64748b']
 
   const togglePart = (id) => {
     setExpandedPart(expandedPart === id ? null : id)
@@ -102,10 +99,14 @@ const Statistics = () => {
         {/* Quick Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           {[
-            { label: 'Scrutins', value: globalStats.totalElections, icon: CheckBadgeIcon, color: 'text-primary-600', bg: 'bg-primary-50' },
-            { label: 'Votes Scellés', value: globalStats.totalVotes, icon: UserGroupIcon, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Sessions Actives', value: globalStats.activeElections, icon: ClockIcon, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Participation Moy.', value: `${globalStats.avgParticipation}%`, icon: TrophyIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' }
+            { label: 'Scrutins', value: elections.length, icon: CheckBadgeIcon, color: 'text-primary-600', bg: 'bg-primary-50' },
+            { label: 'Votes Scellés', value: election ? electionStats.totalVotes : elections.reduce((acc, e) => acc + Object.values(e.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0), 0), icon: UserGroupIcon, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            {
+              label: 'Sessions Actives', value: elections.filter(e => {
+                const now = new Date(); return now >= new Date(e.startDate) && now <= new Date(e.endDate)
+              }).length, icon: ClockIcon, color: 'text-amber-600', bg: 'bg-amber-50'
+            },
+            { label: 'Résumé Global', value: election ? `${electionStats.participation}%` : '---', icon: TrophyIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' }
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -163,29 +164,39 @@ const Statistics = () => {
 
               <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={timeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
+                  <ScatterChart margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                     <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={10} fontWeight="900" axisLine={false} tickLine={false} />
+                    <YAxis dataKey="y" domain={[0, 6]} hide />
+                    <ZAxis type="number" range={[100, 400]} />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(10px)',
-                        borderRadius: '24px',
-                        border: '1px solid rgba(255, 255, 255, 0.4)',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)',
-                        padding: '16px'
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const cand = candidates[data.optionIndex];
+                          return (
+                            <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-white/50 text-slate-900 border">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{data.time}</p>
+                              <p className="font-black text-sm mb-1">{cand?.name || cand?.title || `Option ${data.optionIndex + 1}`}</p>
+                              <p className="text-[10px] font-bold text-primary-600 uppercase">Vote enregistré</p>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
-                      itemStyle={{ color: '#0f172a', fontWeight: '900', fontSize: '14px' }}
                     />
-                    <Area type="monotone" dataKey="votes" stroke="#10b981" strokeWidth={5} fillOpacity={1} fill="url(#colorVotes)" />
-                  </AreaChart>
+                    {candidates.map((c, idx) => (
+                      <Scatter
+                        key={idx}
+                        name={c.name || c.title}
+                        data={timeData.filter(d => d.optionIndex === idx)}
+                        fill={COLORS[idx % COLORS.length]}
+                        line={false}
+                        shape="circle"
+                      />
+                    ))}
+                  </ScatterChart>
                 </ResponsiveContainer>
               </div>
             </Card>
@@ -202,11 +213,11 @@ const Statistics = () => {
                 <div className="space-y-4">
                   {candidates.map((c, i) => ({ ...c, originalIndex: i }))
                     .sort((a, b) => {
-                      return (election.votes?.[b.originalIndex] || 0) - (election.votes?.[a.originalIndex] || 0)
+                      return (currentSessionVotes[b.originalIndex] || 0) - (currentSessionVotes[a.originalIndex] || 0)
                     }).map((candidate, rank) => {
                       const cId = candidate.originalIndex;
-                      const voteCount = election.votes?.[cId] || 0
-                      const totalVotesCast = Object.values(election.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
+                      const voteCount = currentSessionVotes[cId] || 0
+                      const totalVotesCast = Object.values(currentSessionVotes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
                       const percentage = totalVotesCast > 0 ? ((voteCount / totalVotesCast) * 100).toFixed(1) : 0
                       const isExpanded = expandedPart === cId
 
@@ -294,11 +305,11 @@ const Statistics = () => {
                       <Pie
                         data={candidates.map((c, i) => {
                           const cId = c.id !== undefined ? c.id : i;
-                          return { name: c.name || c.title, value: election?.votes?.[cId] || 0 };
+                          return { name: c.name || c.title, value: currentSessionVotes[cId] || 0 };
                         }).filter(d => d.value > 0).length > 0
                           ? candidates.map((c, i) => {
                             const cId = c.id !== undefined ? c.id : i;
-                            return { name: c.name || c.title, value: election?.votes?.[cId] || 0 };
+                            return { name: c.name || c.title, value: currentSessionVotes[cId] || 0 };
                           }).filter(d => d.value > 0)
                           : [{ name: 'Aucun vote', value: 1 }]}
                         cx="50%"
@@ -320,8 +331,8 @@ const Statistics = () => {
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-3xl font-black text-white">{Object.values(election?.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)}</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Votes Scellés</span>
+                    <span className="text-3xl font-black text-white">{Object.values(currentSessionVotes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Votes Scellés (Session)</span>
                   </div>
                 </div>
 
@@ -334,7 +345,7 @@ const Statistics = () => {
                           <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
                           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{c.name || c.title}</span>
                         </div>
-                        <span className="text-xs font-black text-white">{election.votes?.[cId] || 0} v.</span>
+                        <span className="text-xs font-black text-white">{currentSessionVotes[cId] || 0} v.</span>
                       </div>
                     );
                   }) : (

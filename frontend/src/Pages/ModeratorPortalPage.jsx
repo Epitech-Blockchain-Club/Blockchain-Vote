@@ -13,6 +13,9 @@ import {
     ChevronUpIcon,
     ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
+import { useElections } from '../contexts/ElectionContext';
+import Button from '../components/common/Button';
+import { API_URL } from '../api';
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -69,32 +72,36 @@ const ModeratorPortalPage = () => {
                 }
 
                 // 2. Fetch Scrutin data
-                const res = await fetch(`http://localhost:3001/api/scrutins`)
-                const result = await res.json()
-                if (result.success) {
-                    const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
-                    if (found) {
-                        setScrutin(found)
-                        const initialDecisions = {}
-                        const initialExpanded = {}
-                        found.sessions.forEach(s => {
-                            initialDecisions[s.address] = { status: 'pending', reason: '' }
-                            initialExpanded[s.address] = true
-                        })
-                        setDecisions(initialDecisions)
-                        setExpandedSessions(initialExpanded)
-                    } else {
-                        toast.error("Scrutin introuvable")
+                try {
+                    const res = await fetch(`${API_URL}/api/moderators/verify?token=${token}`);
+                    const result = await res.json();
+                    if (result.success) {
+                        const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
+                        if (found) {
+                            setScrutin(found)
+                            const initialDecisions = {}
+                            const initialExpanded = {}
+                            found.sessions.forEach(s => {
+                                initialDecisions[s.address] = { status: 'pending', reason: '' }
+                                initialExpanded[s.address] = true
+                            })
+                            setDecisions(initialDecisions)
+                            setExpandedSessions(initialExpanded)
+                        } else {
+                            toast.error("Scrutin introuvable")
+                        }
                     }
+                } catch (err) {
+                    toast.error("Erreur de chargement")
                 }
             } catch (err) {
-                toast.error("Erreur de chargement")
+                console.error("Init error:", err);
             } finally {
                 setLoading(false)
             }
-        }
-        init()
-    }, [id, loginWithToken, user])
+        };
+        init();
+    }, [id, loginWithToken, user]);
 
     const sessionsToShow = scrutin
         ? (sessionId ? scrutin.sessions.filter(s => s.address === sessionId) : scrutin.sessions)
@@ -166,35 +173,33 @@ const ModeratorPortalPage = () => {
                 reason: dec.reason
             }));
 
-            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    decisions: batchDecisions,
-                    token: token
-                })
-            });
+            try {
+                const res = await fetch(`${API_URL}/api/moderators/authorize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        decisions: batchDecisions,
+                        token: token
+                    })
+                });
 
-            const result = await res.json();
-            if (!result.success) {
-                throw new Error(result.error || "Une erreur est survenue lors du scellage.");
+                const result = await res.json();
+                if (!result.success) {
+                    throw new Error(result.error || "Une erreur est survenue lors du scellage.");
+                }
+
+                toast.success("Toutes les décisions ont été scellées !", { id: toastId })
+                setIsSubmitted(true)
+            } catch (err) {
+                toast.error(err.message, { id: toastId })
+            } finally {
+                setIsSubmittingAll(false)
             }
-
-            // Check if any specific session failed in the batch
-            const failures = (result.results || []).filter(r => !r.success);
-            if (failures.length > 0) {
-                console.warn("Certaines sessions n'ont pas pu être traitées:", failures);
-                toast.error(`${failures.length} session(s) en échec.`);
-            }
-
-            toast.success("Toutes les décisions ont été scellées !", { id: toastId })
-            setIsSubmitted(true)
         } catch (err) {
-            toast.error(err.message, { id: toastId })
-        } finally {
-            setIsSubmittingAll(false)
+            toast.error("Erreur de soumission", { id: toastId });
+            setIsSubmittingAll(false);
         }
-    }
+    };
 
     const downloadVotersList = (voters, sessionTitle) => {
         if (!voters || voters.length === 0) return;
@@ -218,7 +223,7 @@ const ModeratorPortalPage = () => {
 
         try {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
-            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
+            const configRes = await fetch(`${API_URL}/api/auth/oauth-config`);
             const config = await configRes.json();
             toast.dismiss('oauth-init');
 

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import morgan from 'morgan';
 import 'dotenv/config';
 
@@ -10,8 +12,27 @@ import moderatorRoutes from './routes/moderators.js';
 import authRoutes from './routes/auth.js';
 import requestVoteRoutes from './routes/request-votes.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Anti-sleep mechanism (Self-ping every 10 minutes)
+const pinger = () => {
+    const url = process.env.RENDER_EXTERNAL_URL;
+    if (url) {
+        console.log(`[PINGER] Self-pinging ${url}/health...`);
+        fetch(`${url}/health`)
+            .then(res => res.json())
+            .then(data => console.log(`[PINGER] Success: ${data.status}`))
+            .catch(err => console.error(`[PINGER] Failed: ${err.message}`));
+    }
+};
+
+if (process.env.NODE_ENV === 'production') {
+    setInterval(pinger, 10 * 60 * 1000); // 10 minutes
+}
 
 app.use(helmet());
 app.use(cors());
@@ -31,8 +52,17 @@ app.use('/api/moderators', moderatorRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/request-vote', requestVoteRoutes);
 
+// Static files (Frontend)
+const buildPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(buildPath));
+
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Catch-all for React Router
+app.get('*', (req, res) => {
+    res.sendFile(path.join(buildPath, 'index.html'));
 });
 
 app.listen(PORT, () => {
