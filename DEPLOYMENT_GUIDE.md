@@ -83,3 +83,5 @@ Check your Render logs to confirm this is firing every 10 minutes.
 
 ---
 Built with ❤️ by Epitech Blockchain Club.
+
+
