@@ -21,7 +21,16 @@ const ScrutinFactoryABI = loadABI('ScrutinFactory');
 const ScrutinABI = loadABI('Scrutin');
 const VoteSessionABI = loadABI('VoteSession');
 
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:1337');
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:1337', undefined, {
+    staticNetwork: true
+});
+
+// Add timeout to provider calls
+provider.on("debug", (info) => {
+    if (info.action === "request") {
+        info.request.timeout = 10000; // 10 seconds
+    }
+});
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
 let currentNonce = -1;

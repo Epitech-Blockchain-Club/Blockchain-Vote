@@ -56,8 +56,28 @@ app.use('/api/request-vote', requestVoteRoutes);
 const buildPath = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(buildPath));
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+    const diagnostics = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        env: {
+            NODE_ENV: process.env.NODE_ENV,
+            HAS_RPC_URL: !!process.env.RPC_URL,
+            HAS_PRIVATE_KEY: !!process.env.PRIVATE_KEY,
+            HAS_FACTORY_ADDRESS: !!process.env.FACTORY_ADDRESS,
+            EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL
+        },
+        blockchain: 'checking...'
+    };
+
+    try {
+        const net = await provider.getNetwork().catch(() => null);
+        diagnostics.blockchain = net ? { name: net.name, chainId: net.chainId.toString() } : 'disconnected';
+    } catch (e) {
+        diagnostics.blockchain = 'error: ' + e.message;
+    }
+
+    res.json(diagnostics);
 });
 
 // Catch-all for React Router
