@@ -11,6 +11,7 @@ import voteRoutes from './routes/votes.js';
 import moderatorRoutes from './routes/moderators.js';
 import authRoutes from './routes/auth.js';
 import requestVoteRoutes from './routes/request-votes.js';
+import { provider } from './services/blockchain.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
