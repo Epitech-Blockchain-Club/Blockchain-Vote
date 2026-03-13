@@ -5,7 +5,7 @@
   "scripts": {
     "start": "NODE_ENV=production node api/server.js",
     "dev": "node --watch api/server.js",
-    "build": "cd ../frontend && npm install && npm run build && cd ../backend && npm install",
+    "build": "cd ../frontend && npm install --include=dev && npm run build && cd ../backend && npm install",
     "test": "npx hardhat test"
   },
   "keywords": [],
