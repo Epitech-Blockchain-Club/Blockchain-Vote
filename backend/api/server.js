@@ -92,7 +92,12 @@ app.get('/health', async (req, res) => {
                 else resolve('ready');
             });
         });
-        diagnostics.smtp = smtpTest;
+        diagnostics.smtp = {
+            status: smtpTest,
+            port: transporter.options.port,
+            secure: transporter.options.secure,
+            host: transporter.options.host
+        };
     } catch (e) {
         diagnostics.smtp = 'error: ' + e.message;
     }
