@@ -85,7 +85,7 @@ app.get('/health', async (req, res) => {
     // 2. Check SMTP (live connection test)
     try {
         const smtpTest = await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve('timeout'), 5000);
+            const timeout = setTimeout(() => resolve('timeout'), 10000);
             transporter.verify((error) => {
                 clearTimeout(timeout);
                 if (error) resolve('error: ' + error.message);
