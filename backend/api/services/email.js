@@ -5,12 +5,20 @@ dotenv.config();
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
+    port: parseInt(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    // Fix for Render/Cloud environments: Force IPv4 and add timeouts
+    family: 4,
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000,    // 5 seconds
+    socketTimeout: 30000,     // 30 seconds
+    tls: {
+        rejectUnauthorized: false // Helps with some cloud proxy certificates
+    }
 });
 
 // Verify connection configuration
