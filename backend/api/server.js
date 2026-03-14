@@ -96,7 +96,8 @@ app.get('/health', async (req, res) => {
             status: smtpTest,
             port: transporter.options.port,
             secure: transporter.options.secure,
-            host: transporter.options.host
+            host: transporter.options.host,
+            user: process.env.SMTP_USER ? process.env.SMTP_USER.substring(0, 3) + '...' : 'none'
         };
     } catch (e) {
         diagnostics.smtp = 'error: ' + e.message;
