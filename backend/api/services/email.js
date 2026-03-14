@@ -11,13 +11,13 @@ export const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
-    // Fix for Render/Cloud environments: Force IPv4 and add timeouts
-    family: 4,
+    // Fix for Render/Cloud environments: increased timeouts
     connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 5000,    // 5 seconds
+    greetingTimeout: 10000,   // 10 seconds
     socketTimeout: 30000,     // 30 seconds
     tls: {
-        rejectUnauthorized: false // Helps with some cloud proxy certificates
+        // Many cloud providers work better with standard TLS settings on 465
+        rejectUnauthorized: true
     }
 });
 
