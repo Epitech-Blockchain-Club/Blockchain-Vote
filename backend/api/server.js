@@ -87,11 +87,13 @@ app.get('/health', async (req, res) => {
     // 2. Check SMTP (live connection test)
     try {
         const smtpTest = await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve('timeout'), 15000);
+            const timeout = setTimeout(() => resolve('timeout'), 20000);
             transporter.verify((error) => {
                 clearTimeout(timeout);
-                if (error) resolve('error: ' + error.message);
-                else resolve('ready');
+                if (error) {
+                    console.error('[HEALTH] SMTP Verify Error:', error);
+                    resolve('error: ' + error.message + ' (Code: ' + (error.code || 'unknown') + ')');
+                } else resolve('ready');
             });
         });
         diagnostics.smtp = {

@@ -11,6 +11,8 @@ export const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    debug: true, // Show SMTP traffic in logs
+    logger: true, // Use built-in logger
     // Fix for Render/Cloud environments: Force IPv4 to avoid ENETUNREACH on IPv6
     family: 4,
     connectionTimeout: 10000, // 10 seconds
