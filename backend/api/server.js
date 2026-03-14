@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import 'dotenv/config';
 
 import * as BlockchainService from './services/blockchain.js';
+import { transporter } from './services/email.js';
 import scrutinRoutes from './routes/scrutins.js';
 import voteRoutes from './routes/votes.js';
 import moderatorRoutes from './routes/moderators.js';
@@ -68,15 +69,32 @@ app.get('/health', async (req, res) => {
             HAS_FACTORY_ADDRESS: !!process.env.FACTORY_ADDRESS,
             EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL
         },
-        blockchain: 'checking...'
+        blockchain: 'checking...',
+        smtp: 'checking...'
     };
 
+    // 1. Check Blockchain
     try {
         const net = await BlockchainService.provider.getNetwork().catch(() => null);
         diagnostics.blockchain = net ? { name: net.name, chainId: net.chainId.toString() } : 'disconnected';
     } catch (e) {
         diagnostics.blockchain = 'error: ' + e.message;
         console.error('[HEALTH] Blockchain check failed:', e);
+    }
+
+    // 2. Check SMTP (live connection test)
+    try {
+        const smtpTest = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve('timeout'), 5000);
+            transporter.verify((error) => {
+                clearTimeout(timeout);
+                if (error) resolve('error: ' + error.message);
+                else resolve('ready');
+            });
+        });
+        diagnostics.smtp = smtpTest;
+    } catch (e) {
+        diagnostics.smtp = 'error: ' + e.message;
     }
 
     res.json(diagnostics);
