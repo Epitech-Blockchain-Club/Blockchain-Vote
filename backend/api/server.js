@@ -67,7 +67,9 @@ app.get('/health', async (req, res) => {
             HAS_RPC_URL: !!process.env.RPC_URL,
             HAS_PRIVATE_KEY: !!process.env.PRIVATE_KEY,
             HAS_FACTORY_ADDRESS: !!process.env.FACTORY_ADDRESS,
-            EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL
+            EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL,
+            SMTP_HOST_RAW: process.env.SMTP_HOST || 'MISSING',
+            SMTP_PORT_RAW: process.env.SMTP_PORT || 'MISSING'
         },
         blockchain: 'checking...',
         smtp: 'checking...'

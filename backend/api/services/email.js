@@ -11,7 +11,8 @@ export const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
-    // Fix for Render/Cloud environments: increased timeouts
+    // Fix for Render/Cloud environments: Force IPv4 to avoid ENETUNREACH on IPv6
+    family: 4,
     connectionTimeout: 10000, // 10 seconds
     greetingTimeout: 10000,   // 10 seconds
     socketTimeout: 30000,     // 30 seconds
