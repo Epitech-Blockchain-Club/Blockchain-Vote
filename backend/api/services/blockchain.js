@@ -21,32 +21,43 @@ const ScrutinFactoryABI = loadABI('ScrutinFactory');
 const ScrutinABI = loadABI('Scrutin');
 const VoteSessionABI = loadABI('VoteSession');
 
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:1337', undefined, {
-    staticNetwork: true
-});
-
-// Add timeout to provider calls
-provider.on("debug", (info) => {
-    if (info.action === "request") {
-        info.request.timeout = 10000; // 10 seconds
-    }
-});
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:1337');
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
 let currentNonce = -1;
+let noncePromise = null;
 
 export const getNextNonce = async () => {
-    if (currentNonce === -1) {
-        currentNonce = await wallet.getNonce();
-    } else {
-        currentNonce++;
+    // Use a lock to prevent concurrent calls from getting the same nonce
+    if (noncePromise) {
+        await noncePromise;
     }
-    return currentNonce;
+
+    let resolveNonce;
+    noncePromise = new Promise(resolve => {
+        resolveNonce = resolve;
+    });
+
+    try {
+        const networkNonce = await wallet.getNonce('pending');
+
+        if (currentNonce === -1 || networkNonce > currentNonce) {
+            currentNonce = networkNonce;
+        } else {
+            currentNonce++;
+        }
+
+        console.log(`[NONCE] Allocated nonce: ${currentNonce} (network: ${networkNonce})`);
+        return currentNonce;
+    } finally {
+        resolveNonce();
+        noncePromise = null;
+    }
 };
 
 export const resetNonce = async () => {
-    currentNonce = await wallet.getNonce();
-    return currentNonce;
+    currentNonce = -1;
+    return await getNextNonce();
 };
 
 export const getFactoryContract = (address) => {

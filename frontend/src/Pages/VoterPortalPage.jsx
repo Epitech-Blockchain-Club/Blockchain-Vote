@@ -9,17 +9,14 @@ import toast from 'react-hot-toast';
 const VoterPortalPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, loginWithGoogle, loginWithOffice365 } = useAuth();
-    const { getElectionById, loading: globalLoading } = useElections();
+    const { user, loginWithGoogle } = useAuth();
+    const { getElectionById } = useElections();
     const [election, setElection] = useState(null);
     const [authorizedSessions, setAuthorizedSessions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const checkAccess = async () => {
-            // Wait for both user auth to be determined AND global election data to load
-            if (globalLoading) return;
-
             if (!user) {
                 setLoading(false);
                 return;
@@ -27,34 +24,19 @@ const VoterPortalPage = () => {
 
             const el = await getElectionById(id);
             if (!el) {
-                // If context is loaded and scrutin is still not found
                 toast.error("Scrutin introuvable.");
                 navigate('/');
                 return;
             }
 
+            // Filter sessions where the user's email is present
             const userEmail = user.email.toLowerCase();
-
-            // CRITICAL: Only allow access to sessions that are:
-            // 1. Validated on-chain (100% moderator consensus reached)
-            // 2. NOT invalidated
-            // 3. Has the voter in the list
-            const allowed = (el.sessions || []).filter(s =>
-                s.isValidated === true &&
-                s.isInvalidated !== true &&
+            const allowed = el.sessions.filter(s => 
                 s.voters?.some(v => v.toLowerCase() === userEmail)
             );
 
             if (allowed.length === 0) {
-                // Check if user is in any session at all (to give better error)
-                const isInScrutin = (el.sessions || []).some(s =>
-                    s.voters?.some(v => v.toLowerCase() === userEmail)
-                );
-                if (isInScrutin) {
-                    toast.error("Aucune session validée disponible. Les modérateurs n'ont pas encore validé votre session.");
-                } else {
-                    toast.error("Vous n'êtes pas inscrit sur les listes électorales de ce scrutin.");
-                }
+                toast.error("Vous n'êtes autorisé à voter pour aucune session de ce scrutin.");
                 setElection('unauthorized');
             } else {
                 setElection(el);
@@ -64,7 +46,7 @@ const VoterPortalPage = () => {
         };
 
         checkAccess();
-    }, [id, user, getElectionById, navigate, globalLoading]);
+    }, [id, user, getElectionById, navigate]);
 
     if (loading) return <div className="py-20 text-center font-black animate-pulse">Vérification des accès...</div>;
 
@@ -72,17 +54,8 @@ const VoterPortalPage = () => {
         return (
             <div className="max-w-md mx-auto py-20 px-4 text-center">
                 <h2 className="text-3xl font-black mb-6">Authentification Requise</h2>
-                <p className="text-slate-500 mb-10">Veuillez vous connecter avec votre compte institutionnel pour accéder directement à ce scrutin.</p>
-                <div className="space-y-4">
-                    <Button onClick={() => loginWithGoogle(id)} className="w-full h-14 rounded-2xl flex items-center justify-center gap-3">
-                        <img src="https://www.google.com/favicon.ico" className="w-5 h-5 shadow-sm" alt="Google" />
-                        Se connecter avec Google
-                    </Button>
-                    <Button onClick={() => loginWithOffice365(id)} className="w-full h-14 rounded-2xl bg-[#2563EB] hover:bg-blue-700 flex items-center justify-center gap-3 shadow-lg shadow-blue-500/10">
-                        <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="Microsoft" />
-                        Se connecter avec Office 365
-                    </Button>
-                </div>
+                <p className="text-slate-500 mb-8">Veuillez vous connecter avec votre compte institutionnel pour accéder à ce vote.</p>
+                <Button onClick={loginWithGoogle} className="w-full h-14 rounded-2xl">Se connecter avec Google / Office</Button>
             </div>
         );
     }

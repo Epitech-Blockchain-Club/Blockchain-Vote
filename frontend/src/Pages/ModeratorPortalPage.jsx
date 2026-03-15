@@ -13,16 +13,13 @@ import {
     ChevronUpIcon,
     ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
-import { useElections } from '../contexts/ElectionContext';
-import Button from '../components/common/Button';
-import { API_URL } from '../api';
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const InfoRow = ({ label, value }) => (
     <div className="flex justify-between items-start py-3 border-b border-slate-100 last:border-0">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
         <span className="text-sm font-bold text-slate-700 text-right max-w-xs">{value}</span>
     </div>
 )
@@ -72,36 +69,32 @@ const ModeratorPortalPage = () => {
                 }
 
                 // 2. Fetch Scrutin data
-                try {
-                    const res = await fetch(`${API_URL}/api/moderators/verify?token=${token}`);
-                    const result = await res.json();
-                    if (result.success) {
-                        const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
-                        if (found) {
-                            setScrutin(found)
-                            const initialDecisions = {}
-                            const initialExpanded = {}
-                            found.sessions.forEach(s => {
-                                initialDecisions[s.address] = { status: 'pending', reason: '' }
-                                initialExpanded[s.address] = true
-                            })
-                            setDecisions(initialDecisions)
-                            setExpandedSessions(initialExpanded)
-                        } else {
-                            toast.error("Scrutin introuvable")
-                        }
+                const res = await fetch(`http://localhost:3001/api/scrutins`)
+                const result = await res.json()
+                if (result.success) {
+                    const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
+                    if (found) {
+                        setScrutin(found)
+                        const initialDecisions = {}
+                        const initialExpanded = {}
+                        found.sessions.forEach(s => {
+                            initialDecisions[s.address] = { status: 'pending', reason: '' }
+                            initialExpanded[s.address] = true
+                        })
+                        setDecisions(initialDecisions)
+                        setExpandedSessions(initialExpanded)
+                    } else {
+                        toast.error("Scrutin introuvable")
                     }
-                } catch (err) {
-                    toast.error("Erreur de chargement")
                 }
             } catch (err) {
-                console.error("Init error:", err);
+                toast.error("Erreur de chargement")
             } finally {
                 setLoading(false)
             }
-        };
-        init();
-    }, [id, loginWithToken, user]);
+        }
+        init()
+    }, [id, loginWithToken, user])
 
     const sessionsToShow = scrutin
         ? (sessionId ? scrutin.sessions.filter(s => s.address === sessionId) : scrutin.sessions)
@@ -173,33 +166,35 @@ const ModeratorPortalPage = () => {
                 reason: dec.reason
             }));
 
-            try {
-                const res = await fetch(`${API_URL}/api/moderators/authorize`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        decisions: batchDecisions,
-                        token: token
-                    })
-                });
+            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    decisions: batchDecisions,
+                    token: token
+                })
+            });
 
-                const result = await res.json();
-                if (!result.success) {
-                    throw new Error(result.error || "Une erreur est survenue lors du scellage.");
-                }
-
-                toast.success("Toutes les décisions ont été scellées !", { id: toastId })
-                setIsSubmitted(true)
-            } catch (err) {
-                toast.error(err.message, { id: toastId })
-            } finally {
-                setIsSubmittingAll(false)
+            const result = await res.json();
+            if (!result.success) {
+                throw new Error(result.error || "Une erreur est survenue lors du scellage.");
             }
+
+            // Check if any specific session failed in the batch
+            const failures = (result.results || []).filter(r => !r.success);
+            if (failures.length > 0) {
+                console.warn("Certaines sessions n'ont pas pu être traitées:", failures);
+                toast.error(`${failures.length} session(s) en échec.`);
+            }
+
+            toast.success("Toutes les décisions ont été scellées !", { id: toastId })
+            setIsSubmitted(true)
         } catch (err) {
-            toast.error("Erreur de soumission", { id: toastId });
-            setIsSubmittingAll(false);
+            toast.error(err.message, { id: toastId })
+        } finally {
+            setIsSubmittingAll(false)
         }
-    };
+    }
 
     const downloadVotersList = (voters, sessionTitle) => {
         if (!voters || voters.length === 0) return;
@@ -223,7 +218,7 @@ const ModeratorPortalPage = () => {
 
         try {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
-            const configRes = await fetch(`${API_URL}/api/auth/oauth-config`);
+            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
             const config = await configRes.json();
             toast.dismiss('oauth-init');
 
@@ -329,10 +324,10 @@ const ModeratorPortalPage = () => {
     }
 
     if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
             <div className="flex flex-col items-center gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-400"></div>
-                <p className="text-slate-400 font-bold animate-pulse text-sm">Vérification de l'invitation...</p>
+                <p className="text-slate-400 font-bold animate-pulse text-sm text-center">Vérification de l'invitation...</p>
             </div>
         </div>
     )
@@ -371,15 +366,15 @@ const ModeratorPortalPage = () => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6">
             {showReasonFor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-8">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-[32px] shadow-2xl p-6 sm:p-8">
                         <div className="flex items-center gap-3 mb-6">
-                            <XCircleIcon className="w-8 h-8 text-red-500" />
+                            <XCircleIcon className="w-8 h-8 text-red-500 shrink-0" />
                             <div>
                                 <h3 className="font-black text-slate-900 text-lg">Invalider la session</h3>
-                                <p className="text-xs text-slate-400 font-medium">
+                                <p className="text-xs text-slate-500 font-medium">
                                     {scrutin.sessions.find(s => s.address === showReasonFor)?.title}
                                 </p>
                             </div>
@@ -402,21 +397,21 @@ const ModeratorPortalPage = () => {
                             </button>
                             <button onClick={confirmInvalidate}
                                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black shadow-lg shadow-red-500/20 transition-all">
-                                Confirmer l'invalidation
+                                Confirmer
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="max-w-3xl mx-auto">
-                <div className="flex items-center gap-4 mb-8 text-left">
-                    <div className="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-primary-900/30">
-                        <ShieldCheckIcon className="w-6 h-6 text-white" />
+            <div className="max-w-xl mx-auto px-4 sm:px-0 pt-10 pb-40">
+                <div className="flex items-center gap-3 mb-6 text-left">
+                    <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-900/30 shrink-0">
+                        <ShieldCheckIcon className="w-5 h-5 text-white" />
                     </div>
                     <div>
                         <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest">Portail Modérateur · VoteChain</p>
-                        <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Validation du Scrutin</h1>
+                        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">Validation du Scrutin</h1>
                     </div>
                 </div>
 
@@ -534,7 +529,7 @@ const ModeratorPortalPage = () => {
                                 {expanded && (
                                     <div className="p-6 space-y-6 text-left">
                                         <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                 <DocumentTextIcon className="w-3.5 h-3.5" /> Informations de la session
                                             </p>
                                             <div className="bg-slate-50 rounded-2xl border border-slate-100 px-4 divide-y divide-slate-100">
@@ -548,7 +543,7 @@ const ModeratorPortalPage = () => {
                                         {((session.voters && session.voters.length > 0) || (scrutin.voters && scrutin.voters.length > 0)) ? (
                                             <div>
                                                 <div className="flex items-center justify-between mb-3">
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                                                         <UserCircleIcon className="w-3.5 h-3.5" /> Liste des Électeurs ({session.voters && session.voters.length > 0 ? session.voters.length : scrutin.voters?.length || 0} inscrits)
                                                     </p>
                                                     <button
@@ -577,7 +572,7 @@ const ModeratorPortalPage = () => {
 
                                         {session.moderators && session.moderators.length > 0 && (
                                             <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                     <ShieldCheckIcon className="w-3.5 h-3.5" /> Collège des Modérateurs ({session.moderators.length})
                                                 </p>
                                                 <div className="bg-primary-50/30 border border-primary-100/50 rounded-2xl p-4 text-left">
@@ -602,7 +597,7 @@ const ModeratorPortalPage = () => {
                                         )}
 
                                         <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                 <UsersIcon className="w-3.5 h-3.5" /> Options / Listes candidates
                                             </p>
                                             <div className="space-y-4 text-left">

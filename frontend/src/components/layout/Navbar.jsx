@@ -14,7 +14,6 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline'
 import { ROUTES } from '../../constants/routes'
-import { API_URL } from '../../api'
 import epitechLogo from '../../assets/epitech-logo.png'
 import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -32,10 +31,13 @@ const Navbar = () => {
   const [notifLoading, setNotifLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') return
+    if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return
     const fetchNotifs = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/moderators/notifications`)
+        const endpoint = user.role === 'superadmin'
+          ? 'http://localhost:3001/api/superadmin/notifications'
+          : 'http://localhost:3001/api/moderators/notifications'
+        const res = await fetch(endpoint)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }
@@ -126,8 +128,8 @@ const Navbar = () => {
 
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
-            {/* Notification Bell (Restored for Admin/SuperAdmin, hidden on Landing) */}
-            {user && user.role === 'admin' && location.pathname !== '/' && (
+            {/* Notification Bell (Admin + SuperAdmin) */}
+            {user && (user.role === 'admin' || user.role === 'superadmin') && location.pathname !== '/' && (
               <button
                 onClick={() => setIsNotifModalOpen(true)}
                 className="p-2 text-slate-400 hover:text-primary-600 transition-colors relative group"
@@ -168,8 +170,32 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile: inline notification bell + avatar + hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            {/* Notification bell for admin + superadmin */}
+            {user && (user.role === 'admin' || user.role === 'superadmin') && location.pathname !== '/' && (
+              <button
+                onClick={() => setIsNotifModalOpen(true)}
+                className="relative p-2 text-slate-500 hover:text-primary-600 transition-colors"
+              >
+                <BellIcon className="h-6 w-6" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                )}
+              </button>
+            )}
+            {/* Avatar (profile link) */}
+            {user && (
+              <a
+                href="/profile"
+                className="h-8 w-8 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm overflow-hidden shrink-0"
+              >
+                {user.avatar
+                  ? <img src={user.avatar} alt="Avatar" className="h-full w-full object-cover" />
+                  : user.email.substring(0, 2).toUpperCase()
+                }
+              </a>
+            )}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 text-slate-500 hover:text-primary-600 transition-colors"

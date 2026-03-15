@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useElections } from '../../contexts/ElectionContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSettings } from '../../contexts/SettingsContext'
-import { API_URL } from '../../api'
 import {
   PlusIcon,
   CalendarIcon,
@@ -29,7 +28,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/moderators/notifications`)
+        const res = await fetch('http://localhost:3001/api/moderators/notifications')
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }
@@ -81,39 +80,43 @@ const AdminDashboard = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
-            {t({ fr: 'Tableau de bord', en: 'Dashboard' })}
-          </h1>
-          <p className="text-slate-500 font-medium">{t({ fr: 'Gestion de vos sessions et scrutins', en: 'Manage your sessions and ballots' })}</p>
+      <div className="flex flex-col gap-4 mb-8 sm:gap-6 sm:mb-10">
+        {/* Title Row */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mb-1">
+              {t({ fr: 'Tableau de bord', en: 'Dashboard' })}
+            </h1>
+            <p className="text-slate-500 font-medium text-sm">{t({ fr: 'Gestion de vos sessions et scrutins', en: 'Manage your sessions and ballots' })}</p>
+          </div>
         </div>
-        <div className="flex gap-4">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-3">
           <Link to="/voter">
-            <Button variant="outline" className="h-14 px-8 rounded-2xl text-lg border-slate-200">
-              <UserGroupIcon className="h-6 w-6 mr-3" />
+            <Button variant="outline" className="h-11 px-5 rounded-2xl text-sm border-slate-200">
+              <UserGroupIcon className="h-5 w-5 mr-2" />
               {t({ fr: 'Lancer un vote', en: 'Start Vote' })}
             </Button>
           </Link>
           <Link to="/admin/elections/new">
-            <Button className="shadow-lg shadow-primary-500/20 h-14 px-8 rounded-2xl text-lg group">
-              <PlusIcon className="h-6 w-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
+            <Button className="shadow-lg shadow-primary-500/20 h-11 px-5 rounded-2xl text-sm group">
+              <PlusIcon className="h-5 w-5 mr-2 group-hover:rotate-90 transition-transform duration-300" />
               {t({ fr: 'Nouveau Scrutin', en: 'New Ballot' })}
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      {/* Stats Cards — 2 cols on mobile: first 2 share a row, 3rd is full-width */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
         <Card className="bg-white border-slate-100 hover:border-primary-100 transition-all shadow-sm">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total scrutins</p>
-              <p className="text-4xl font-black text-slate-900">{stats.totalElections}</p>
+              <p className="text-slate-400 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1">Total scrutins</p>
+              <p className="text-3xl sm:text-4xl font-black text-slate-900">{stats.totalElections}</p>
             </div>
-            <div className="h-12 w-12 bg-slate-50 rounded-2xl flex items-center justify-center">
-              <DocumentCheckIcon className="h-6 w-6 text-slate-500" />
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0">
+              <DocumentCheckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-slate-500" />
             </div>
           </div>
         </Card>
@@ -121,50 +124,52 @@ const AdminDashboard = () => {
         <Card className="bg-white border-slate-100 hover:border-primary-100 transition-all shadow-sm">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-primary-600 text-xs font-black uppercase tracking-widest mb-1">En cours</p>
-              <p className="text-4xl font-black text-slate-900">{stats.activeElections}</p>
+              <p className="text-primary-600 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1">En cours</p>
+              <p className="text-3xl sm:text-4xl font-black text-slate-900">{stats.activeElections}</p>
             </div>
-            <div className="h-12 w-12 bg-primary-50 rounded-2xl flex items-center justify-center">
-              <ChartBarIcon className="h-6 w-6 text-primary-600" />
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-primary-50 rounded-2xl flex items-center justify-center shrink-0">
+              <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
             </div>
           </div>
         </Card>
 
-        <Card className="bg-white border-slate-100 hover:border-secondary-100 transition-all shadow-sm">
+        {/* Full-width on mobile */}
+        <Card className="col-span-2 sm:col-span-1 bg-white border-slate-100 hover:border-secondary-100 transition-all shadow-sm">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-secondary-600 text-xs font-black uppercase tracking-widest mb-1">En attente (Modérateurs)</p>
-              <p className="text-4xl font-black text-slate-900">{stats.pendingValidations}</p>
+              <p className="text-secondary-600 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1">En attente (Modérateurs)</p>
+              <p className="text-3xl sm:text-4xl font-black text-slate-900">{stats.pendingValidations}</p>
             </div>
-            <div className="h-12 w-12 bg-secondary-50 rounded-2xl flex items-center justify-center">
-              <CalendarIcon className="h-6 w-6 text-secondary-600" />
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-secondary-50 rounded-2xl flex items-center justify-center shrink-0">
+              <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-secondary-600" />
             </div>
           </div>
         </Card>
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+      <div className="flex gap-2 sm:gap-4 mb-8">
+        <div className="relative flex-1 min-w-0">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher une session..."
+            placeholder="Rechercher..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 shadow-sm"
+            className="w-full pl-9 pr-3 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 shadow-sm text-sm"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-2xl px-3 py-2.5 shadow-sm shrink-0">
+          <FunnelIcon className="h-4 w-4 text-slate-400 shrink-0" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-slate-700 shadow-sm appearance-none cursor-pointer min-w-[160px]"
+            className="bg-transparent font-bold text-slate-700 text-sm focus:outline-none cursor-pointer"
           >
-            <option value="all">Tous les statuts</option>
+            <option value="all">Tous</option>
             <option value="pending">En attente</option>
             <option value="not started">Non démarré</option>
-            <option value="Manuall">Manuel</option>
+            <option value="active">En cours</option>
             <option value="finished">Terminé</option>
           </select>
         </div>
@@ -174,7 +179,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Recent Elections List */}
         <div className="lg:col-span-3">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Vos sessions récentes</h2>
+          <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] mb-4 mt-8">Vos sessions récentes</h2>
           <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
             {filteredElections.length === 0 ? (
               <div className="p-16 text-center">
@@ -220,27 +225,27 @@ const AdminDashboard = () => {
                     <div
                       key={election.id}
                       onClick={() => handleRowClick(election.id)}
-                      className="p-6 md:p-8 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer group"
+                      className="p-4 sm:p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 cursor-pointer group"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-4 mb-2">
-                          <h3 className="text-xl font-black text-slate-900 group-hover:text-primary-600 transition-colors">{election.title}</h3>
-                          <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${statusClasses}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-primary-600 transition-colors truncate">{election.title}</h3>
+                          <span className={`shrink-0 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-lg border ${statusClasses}`}>
                             {statusLabel}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-500 font-medium line-clamp-1 max-w-2xl">{election.description}</p>
+                        <p className="text-xs sm:text-sm text-slate-500 font-medium line-clamp-1 max-w-2xl">{election.description}</p>
                       </div>
 
-                      <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                        <div className="text-left md:text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Période</p>
-                          <p className="text-sm font-semibold text-slate-700">
+                      <div className="flex items-center gap-3 sm:gap-6">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Période</p>
+                          <p className="text-xs font-semibold text-slate-700">
                             {start.toLocaleDateString()} - {end.toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="hidden md:flex items-center justify-center h-10 w-10 bg-white rounded-full border border-slate-200 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all">
-                          <ChevronRightIcon className="h-5 w-5 text-slate-400 group-hover:text-primary-600" />
+                        <div className="flex items-center justify-center h-9 w-9 bg-white rounded-full border border-slate-200 shadow-sm group-hover:scale-110 group-hover:shadow-md transition-all shrink-0">
+                          <ChevronRightIcon className="h-4 w-4 text-slate-400 group-hover:text-primary-600" />
                         </div>
                       </div>
                     </div>
@@ -262,7 +267,7 @@ const AdminDashboard = () => {
           </h2>
           <Card className="bg-white border-slate-100 shadow-sm p-0 overflow-hidden rounded-[32px]">
             <div className="p-6 border-b border-slate-50">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Décisions Modérateurs</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Décisions Modérateurs</p>
             </div>
             <div className="max-h-[600px] overflow-y-auto divide-y divide-slate-50">
               {notifications.length === 0 ? (

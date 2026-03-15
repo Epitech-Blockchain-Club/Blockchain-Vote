@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   XMarkIcon, PlusIcon, ShieldCheckIcon, DocumentArrowUpIcon,
-  LinkIcon, CheckCircleIcon, CameraIcon, UserCircleIcon
+  LinkIcon, CheckCircleIcon, CameraIcon, UserCircleIcon,
+  ArrowRightIcon, ArrowLeftIcon, InformationCircleIcon,
+  CalendarIcon, UsersIcon, CubeTransparentIcon, ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline'
 import Button from '../common/Button'
 import Card from '../common/Card'
@@ -23,283 +26,314 @@ const makeSession = () => ({
   parts: [makePart()],
 })
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 const readPhoto = (file, cb) => {
   if (!file) return
   if (file.size > 2 * 1024 * 1024) { toast.error('Image trop volumineuse (> 2Mo)'); return }
   const r = new FileReader(); r.onloadend = () => cb(r.result); r.readAsDataURL(file)
 }
+const parseCSV = (text) => text.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0 && s.includes('@'))
 
-const parseCSV = (text) => {
-  return text.split(/[\n,;]/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && s.includes('@'))
+// ─── Wizard Stepper ───────────────────────────────────────────────────────────
+const STEPS = [
+  { label: 'Informations', icon: InformationCircleIcon, sublabel: 'Scrutin & Portée' },
+  { label: 'Calendrier', icon: CalendarIcon, sublabel: 'Dates & Mode' },
+  { label: 'Sessions', icon: UsersIcon, sublabel: 'Votes & Candidats' },
+  { label: 'Récapitulatif', icon: ClipboardDocumentCheckIcon, sublabel: 'Réviser & Déployer' },
+]
+
+const WizardStepper = ({ currentStep }) => (
+  <div className="flex items-center w-full mb-10">
+    {STEPS.map((step, idx) => {
+      const Icon = step.icon
+      const isActive = idx === currentStep
+      const isDone = idx < currentStep
+      return (
+        <React.Fragment key={idx}>
+          <div className="flex flex-col items-center gap-1.5 relative flex-shrink-0">
+            <motion.div
+              animate={{ scale: isActive ? 1.08 : 1 }}
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm
+                ${isDone ? 'bg-emerald-500 shadow-emerald-200' : isActive ? 'bg-primary-600 shadow-primary-200 shadow-lg' : 'bg-slate-100'}`}
+            >
+              {isDone
+                ? <CheckCircleIcon className="w-5 h-5 text-white" />
+                : <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+              }
+            </motion.div>
+            <div className="text-center leading-tight hidden sm:block">
+              <p className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-primary-600' : isDone ? 'text-emerald-600' : 'text-slate-400'}`}>{step.label}</p>
+              <p className="text-[9px] text-slate-400 font-medium">{step.sublabel}</p>
+            </div>
+          </div>
+          {idx < STEPS.length - 1 && (
+            <div className={`flex-1 h-0.5 mx-2 transition-all duration-500 ${idx < currentStep ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+          )}
+        </React.Fragment>
+      )
+    })}
+  </div>
+)
+
+// ─── Blockchain Loading Modal ──────────────────────────────────────────────────
+const DEPLOY_MESSAGES = [
+  'Préparation du contrat intelligent...',
+  'Signature et envoi de la transaction...',
+  'Attente de la confirmation réseau...',
+  'Enregistrement des sessions de vote...',
+  'Envoi des invitations aux modérateurs...',
+  'Finalisation et indexation...',
+]
+
+const BlockchainLoadingModal = ({ isOpen }) => {
+  const [msgIdx, setMsgIdx] = useState(0)
+  useEffect(() => {
+    if (!isOpen) return
+    setMsgIdx(0)
+    const iv = setInterval(() => setMsgIdx(p => (p + 1) % DEPLOY_MESSAGES.length), 2000)
+    return () => clearInterval(iv)
+  }, [isOpen])
+
+  if (!isOpen) return null
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-[32px] p-10 max-w-sm w-full text-center shadow-2xl"
+      >
+        <div className="relative w-20 h-20 mx-auto mb-6">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 rounded-full border-4 border-primary-200 border-t-primary-600"
+          />
+          <div className="absolute inset-2 bg-primary-50 rounded-full flex items-center justify-center">
+            <CubeTransparentIcon className="w-8 h-8 text-primary-600" />
+          </div>
+        </div>
+        <h3 className="text-xl font-black text-slate-900 mb-2">Déploiement en cours</h3>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={msgIdx}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="text-sm text-slate-500 font-medium h-10 flex items-center justify-center"
+          >
+            {DEPLOY_MESSAGES[msgIdx]}
+          </motion.p>
+        </AnimatePresence>
+        <div className="mt-4 flex gap-1 justify-center">
+          {DEPLOY_MESSAGES.map((_, i) => (
+            <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === msgIdx ? 'w-6 bg-primary-600' : 'w-1.5 bg-slate-200'}`} />
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  )
 }
 
 // ─── VoteSessionForm ──────────────────────────────────────────────────────────
 const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRemove }) => {
   const set = (field, value) => onChange({ ...session, [field]: value })
-
-  // parts
   const setPart = (pi, updated) => onChange({ ...session, parts: session.parts.map((p, i) => i === pi ? updated : p) })
   const addPart = () => onChange({ ...session, parts: [...session.parts, makePart()] })
   const rmPart = (pi) => { if (session.parts.length > 1) onChange({ ...session, parts: session.parts.filter((_, i) => i !== pi) }) }
   const setPartField = (pi, f, v) => setPart(pi, { ...session.parts[pi], [f]: v })
   const setPartPhoto = (pi, e) => readPhoto(e.target.files[0], v => setPartField(pi, 'imageUrl', v))
-
-  // members
   const setMember = (pi, mi, f, v) => setPart(pi, { ...session.parts[pi], members: session.parts[pi].members.map((m, k) => k === mi ? { ...m, [f]: v } : m) })
   const addMember = (pi) => setPart(pi, { ...session.parts[pi], members: [...session.parts[pi].members, makeMember()] })
   const rmMember = (pi, mi) => setPart(pi, { ...session.parts[pi], members: session.parts[pi].members.filter((_, k) => k !== mi) })
   const setMemberPhoto = (pi, mi, e) => readPhoto(e.target.files[0], v => setMember(pi, mi, 'photoUrl', v))
 
   return (
-    <div className="space-y-5">
-      {/* session header */}
-      <div className="flex items-center justify-between pt-2">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="border border-slate-200 rounded-3xl p-6 space-y-5 bg-white shadow-sm"
+    >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-2xl bg-primary-600 text-white text-sm font-black flex items-center justify-center shadow-md shadow-primary-200">
-            {sessionNumber}
-          </span>
+          <span className="w-9 h-9 rounded-xl bg-primary-600 text-white text-sm font-black flex items-center justify-center shadow-md shadow-primary-200">{sessionNumber}</span>
           <div>
-            <p className="text-lg font-black text-slate-900 tracking-tight leading-none">
-              {session.title || `Session de vote ${sessionNumber}`}
-            </p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">Session indépendante</p>
+            <p className="text-base font-black text-slate-900 leading-none">{session.title || `Session ${sessionNumber}`}</p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Vote indépendant</p>
           </div>
         </div>
         {totalSessions > 1 && (
-          <button type="button" onClick={onRemove}
-            className="flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-600 border border-red-100 hover:border-red-300 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 transition-all">
+          <button type="button" onClick={onRemove} className="flex items-center gap-1.5 text-xs font-bold text-red-500 border border-red-100 hover:border-red-300 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 transition-all">
             <XMarkIcon className="w-4 h-4" /> Supprimer
           </button>
         )}
       </div>
 
-      {/* A. Informations Essentielles */}
-      <Card className="bg-white border-slate-100 shadow-sm p-6">
-        <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-5">A. Informations Essentielles</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Titre du vote *</label>
-            <input type="text" required value={session.title} onChange={e => set('title', e.target.value)}
-              className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
-              placeholder="Ex: Élection du Président BDE" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Description (Optionnel)</label>
-            <textarea rows="3" value={session.description} onChange={e => set('description', e.target.value)}
-              className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
-              placeholder="Contexte et objectifs de ce vote..." />
-          </div>
-        </div>
-      </Card>
+      {/* A. Informations */}
+      <div className="space-y-4 p-5 bg-slate-50 rounded-2xl">
+        <h3 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">A. Informations</h3>
+        <input type="text" required value={session.title} onChange={e => set('title', e.target.value)}
+          className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
+          placeholder="Titre du vote *" />
+        <textarea rows="2" value={session.description} onChange={e => set('description', e.target.value)}
+          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 text-sm"
+          placeholder="Description (Optionnel)" />
+      </div>
 
       {/* B. Modérateurs */}
-      <Card className="bg-white border-slate-100 shadow-sm p-6 border-l-4 border-l-secondary-500">
-        <div className="flex justify-between items-start mb-5">
-          <div>
-            <h3 className="text-xs font-black text-secondary-600 uppercase tracking-[0.2em] mb-1">B. Modérateurs (Validateurs)</h3>
-            <p className="text-sm text-slate-500 font-medium">Consensus <span className="font-black text-secondary-600">100%</span> requis pour ouvrir ce vote.</p>
-          </div>
-        </div>
+      <div className="space-y-3 p-5 bg-orange-50/60 border border-orange-100 rounded-2xl">
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Liste des modérateurs</label>
-          <div className="h-16 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-secondary-50 transition-colors cursor-pointer group mb-3 relative overflow-hidden">
-            <DocumentArrowUpIcon className="w-6 h-6 text-slate-400 group-hover:text-secondary-600 mb-1 transition-colors" />
-            <span className="text-xs font-bold text-slate-500 group-hover:text-secondary-700">Importer CSV/TXT</span>
-            <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer"
-              onChange={e => {
-                const file = e.target.files[0]
-                if (file) {
+          <h3 className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em]">B. Modérateurs (100% consensus requis)</h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">Ces personnes valideront ou invalideront le vote.</p>
+        </div>
+        <label className="h-14 border-2 border-dashed border-orange-200 rounded-2xl flex items-center justify-center gap-2 bg-white hover:bg-orange-50 cursor-pointer relative overflow-hidden transition-colors w-full">
+          <DocumentArrowUpIcon className="w-5 h-5 text-orange-400 pointer-events-none" />
+          <span className="text-xs font-bold text-orange-600 pointer-events-none">Importer CSV/TXT</span>
+          <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            onChange={e => {
+              const file = e.target.files[0]; if (!file) return
+              const reader = new FileReader()
+              reader.onload = (re) => {
+                const emails = parseCSV(re.target.result)
+                const current = session.moderatorsText ? session.moderatorsText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean) : []
+                set('moderatorsText', [...new Set([...current, ...emails])].join('\n'))
+                toast.success(`${emails.length} modérateurs importés`)
+              }
+              reader.readAsText(file)
+            }} />
+        </label>
+        <textarea rows="2" value={session.moderatorsText || ''} onChange={e => set('moderatorsText', e.target.value)}
+          className="w-full px-4 py-3 bg-white border border-orange-200 rounded-2xl focus:ring-2 focus:ring-orange-400 font-medium text-sm text-slate-700"
+          placeholder="mod1@epitech.eu&#10;mod2@epitech.eu" />
+      </div>
+
+      {/* C. Électeurs */}
+      <div className="space-y-3 p-5 bg-slate-50 rounded-2xl">
+        <h3 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">C. Électeurs</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Taille du collège</label>
+            <input type="number" min="0" value={session.voterCount} onChange={e => set('voterCount', e.target.value)}
+              className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-black text-xl text-slate-900" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Liste des électeurs</label>
+            <label className="h-12 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center gap-2 bg-white hover:bg-primary-50 cursor-pointer relative overflow-hidden transition-colors mb-2 w-full">
+              <DocumentArrowUpIcon className="w-4 h-4 text-slate-400 pointer-events-none" />
+              <span className="text-xs font-bold text-slate-500 pointer-events-none">Importer CSV</span>
+              <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                onChange={e => {
+                  const file = e.target.files[0]; if (!file) return
                   const reader = new FileReader()
                   reader.onload = (re) => {
                     const emails = parseCSV(re.target.result)
-                    const current = session.moderatorsText ? session.moderatorsText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean) : []
+                    const current = session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean)
                     const combined = [...new Set([...current, ...emails])]
-                    set('moderatorsText', combined.join('\n'))
-                    toast.success(`${emails.length} modérateurs importés`)
+                    onChange({ ...session, votersText: combined.join('\n'), voterCount: combined.length })
+                    toast.success(`${emails.length} électeurs importés`)
                   }
                   reader.readAsText(file)
-                }
-              }} />
-          </div>
-          <textarea rows="2" value={session.moderatorsText || ''}
-            onChange={e => {
-              const val = e.target.value;
-              set('moderatorsText', val);
-            }}
-            className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-secondary-500 font-medium text-sm text-slate-700 leading-relaxed"
-            placeholder="mod1@epitech.eu&#10;mod2@epitech.eu" />
-        </div>
-      </Card>
-
-      {/* C. Électeurs */}
-      <Card className="bg-white border-slate-100 shadow-sm p-6">
-        <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-5">C. Gestion des Électeurs</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Taille du collège électoral</label>
-            <input type="number" placeholder="0" min="0" value={session.voterCount} onChange={e => set('voterCount', e.target.value)}
-              className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-black text-2xl text-slate-900" />
-            <p className="text-xs text-slate-400 font-medium mt-2">Pour calculer les taux de participation.</p>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Liste des électeurs</label>
-
-            {/* CSV Upload Button */}
-            <div className="h-16 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-primary-50 transition-colors cursor-pointer group mb-4 relative overflow-hidden">
-              <DocumentArrowUpIcon className="w-6 h-6 text-slate-400 group-hover:text-primary-600 mb-1 transition-colors" />
-              <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600 transition-colors uppercase">Importer CSV / TXT</span>
-              <input type="file" accept=".csv,.txt" className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={e => {
-                  const file = e.target.files[0]
-                  if (file) {
-                    const reader = new FileReader()
-                    reader.onload = (re) => {
-                      const emails = parseCSV(re.target.result)
-                      const current = session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean)
-                      const combined = [...new Set([...current, ...emails])]
-                      onChange({
-                        ...session,
-                        votersText: combined.join('\n'),
-                        voterCount: combined.length
-                      })
-                      toast.success(`${emails.length} électeurs importés`)
-                    }
-                    reader.readAsText(file)
-                  }
                 }} />
-            </div>
-
-            <textarea rows="2" value={session.votersText}
-              onChange={e => {
-                const val = e.target.value;
-                const count = val.split(/[\n,;]/).map(s => s.trim()).filter(Boolean).length;
-                onChange({
-                  ...session,
-                  votersText: val,
-                  voterCount: count
-                });
-              }}
-              placeholder="Ou collez les emails manuellement ici..."
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-medium focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all placeholder:italic shadow-sm" />
+            </label>
           </div>
         </div>
-      </Card>
+        <textarea rows="2" value={session.votersText}
+          onChange={e => {
+            const val = e.target.value
+            const count = val.split(/[\n,;]/).map(s => s.trim()).filter(Boolean).length
+            onChange({ ...session, votersText: val, voterCount: count })
+          }}
+          placeholder="voter1@ecole.eu, voter2@ecole.eu..."
+          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-primary-500 text-slate-700" />
+      </div>
 
       {/* D. Options / Listes Candidates */}
-      <Card className="bg-white border-slate-100 shadow-sm p-6">
-        <div className="flex justify-between items-start mb-5">
-          <div>
-            <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-1">D. Options / Listes Candidates</h3>
-            <p className="text-sm text-slate-500 font-medium">Les choix proposés aux électeurs pour ce vote.</p>
-          </div>
-          <Button type="button" onClick={addPart} size="sm" variant="outline" className="border-primary-200 text-primary-600 hover:bg-primary-50">
-            <PlusIcon className="w-4 h-4 mr-2" /> Ajouter une option
-          </Button>
+      <div className="space-y-4 p-5 bg-slate-50 rounded-2xl">
+        <div className="flex justify-between items-center">
+          <h3 className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">D. Options / Listes Candidates</h3>
+          <button type="button" onClick={addPart} className="flex items-center gap-1 text-[10px] font-black text-primary-600 border border-primary-200 px-2.5 py-1 rounded-lg hover:bg-primary-50 transition-colors">
+            <PlusIcon className="w-3 h-3" /> Ajouter
+          </button>
         </div>
-
-        <div className="space-y-5">
+        <div className="space-y-4">
           {session.parts.map((part, pi) => (
-            <div key={part.id} className="p-5 border border-slate-100 bg-slate-50/50 rounded-3xl relative">
+            <div key={part.id} className="p-4 border border-slate-200 bg-white rounded-2xl relative">
               {session.parts.length > 1 && (
-                <button type="button" onClick={() => rmPart(pi)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors">
-                  <XMarkIcon className="w-5 h-5" />
+                <button type="button" onClick={() => rmPart(pi)} className="absolute top-3 right-3 text-slate-300 hover:text-red-400 transition-colors">
+                  <XMarkIcon className="w-4 h-4" />
                 </button>
               )}
-
-              {/* Part title + logo */}
-              <div className="flex items-end gap-4 mb-4 pr-8">
+              <div className="flex items-end gap-3 mb-3 pr-6">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Titre de l'option / Liste *</label>
                   <input type="text" required value={part.title} onChange={e => setPartField(pi, 'title', e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-primary-500"
-                    placeholder="Ex: Liste Phénix" />
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                    placeholder={`Option ${pi + 1} / Nom de la liste *`} />
                 </div>
                 <div className="relative shrink-0">
-                  <div className="h-14 w-14 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
-                    {part.imageUrl ? <img src={part.imageUrl} alt="Logo" className="h-full w-full object-cover" /> : <CameraIcon className="w-6 h-6 text-slate-300" />}
+                  <div className="h-12 w-12 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden">
+                    {part.imageUrl ? <img src={part.imageUrl} alt="Logo" className="h-full w-full object-cover" /> : <CameraIcon className="w-5 h-5 text-slate-300" />}
                   </div>
-                  <label className="absolute -bottom-2 -right-2 h-6 w-6 bg-primary-600 rounded-lg flex items-center justify-center cursor-pointer shadow-lg hover:bg-primary-700 transition-colors">
-                    <PlusIcon className="w-4 h-4 text-white" />
+                  <label className="absolute -bottom-1.5 -right-1.5 h-5 w-5 bg-primary-600 rounded-md flex items-center justify-center cursor-pointer shadow hover:bg-primary-700">
+                    <PlusIcon className="w-3 h-3 text-white" />
                     <input type="file" className="hidden" accept="image/*" onChange={e => setPartPhoto(pi, e)} />
                   </label>
                 </div>
               </div>
-
-              {/* Description */}
-              <div className="mb-4">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Description (Optionnel)</label>
-                <textarea rows="2" value={part.description} onChange={e => setPartField(pi, 'description', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary-500"
-                  placeholder="Programme, présentation de la liste..." />
-              </div>
-
-              {/* Membres */}
+              <textarea rows="2" value={part.description} onChange={e => setPartField(pi, 'description', e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary-500 mb-3"
+                placeholder="Description de la liste (optionnel)" />
               <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Membres du parti (Optionnel)</label>
-                  <button type="button" onClick={() => addMember(pi)}
-                    className="flex items-center gap-1 text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase border border-primary-200 px-2.5 py-1 rounded-lg hover:bg-primary-50 transition-colors">
-                    <PlusIcon className="w-3 h-3" /> Ajouter membre
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Membres</label>
+                  <button type="button" onClick={() => addMember(pi)} className="flex items-center gap-1 text-[10px] font-black text-primary-600 border border-primary-200 px-2 py-0.5 rounded-md hover:bg-primary-50">
+                    <PlusIcon className="w-3 h-3" /> + membre
                   </button>
                 </div>
                 {part.members.length === 0
-                  ? <p className="text-xs text-slate-400 italic">Aucun membre ajouté.</p>
-                  : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {part.members.map((member, mi) => (
-                        <div key={member.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-3">
-                          <div className="relative shrink-0">
-                            <div className="h-10 w-10 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
-                              {member.photoUrl ? <img src={member.photoUrl} alt={member.name} className="h-full w-full object-cover" /> : <UserCircleIcon className="w-7 h-7 text-slate-300" />}
-                            </div>
-                            <label className="absolute -bottom-1.5 -right-1.5 h-5 w-5 bg-primary-600 rounded-md flex items-center justify-center cursor-pointer shadow hover:bg-primary-700 transition-colors">
-                              <CameraIcon className="w-3 h-3 text-white" />
-                              <input type="file" className="hidden" accept="image/*" onChange={e => setMemberPhoto(pi, mi, e)} />
-                            </label>
+                  ? <p className="text-xs text-slate-400 italic">Aucun membre. (Optionnel)</p>
+                  : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {part.members.map((member, mi) => (
+                      <div key={member.id} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                        <div className="relative shrink-0">
+                          <div className="h-8 w-8 bg-white rounded-lg overflow-hidden flex items-center justify-center">
+                            {member.photoUrl ? <img src={member.photoUrl} className="h-full w-full object-cover" alt="" /> : <UserCircleIcon className="w-6 h-6 text-slate-300" />}
                           </div>
-                          <input type="text" value={member.name} onChange={e => setMember(pi, mi, 'name', e.target.value)}
-                            className="flex-1 text-sm font-medium bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400"
-                            placeholder="Nom du membre..." />
-                          <button type="button" onClick={() => rmMember(pi, mi)} className="shrink-0 text-slate-300 hover:text-red-400 transition-colors">
-                            <XMarkIcon className="w-4 h-4" />
-                          </button>
+                          <label className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary-600 rounded flex items-center justify-center cursor-pointer">
+                            <CameraIcon className="w-2.5 h-2.5 text-white" />
+                            <input type="file" className="hidden" accept="image/*" onChange={e => setMemberPhoto(pi, mi, e)} />
+                          </label>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <input type="text" value={member.name} onChange={e => setMember(pi, mi, 'name', e.target.value)}
+                          className="flex-1 text-xs font-medium bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400"
+                          placeholder="Nom du membre..." />
+                        <button type="button" onClick={() => rmMember(pi, mi)} className="text-slate-300 hover:text-red-400 transition-colors shrink-0">
+                          <XMarkIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                }
               </div>
             </div>
           ))}
         </div>
-      </Card>
-    </div>
+      </div>
+    </motion.div>
   )
 }
 
-// ─── CreateElectionForm ───────────────────────────────────────────────────────
+// ─── CreateElectionForm ────────────────────────────────────────────────────────
 const CreateElectionForm = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const { elections, addElection } = useElections()
+  const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('')
 
   const [formData, setFormData] = useState({
-    // ── General (shared)
-    title: '',
-    description: '',
-    scope: 'international',
-    country: '',
-    timingMode: 'manual',
-    startDate: '',
-    endDate: '',
-    logoUrl: '',
-    // ── Per vote session
+    title: '', description: '', scope: 'international', country: '',
+    timingMode: 'manual', startDate: '', endDate: '', logoUrl: '',
     voteSessions: [makeSession()],
   })
 
@@ -308,28 +342,19 @@ const CreateElectionForm = () => {
       const el = elections.find(e => e.id === id)
       if (el) {
         setFormData({
-          title: el.title || '',
-          description: el.description || '',
-          scope: el.type || 'international',
-          country: el.country || '',
+          title: el.title || '', description: el.description || '',
+          scope: el.type || 'international', country: el.country || '',
           timingMode: el.timingMode || 'manual',
           startDate: el.startDate ? new Date(el.startDate).toISOString().split('T')[0] : '',
           endDate: el.endDate ? new Date(el.endDate).toISOString().split('T')[0] : '',
           logoUrl: el.logoUrl || '',
           voteSessions: el.sessions?.map(s => ({
             id: s.address || Math.random(),
-            title: s.title || '',
-            description: s.description || '',
+            title: s.title || '', description: s.description || '',
             moderatorsText: (s.moderators || []).map(m => typeof m === 'string' ? m : m.email).join('\n'),
             voterCount: s.voters?.length || s.voterCount || 0,
             votersText: (s.voters || []).join('\n'),
-            parts: (s.options || []).map(o => ({
-              id: o.id || Math.random(),
-              title: o.title || '',
-              description: o.description || '',
-              imageUrl: o.imageUrl || '',
-              members: o.members || []
-            }))
+            parts: (s.options || []).map(o => ({ id: o.id || Math.random(), title: o.title || '', description: o.description || '', imageUrl: o.imageUrl || '', members: o.members || [] }))
           })) || [makeSession()]
         })
       }
@@ -349,15 +374,29 @@ const CreateElectionForm = () => {
   const updateVoteSession = (si, updated) =>
     setFormData(prev => ({ ...prev, voteSessions: prev.voteSessions.map((s, i) => i === si ? updated : s) }))
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const validateStep = () => {
+    if (step === 0) {
+      if (!formData.title.trim()) { toast.error('Le titre du scrutin est requis.'); return false }
+      if (formData.scope === 'national' && !formData.country) { toast.error('Veuillez sélectionner un pays.'); return false }
+    }
+    if (step === 2) {
+      for (const s of formData.voteSessions) {
+        if (!s.title.trim()) { toast.error('Chaque session doit avoir un titre.'); return false }
+        if (s.parts.some(p => !p.title.trim())) { toast.error('Chaque option doit avoir un titre.'); return false }
+      }
+    }
+    return true
+  }
+
+  const handleNext = () => { if (validateStep()) setStep(s => Math.min(s + 1, 3)) }
+  const handleBack = () => setStep(s => Math.max(s - 1, 0))
+
+  const handleSubmit = async () => {
     setLoading(true)
     try {
-      // Extract and deduplicate voters from all sessions
       const allVoters = new Set()
       formData.voteSessions.forEach(session => {
-        const sessionVoters = session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean)
-        sessionVoters.forEach(v => allVoters.add(v))
+        session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean).forEach(v => allVoters.add(v))
       })
       const payload = {
         ...formData,
@@ -368,52 +407,47 @@ const CreateElectionForm = () => {
           voters: session.votersText ? session.votersText.split(/[\n,;]/).map(e => e.trim()).filter(Boolean) : []
         }))
       }
-
       const result = await addElection(payload)
       if (result && result.address) {
-        const voterLink = `${window.location.origin}/vote/${result.address}`
-        setGeneratedLink(voterLink)
+        setGeneratedLink(`${window.location.origin}/vote/${result.address}`)
         setIsSubmitted(true)
-        toast.success(`Scrutin créé ! Emails d'invitation envoyés aux modérateurs.`, {
-          duration: 6000,
-          icon: '📧'
-        })
-        toast.success('Redirection vers le détail...', { icon: '🚀' })
-        // Optional: auto-redirect to admin detail after 3s
-        setTimeout(() => {
-          navigate(`/admin/elections/${result.address}`)
-        }, 3000)
+        toast.success('Scrutin déployé ! Invitations envoyées aux modérateurs.', { duration: 6000, icon: '📧' })
+        setTimeout(() => navigate(`/admin/elections/${result.address}`), 4000)
       }
     } catch (err) {
       console.error(err)
+      toast.error("Erreur lors du déploiement. Veuillez réessayer.")
     } finally {
       setLoading(false)
     }
   }
 
-  // ── success screen ────────────────────────────────────────────────────────
+  // ── Success Screen ────────────────────────────────────────────────────────
   if (isSubmitted) {
     return (
       <div className="max-w-3xl mx-auto py-12">
         <Card className="text-center p-12 bg-white shadow-2xl border-slate-100 rounded-[40px]">
-          <div className="w-24 h-24 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-8">
-            <CheckCircleIcon className="w-12 h-12 text-primary-600" />
+          <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-8 border-4 border-emerald-100">
+            <CheckCircleIcon className="w-12 h-12 text-emerald-500" />
           </div>
-          <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter">VoteChain : Scrutin Configuré</h2>
+          <h2 className="text-4xl font-black text-slate-900 mb-3 tracking-tighter">Scrutin Déployé !</h2>
           <p className="text-slate-500 font-medium mb-10 max-w-xl mx-auto">
-            Votre scrutin est maintenant prêt. Les modérateurs de chaque session ont été notifiés.
+            Votre scrutin est scellé sur la blockchain. Les modérateurs ont été notifiés par email.
           </p>
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-10">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Lien d'accès (Votants)</h3>
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 w-full">
-                <LinkIcon className="w-6 h-6 text-slate-400" />
-                <input type="text" readOnly value={generatedLink} className="flex-1 bg-transparent border-none text-slate-600 font-medium focus:ring-0 text-sm" />
-                <Button size="sm" variant="outline">Copier</Button>
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-10 text-left">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Lien d'accès (Votants)</h3>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 w-full overflow-hidden">
+                <LinkIcon className="w-5 h-5 text-slate-400 shrink-0" />
+                <p className="text-sm font-mono text-slate-600 truncate">{generatedLink}</p>
               </div>
-              <div className="w-32 h-32 bg-white border-4 border-slate-50 rounded-3xl p-2 shadow-xl">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatedLink)}`} alt="QR Code" className="w-full h-full object-contain" />
-              </div>
+              <button onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success('Lien copié !') }}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-black rounded-xl hover:bg-primary-700 transition-colors whitespace-nowrap">
+                Copier
+              </button>
+            </div>
+            <div className="mt-4 mx-auto w-fit">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatedLink)}`} alt="QR Code" className="w-28 h-28 rounded-xl" />
             </div>
           </div>
           <Button size="lg" onClick={() => navigate('/admin')} className="h-14 px-12 rounded-2xl">Retour au Dashboard</Button>
@@ -422,98 +456,55 @@ const CreateElectionForm = () => {
     )
   }
 
-  // ── main form ─────────────────────────────────────────────────────────────
-  return (
-    <div className="max-w-4xl mx-auto animate-fade-in pb-20">
-      {/* Header */}
-      <div className="flex items-center space-x-6 mb-10">
-        <Link to="/admin" className="p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm">
-          <XMarkIcon className="h-6 w-6 text-slate-600" />
-        </Link>
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Nouveau Scrutin</h1>
-          <p className="text-slate-500 font-medium">Informations générales puis sessions de vote indépendantes.</p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-10">
-
-        {/* ════════════════════════════════════════════════
-            PARTIE 1 — INFORMATIONS GÉNÉRALES
-        ════════════════════════════════════════════════ */}
-        <div>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-3 py-1.5 bg-slate-100 rounded-full">
-              Partie 1 — Informations Générales
-            </span>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <div className="space-y-6">
-            {/* 1. Informations du Scrutin */}
-            <Card className="bg-white border-slate-100 shadow-sm p-8">
-              <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">1. Informations du Scrutin</h2>
+  // ── Step Content Renderer ─────────────────────────────────────────────────
+  const renderStep = () => {
+    switch (step) {
+      case 0: // Informations Générales
+        return (
+          <motion.div key="step0" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} className="space-y-6">
+            <Card className="bg-white border-slate-100 shadow-sm p-7">
+              <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">Informations du Scrutin</h2>
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Titre du scrutin *</label>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Titre du scrutin *</label>
                   <input type="text" name="title" required value={formData.title} onChange={handleChange}
-                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
-                    placeholder="Ex: Élections BDE 2024" />
-                </div>
-                <div className="flex items-end gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Logo du Scrutin (Optionnel)</label>
-                    <div className="relative group">
-                      <div className="h-24 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden group-hover:bg-slate-100 transition-all cursor-pointer">
-                        {formData.logoUrl ? (
-                          <div className="relative w-full h-full">
-                            <img src={formData.logoUrl} alt="Logo Scrutin" className="w-full h-full object-contain" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <CameraIcon className="w-8 h-8 text-white" />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-1">
-                            <CameraIcon className="w-6 h-6 text-slate-300" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Choisir une image</span>
-                          </div>
-                        )}
-                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*"
-                          onChange={e => readPhoto(e.target.files[0], v => setFormData(p => ({ ...p, logoUrl: v })))} />
-                      </div>
-                      {formData.logoUrl && (
-                        <button type="button" onClick={() => setFormData(p => ({ ...p, logoUrl: '' }))}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg hover:bg-red-600 transition-colors">
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-400 font-medium pb-1 flex-1">
-                    Cet emblème apparaîtra sur les portails de vote et les rapports officiels.
-                  </div>
+                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 text-lg"
+                    placeholder="Ex: Élections BDE 2025" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Description</label>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Description</label>
                   <textarea name="description" rows="3" value={formData.description} onChange={handleChange}
                     className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900"
                     placeholder="Contexte général du scrutin..." />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Portée / Scope</label>
-                  <div className="flex gap-4">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Logo du Scrutin (Optionnel)</label>
+                  <div className="relative group h-24 w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-100 transition-all">
+                    {formData.logoUrl
+                      ? <img src={formData.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                      : <div className="flex flex-col items-center gap-1">
+                        <CameraIcon className="w-6 h-6 text-slate-300" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Choisir une image</span>
+                      </div>
+                    }
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*"
+                      onChange={e => readPhoto(e.target.files[0], v => setFormData(p => ({ ...p, logoUrl: v })))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Portée</label>
+                  <div className="flex gap-3">
                     {['national', 'international'].map(v => (
-                      <label key={v} className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.scope === v ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                      <label key={v} className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.scope === v ? 'bg-primary-50 border-primary-400' : 'bg-slate-50 border-slate-200'}`}>
                         <input type="radio" name="scope" value={v} checked={formData.scope === v} onChange={handleChange} className="hidden" />
-                        <span className={`font-bold ${formData.scope === v ? 'text-primary-700' : 'text-slate-600'}`}>{v.charAt(0).toUpperCase() + v.slice(1)}</span>
+                        <span className={`font-bold text-sm ${formData.scope === v ? 'text-primary-700' : 'text-slate-600'}`}>{v.charAt(0).toUpperCase() + v.slice(1)}</span>
                       </label>
                     ))}
                   </div>
                 </div>
                 {formData.scope === 'national' && (
-                  <div className="animate-fade-in">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Pays concerné</label>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Pays</label>
                     <select name="country" required value={formData.country} onChange={handleChange}
                       className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium text-slate-900 appearance-none">
                       <option value="">Sélectionnez un pays...</option>
@@ -523,101 +514,159 @@ const CreateElectionForm = () => {
                 )}
               </div>
             </Card>
+          </motion.div>
+        )
 
-            {/* 2. Pilotage Temporel */}
-            <Card className="bg-white border-slate-100 shadow-sm p-8">
-              <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">2. Pilotage Temporel</h2>
+      case 1: // Calendrier
+        return (
+          <motion.div key="step1" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} className="space-y-6">
+            <Card className="bg-white border-slate-100 shadow-sm p-7">
+              <h2 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] mb-6">Pilotage Temporel</h2>
               <div className="space-y-5">
-                <div className="flex gap-4">
-                  {[
-                    { value: 'manual', label: 'Manuel', sub: 'Ouverture et fermeture par le panneau admin.' },
-                    { value: 'scheduled', label: 'Programmé', sub: 'Dates définies à l\'avance.' },
-                  ].map(({ value, label, sub }) => (
-                    <label key={value} className={`flex-1 p-4 border rounded-2xl cursor-pointer transition-all ${formData.timingMode === value ? 'bg-primary-50 border-primary-500' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex gap-3">
+                  {[{ value: 'manual', label: 'Manuel', sub: 'Ouverture par le panneau admin.' }, { value: 'scheduled', label: 'Programmé', sub: 'Dates définies à l\'avance.' }].map(({ value, label, sub }) => (
+                    <label key={value} className={`flex-1 p-5 border rounded-2xl cursor-pointer transition-all ${formData.timingMode === value ? 'bg-primary-50 border-primary-400' : 'bg-slate-50 border-slate-200'}`}>
                       <input type="radio" name="timingMode" value={value} checked={formData.timingMode === value} onChange={handleChange} className="hidden" />
-                      <span className={`font-bold block ${formData.timingMode === value ? 'text-primary-700' : 'text-slate-600'}`}>{label}</span>
+                      <span className={`font-black block text-sm ${formData.timingMode === value ? 'text-primary-700' : 'text-slate-700'}`}>{label}</span>
                       <span className="text-xs text-slate-500 font-medium">{sub}</span>
                     </label>
                   ))}
                 </div>
                 {formData.timingMode === 'scheduled' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {[['startDate', 'Début'], ['endDate', 'Fin']].map(([name, label]) => (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[['startDate', 'Date de début'], ['endDate', 'Date de fin']].map(([name, label]) => (
                       <div key={name}>
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">{label}</label>
+                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">{label}</label>
                         <input type="datetime-local" name={name} value={formData[name]} onChange={handleChange}
                           className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 font-medium" />
                       </div>
                     ))}
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </Card>
-          </div>
-        </div>
+            <div className="p-5 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3">
+              <InformationCircleIcon className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-600 font-medium leading-relaxed">
+                En mode <strong>Manuel</strong>, le scrutin n'est accèssible aux votants que lorsque toutes leurs sessions sont validées par les modérateurs. En mode <strong>Programmé</strong>, une date supplémentaire est utilisée pour afficher le statut.
+              </p>
+            </div>
+          </motion.div>
+        )
 
-        {/* ════════════════════════════════════════════════
-            PARTIE 2 — SESSIONS DE VOTE
-        ════════════════════════════════════════════════ */}
-        <div>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 px-3 py-1.5 bg-slate-100 rounded-full">
-              Partie 2 — Sessions de Vote
-            </span>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-          <p className="text-sm text-slate-500 font-medium mb-6 text-center">
-            Chaque session est un vote indépendant avec ses propres modérateurs, électeurs et candidats.
-          </p>
-
-          {/* Sessions */}
-          <div className="space-y-2">
-            {formData.voteSessions.map((session, si) => (
-              <React.Fragment key={session.id}>
-                {si > 0 && (
-                  <div className="flex items-center gap-4 py-6">
-                    <div className="flex-1 border-t-2 border-dashed border-slate-200" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Session {si + 1}</span>
-                    <div className="flex-1 border-t-2 border-dashed border-slate-200" />
-                  </div>
-                )}
-                <VoteSessionForm
-                  session={session}
-                  sessionNumber={si + 1}
+      case 2: // Sessions de Vote
+        return (
+          <motion.div key="step2" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Sessions de Vote</h2>
+                <p className="text-sm text-slate-500 font-medium">Chaque session est un vote indépendant.</p>
+              </div>
+              <span className="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-black rounded-full">{formData.voteSessions.length} session(s)</span>
+            </div>
+            <div className="space-y-4">
+              {formData.voteSessions.map((session, si) => (
+                <VoteSessionForm key={session.id} session={session} sessionNumber={si + 1}
                   totalSessions={formData.voteSessions.length}
                   onChange={(updated) => updateVoteSession(si, updated)}
-                  onRemove={() => removeVoteSession(si)}
-                />
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Add vote button */}
-          <button type="button" onClick={addVoteSession}
-            className="mt-8 w-full flex items-center justify-center gap-3 border-2 border-dashed border-primary-300 hover:border-primary-500 bg-primary-50/40 hover:bg-primary-50 text-primary-600 font-black text-sm uppercase tracking-widest py-5 rounded-3xl transition-all group">
-            <span className="w-8 h-8 rounded-xl bg-primary-100 group-hover:bg-primary-200 flex items-center justify-center transition-colors">
-              <PlusIcon className="w-5 h-5 text-primary-600" />
-            </span>
-            Ajouter un vote
-          </button>
-        </div>
-
-        {/* Submit */}
-        <div className="p-6 bg-slate-900 rounded-[32px] flex flex-col md:flex-row items-center gap-6 justify-between shadow-2xl">
-          <div className="flex items-center gap-4">
-            <ShieldCheckIcon className="w-12 h-12 text-primary-500 flex-shrink-0" />
-            <div>
-              <h4 className="text-white font-black text-lg tracking-tight">Hachage Blockchain</h4>
-              <p className="text-slate-400 text-sm font-medium">Une fois soumis, les modérateurs de chaque session doivent approuver. Le contrat sera scellé.</p>
+                  onRemove={() => removeVoteSession(si)} />
+              ))}
             </div>
-          </div>
-          <Button type="submit" size="lg" className="h-14 px-10 rounded-2xl w-full md:w-auto font-black shadow-lg shadow-primary-500/30 whitespace-nowrap">
-            Générer le Scrutin
-          </Button>
-        </div>
+            <button type="button" onClick={addVoteSession}
+              className="w-full flex items-center justify-center gap-3 border-2 border-dashed border-primary-300 hover:border-primary-500 bg-primary-50/40 hover:bg-primary-50 text-primary-600 font-black text-sm uppercase tracking-widest py-5 rounded-3xl transition-all group">
+              <span className="w-8 h-8 rounded-xl bg-primary-100 group-hover:bg-primary-200 flex items-center justify-center">
+                <PlusIcon className="w-5 h-5" />
+              </span>
+              Ajouter un vote
+            </button>
+          </motion.div>
+        )
 
-      </form>
+      case 3: // Récapitulatif
+        return (
+          <motion.div key="step3" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} className="space-y-6">
+            <h2 className="text-xl font-black text-slate-900">Récapitulatif final</h2>
+            <Card className="p-6">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Scrutin</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-sm text-slate-500 font-medium">Titre</span><span className="text-sm font-black text-slate-900">{formData.title || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-slate-500 font-medium">Portée</span><span className="text-sm font-black text-slate-900">{formData.scope}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-slate-500 font-medium">Mode</span><span className="text-sm font-black text-slate-900">{formData.timingMode}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-slate-500 font-medium">Sessions</span><span className="text-sm font-black text-slate-900">{formData.voteSessions.length}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-500 font-medium">Électeurs totaux</span>
+                  <span className="text-sm font-black text-slate-900">
+                    {new Set(formData.voteSessions.flatMap(s => s.votersText.split(/[\n,;]/).map(v => v.trim()).filter(Boolean))).size}
+                  </span>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-8 bg-white border-slate-100 shadow-sm rounded-[32px] mb-8">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Résumé des Sessions</h3>
+              <div className="space-y-3">
+                {formData.voteSessions.map((s, i) => (
+                  <div key={s.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <span className="w-6 h-6 bg-primary-600 text-white text-xs font-black rounded-lg flex items-center justify-center shrink-0">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-slate-900 truncate">{s.title || `Session ${i + 1}`}</p>
+                      <p className="text-xs text-slate-500 font-medium">{s.parts.length} option(s) · {s.voterCount} électeur(s)</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </motion.div>
+        )
+      default: return null
+    }
+  }
+
+  // ── Main Render ───────────────────────────────────────────────────────────
+  return (
+    <div className="max-w-3xl mx-auto animate-fade-in pb-24 px-4 sm:px-0">
+      <BlockchainLoadingModal isOpen={loading} />
+
+      {/* Header */}
+      <div className="flex items-center gap-5 mb-8">
+        <Link to="/admin" className="p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm shrink-0">
+          <XMarkIcon className="h-5 w-5 text-slate-600" />
+        </Link>
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Nouveau Scrutin</h1>
+          <p className="text-slate-500 font-medium text-sm">Configurez votre scrutin étape par étape.</p>
+        </div>
+      </div>
+
+      {/* Stepper */}
+      <WizardStepper currentStep={step} />
+
+      {/* Step Content */}
+      <AnimatePresence mode="wait">
+        {renderStep()}
+      </AnimatePresence>
+
+      {/* Navigation Buttons — visible on ALL steps including recap */}
+      <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
+        <Button type="button" variant="outline" onClick={handleBack} disabled={step === 0}
+          className={`h-12 px-6 rounded-2xl flex items-center gap-2 ${step === 0 ? 'opacity-0 pointer-events-none' : ''}`}>
+          <ArrowLeftIcon className="w-4 h-4" /> Précédent
+        </Button>
+        <div className="flex gap-1.5">
+          {STEPS.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-primary-600' : i < step ? 'w-3 bg-emerald-400' : 'w-3 bg-slate-200'}`} />
+          ))}
+        </div>
+        {step < 3 ? (
+          <Button type="button" onClick={handleNext} className="h-12 px-6 rounded-2xl flex items-center gap-2">
+            {step === 2 ? 'Récapitulatif' : 'Suivant'} <ArrowRightIcon className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button type="button" onClick={handleSubmit} size="lg" disabled={loading}
+            className="h-12 px-8 rounded-2xl font-black shadow-lg shadow-primary-500/30 flex items-center gap-2">
+            {loading ? 'Déploiement...' : 'Générer le Scrutin'}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

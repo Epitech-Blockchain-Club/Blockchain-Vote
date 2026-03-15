@@ -76,10 +76,11 @@ const AdminElectionDetail = () => {
         }
     }, [election])
 
-    if (loading) return (
+    if (loading && !election) return (
         <div className="flex flex-col items-center justify-center py-40">
             <div className="h-12 w-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin mb-4"></div>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Chargement du scrutin...</p>
+            <button onClick={handleRefresh} className="mt-6 text-xs font-bold text-primary-600 underline hover:text-primary-800">Rafraîchir manuellement</button>
         </div>
     )
 
@@ -122,72 +123,74 @@ const AdminElectionDetail = () => {
     const validatedSessions = election.sessions?.filter(s => s.isValidated).length || 0
 
     return (
-        <div className="animate-fade-in pb-20 bg-white transition-colors duration-300 min-h-screen">
-            <div className="flex items-center space-x-6 mb-10 pt-10 px-4 md:px-0 max-w-7xl mx-auto">
-                <Link to="/admin" className="p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm">
-                    <ArrowLeftIcon className="h-6 w-6 text-slate-600" />
-                </Link>
-                <button
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    className="p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm disabled:opacity-50"
-                    title="Actualiser l'état blockchain"
-                >
-                    <svg className={`h-5 w-5 text-slate-500 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
-                <div className="flex flex-col md:flex-row md:items-start gap-8 mb-12">
-                    {election.logoUrl && (
-                        <div className="h-32 w-32 bg-white rounded-[40px] border-2 border-slate-100 shadow-xl shadow-slate-200/50 flex-shrink-0 flex items-center justify-center p-3 relative group">
-                            <img src={election.logoUrl} alt="Logo Scrutin" className="h-full w-full object-contain" />
+        <div className="animate-fade-in pb-20 bg-white min-h-screen">
+            {/* Header Bar */}
+            <div className="flex flex-wrap items-start gap-3 sm:gap-4 mb-6 pt-6 sm:pt-10 px-4 md:px-0 max-w-7xl mx-auto">
+                {/* Row 1: nav buttons + title */}
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <Link to="/admin" className="p-2.5 sm:p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm shrink-0">
+                        <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
+                    </Link>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="p-2.5 sm:p-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors shadow-sm disabled:opacity-50 shrink-0"
+                        title="Actualiser l'état blockchain"
+                    >
+                        <svg className={`h-5 w-5 text-slate-500 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    {/* Title + Logo */}
+                    <div className="flex flex-1 flex-wrap items-start gap-4 min-w-0">
+                        {election.logoUrl && (
+                            <div className="h-12 w-12 sm:h-20 sm:w-20 bg-white rounded-2xl border-2 border-slate-100 shadow-xl flex-shrink-0 flex items-center justify-center p-2">
+                                <img src={election.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColor}`}>{status}</span>
+                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary-50 text-primary-600 border border-primary-100">{election.type || 'Standard'}</span>
+                            </div>
+                            <h1 className="text-xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">{election.title}</h1>
+                            <p className="text-slate-500 font-medium text-sm mt-1 line-clamp-2">{election.description}</p>
                         </div>
-                    )}
-                    <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
-                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColor}`}>
-                                {status}
-                            </span>
-                            <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary-50 text-primary-600 border border-primary-100">
-                                {election.type || 'Standard'}
-                            </span>
-                        </div>
-                        <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-4 leading-tight">{election.title}</h1>
-                        <p className="text-slate-500 font-medium text-lg max-w-2xl leading-relaxed">{election.description}</p>
                     </div>
                 </div>
-                <Link to={`/admin/elections/${id}/edit`}>
-                    <Button variant="outline" className="shadow-sm bg-white border-slate-200">
-                        <PencilSquareIcon className="w-5 h-5 mr-2" />
-                        {t({ fr: 'Modifier les paramètres', en: 'Edit Settings' })}
+                {/* Edit button — always accessible */}
+                <Link to={`/admin/elections/${id}/edit`} className="w-full sm:w-auto shrink-0">
+                    <Button variant="outline" className="w-full sm:w-auto shadow-sm bg-white border-slate-200 text-sm h-10">
+                        <PencilSquareIcon className="w-4 h-4 mr-2" />
+                        {t({ fr: 'Modifier', en: 'Edit' })}
                     </Button>
                 </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto px-4 md:px-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-7xl mx-auto px-4 md:px-0">
 
                 {/* Main Info */}
                 <div className="md:col-span-2 space-y-8">
                     <Card className="bg-white border-slate-100 shadow-sm p-8">
-                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-100 pb-4">Informations Principales</h2>
+                        <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6 border-b border-slate-100 pb-4">Informations Principales</h2>
                         <p className="text-slate-600 font-medium mb-6 leading-relaxed bg-slate-50 p-6 rounded-2xl border border-slate-100">
                             {election.description || "Aucune description fournie pour ce scrutin."}
                         </p>
                         <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Périmètre / Scope</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Périmètre / Scope</p>
                                 <p className="text-sm font-black text-slate-900 uppercase">{election.scope || election.type || 'Non défini'}</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Nombre d'inscrits</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Nombre d'inscrits</p>
                                 <p className="text-sm font-black text-slate-900">{election.voters?.length || 0} électeurs</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Ouverture</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Ouverture</p>
                                 <p className="text-sm font-bold text-slate-700">{start.toLocaleString()}</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fermeture</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Fermeture</p>
                                 <p className="text-sm font-bold text-slate-700">{end.toLocaleString()}</p>
                             </div>
                         </div>
@@ -197,7 +200,7 @@ const AdminElectionDetail = () => {
                         <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
                             <div className="flex items-center gap-2">
                                 <TrophyIcon className="w-5 h-5 text-amber-500" />
-                                <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest ">Sessions & Options de Vote</h2>
+                                <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest ">Sessions & Options de Vote</h2>
                             </div>
                         </div>
                         <div className="space-y-8">
@@ -316,7 +319,7 @@ const AdminElectionDetail = () => {
                                     {/* Moderator & Voter Lists */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-4">
                                         <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5">
-                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                                                 <ShieldCheckIcon className="w-3 h-3" /> Liste des Modérateurs
                                             </h4>
                                             <div className="space-y-3">
@@ -334,7 +337,7 @@ const AdminElectionDetail = () => {
 
                                         <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5">
                                             <div className="flex justify-between items-center mb-4">
-                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                                                     <UserGroupIcon className="w-3 h-3" /> Liste des Électeurs
                                                 </h4>
                                                 <button
@@ -408,10 +411,10 @@ const AdminElectionDetail = () => {
                                     Le lien de vote et le QR Code ne seront générés qu'une fois que **100% des sessions** auront été validées par les modérateurs.
                                 </p>
                                 <div className="mt-8 pt-8 border-t border-slate-200">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">État actuel</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">État actuel</p>
                                     <div className="flex items-center justify-center gap-2">
                                         <span className="text-2xl font-black text-slate-400">{validatedSessions} / {totalSessions}</span>
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sessions Validées</span>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sessions Validées</span>
                                     </div>
                                 </div>
                             </div>
@@ -428,15 +431,15 @@ const AdminElectionDetail = () => {
                         </h2>
                         <div className="relative z-10 space-y-6">
                             <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Sessions</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Sessions</p>
                                 <p className="text-2xl font-black text-white">{totalSessions}</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sessions Validées</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Sessions Validées</p>
                                 <p className="text-2xl font-black text-secondary-400">{validatedSessions} / {totalSessions}</p>
                             </div>
                             <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Participation Moyenne</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Participation Moyenne</p>
                                 <p className="text-2xl font-black text-primary-400">
                                     {((election.voters?.length || 0) / (election.voterCount || 1) * 100).toFixed(1)}%
                                 </p>

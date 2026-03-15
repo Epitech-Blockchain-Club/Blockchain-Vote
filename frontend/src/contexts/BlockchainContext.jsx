@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext } from 'react'
 import toast from 'react-hot-toast'
-import { API_URL } from '../api'
 
 const BlockchainContext = createContext()
 
@@ -12,7 +11,7 @@ export function BlockchainProvider({ children }) {
   const connect = async () => {
     try {
       // Connect to the backend API instead of simulation
-      const response = await fetch(`${API_URL}/api/scrutins`);
+      const response = await fetch('http://localhost:3001/api/scrutins');
       if (!response.ok) throw new Error('Backend unreachable');
 
       setConnected(true)

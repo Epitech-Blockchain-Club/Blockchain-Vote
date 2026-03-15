@@ -1,6 +1,4 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API_URL } from '../api';
 
 const OAuthCallbackPage = () => {
     useEffect(() => {
@@ -34,12 +32,12 @@ const OAuthCallbackPage = () => {
 
                                 if (provider === 'google') {
                                     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                                        headers: { Authorization: `Bearer ${accessToken} ` }
+                                        headers: { Authorization: `Bearer ${accessToken}` }
                                     });
                                     userProfile = await response.json();
                                 } else if (provider === 'microsoft') {
                                     const response = await fetch('https://graph.microsoft.com/v1.0/me', {
-                                        headers: { Authorization: `Bearer ${accessToken} ` }
+                                        headers: { Authorization: `Bearer ${accessToken}` }
                                     });
                                     const msData = await response.json();
                                     userProfile = {
@@ -52,7 +50,7 @@ const OAuthCallbackPage = () => {
                                 if (userProfile && userProfile.email) {
                                     // Verify voter authorization if scrutinId is provided
                                     if (scrutinId) {
-                                        const authResponse = await fetch(`${API_URL}/api/auth/verify-voter`, {
+                                        const authResponse = await fetch('http://localhost:3001/api/auth/verify-voter', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({

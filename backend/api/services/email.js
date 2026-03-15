@@ -3,194 +3,255 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Fallback to Resend API because Render blocks SMTP ports 465/587
-const RESEND_API_URL = 'https://api.resend.com/emails';
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: process.env.SMTP_PORT || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
-/**
- * Mock transporter for compatibility with health check
- */
-export const transporter = {
-    options: {
-        host: 'api.resend.com (HTTP)',
-        port: 443,
-        secure: true
-    },
-    verify: async (callback) => {
-        try {
-            const apiKey = process.env.SMTP_PASS;
-            if (!apiKey) throw new Error("RESEND_API_KEY (via SMTP_PASS) is missing");
-            // Simple check by listing domains/sending test?
-            // Actually, we just check if key exists and we can reach the API
-            const res = await fetch('https://api.resend.com/domains', {
-                headers: { 'Authorization': `Bearer ${apiKey}` }
-            });
-            if (res.status === 401) callback(new Error("Invalid API Key"));
-            else if (!res.ok) callback(new Error(`API Error: ${res.statusText}`));
-            else callback(null, true);
-        } catch (e) {
-            callback(e);
-        }
-    }
-};
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("SMTP Connection Error:", error);
+  } else {
+    console.log("SMTP Server is ready to take our messages");
+  }
+});
 
-/**
- * Send invitation email using Resend API
- */
+// ─── Shared Design Tokens ────────────────────────────────────────────────
+const BRAND_COLOR = '#2563eb';
+const BRAND_DARK = '#0f172a';
+const FONT = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+const emailWrapper = (content) => `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoteChain</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:${FONT};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <!-- Card -->
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <!-- Header banner -->
+          <tr>
+            <td style="background:linear-gradient(135deg,${BRAND_COLOR} 0%,#1d4ed8 50%,#1e40af 100%);padding:36px 40px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <span style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:12px;padding:8px 16px;">
+                      <span style="font-size:18px;font-weight:900;color:#ffffff;letter-spacing:-0.025em;">VoteChain</span>
+                    </span>
+                  </td>
+                  <td align="right">
+                    <span style="display:inline-block;font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.15em;padding-top:6px;">Blockchain Voting</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              ${content}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 40px;">
+              <p style="margin:0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
+                Cet email est confidentiel et destiné uniquement à son destinataire.<br/>
+                © ${new Date().getFullYear()} VoteChain by Epitech Blockchain Club · Ne pas répondre à cet email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+const badge = (text, bg, color) => `
+  <span style="display:inline-block;background:${bg};color:${color};font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;padding:4px 10px;border-radius:6px;">${text}</span>
+`;
+
+const infoRow = (label, value) => `
+  <tr>
+    <td style="padding:12px 0;border-bottom:1px solid #f1f5f9;">
+      <p style="margin:0 0 2px 0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">${label}</p>
+      <p style="margin:0;font-size:14px;font-weight:700;color:#0f172a;">${value}</p>
+    </td>
+  </tr>
+`;
+
+const ctaButton = (href, text) => `
+  <div style="text-align:center;margin:32px 0;">
+    <a href="${href}" style="display:inline-block;background:${BRAND_DARK};color:#ffffff;padding:16px 40px;text-decoration:none;border-radius:14px;font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;">
+      ${text}
+    </a>
+    <p style="margin:12px 0 0;font-size:11px;color:#94a3b8;">Ou copiez ce lien : <a href="${href}" style="color:${BRAND_COLOR};text-decoration:none;word-break:break-all;">${href}</a></p>
+  </div>
+`;
+
+// ─── sendModeratorInvitation ─────────────────────────────────────────────
 export const sendModeratorInvitation = async (email, electionTitle, sessionTitle, portalLink) => {
-    try {
-        const apiKey = process.env.SMTP_PASS;
-        const from = process.env.SMTP_FROM || 'onboarding@resend.dev';
+  try {
+    const body = emailWrapper(`
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};letter-spacing:-0.025em;">
+        Invitation à modérer
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Vous avez été désigné comme modérateur pour la session ci-dessous.
+      </p>
 
-        const res = await fetch(RESEND_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                from: from,
-                to: [email],
-                subject: `[Moderation] Invitation pour le scrutin: ${electionTitle}`,
-                html: `
-                    <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #fcfcfd; border: 1px solid #f1f5f9; border-radius: 24px; color: #1e293b;">
-                        <div style="text-align: center; margin-bottom: 30px;">
-                            <div style="display: inline-block; padding: 12px; background-color: #2563eb; border-radius: 16px; margin-bottom: 16px;">
-                                <img src="https://antigravity.aptely.io/logo-white.png" height="32" alt="VoteChain" style="display: block;" />
-                            </div>
-                            <h2 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Validation de Session</h2>
-                        </div>
-                        
-                        <p style="font-size: 16px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
-                            Bonjour, vous avez été sollicité pour modérer la session <strong>"${sessionTitle}"</strong> dans le cadre du scrutin <strong>"${electionTitle}"</strong>.
-                        </p>
-                        
-                        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                            <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8;">Scrutin</p>
-                            <p style="margin: 0 0 16px 0; font-weight: 700; color: #0f172a;">${electionTitle}</p>
-                            
-                            <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8;">Session à valider</p>
-                            <p style="margin: 0; font-weight: 700; color: #2563eb;">${sessionTitle}</p>
-                        </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:28px;">
+        <tbody>
+          ${infoRow('Scrutin', electionTitle)}
+          ${infoRow('Session à valider', `<span style="color:${BRAND_COLOR};font-weight:800;">${sessionTitle}</span>`)}
+        </tbody>
+      </table>
 
-                        <p style="font-size: 14px; line-height: 1.5; color: #64748b; text-align: center; margin-bottom: 24px;">
-                            Votre validation est indispensable pour permettre l'ouverture du vote. Veuillez examiner les paramètres techniques via ce lien sécurisé :
-                        </p>
+      <p style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:8px;">
+        Votre validation est <strong>indispensable</strong> pour permettre l'ouverture du vote. Examinez les paramètres techniques via le lien sécurisé ci-dessous.
+      </p>
 
-                        <div style="text-align: center; margin-bottom: 36px;">
-                            <a href="${portalLink}" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s;">
-                                Accéder au Journal de Validation
-                            </a>
-                        </div>
+      ${ctaButton(portalLink, 'Accéder au portail de validation')}
 
-                        <div style="padding-top: 24px; border-top: 1px solid #e2e8f0; text-align: center;">
-                            <p style="font-size: 12px; font-weight: 600; color: #94a3b8; margin: 0 0 8px 0;">Sécurité VoteChain</p>
-                            <p style="font-size: 11px; color: #cbd5e1; line-height: 1.4; margin: 0;">
-                                Ceci est un lien à usage unique. Une fois votre décision validée, le lien sera désactivé.
-                                Si le bouton ci-dessus ne s'affiche pas, copiez-collez : ${portalLink}
-                            </p>
-                        </div>
-                    </div>
-                `
-            })
-        });
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-top:8px;">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
+          ⚠️ Lien à usage unique. Une fois votre décision soumise, ce lien sera désactivé.
+        </p>
+      </div>
+    `);
 
-        const data = await res.json();
-        if (res.ok) {
-            console.log("Moderator invitation sent via Resend API. ID:", data.id);
-            return true;
-        } else {
-            console.error("Resend API Error:", data);
-            return false;
-        }
-    } catch (error) {
-        console.error("Error sending email via API:", error);
-        return false;
-    }
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      to: email,
+      subject: `[Modération] Invitation — ${electionTitle}`,
+      text: `Bonjour,\n\nVous avez été désigné modérateur pour la session "${sessionTitle}" du scrutin "${electionTitle}".\n\nPortal: ${portalLink}\n\nCordialement,\nL'équipe VoteChain`,
+      html: body,
+    });
+    console.log("Moderator invitation sent to", email, "MessageId:", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return false;
+  }
 };
 
-/**
- * Notify admin of moderator decision
- */
+// ─── notifyAdminOfDecision ────────────────────────────────────────────────
 export const notifyAdminOfDecision = async (adminEmail, result, moderatorEmail, sessionTitle) => {
-    try {
-        const apiKey = process.env.SMTP_PASS;
-        const from = process.env.SMTP_FROM || 'onboarding@resend.dev';
-        const isApproved = result === 'validate';
+  try {
+    const isApproved = result === 'validate';
+    const statusColor = isApproved ? '#059669' : '#dc2626';
+    const statusBg = isApproved ? '#ecfdf5' : '#fef2f2';
+    const statusLabel = isApproved ? 'Validée ✓' : 'Invalidée ✗';
 
-        const res = await fetch(RESEND_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                from: from,
-                to: [adminEmail],
-                subject: `[Alerte Admin] Décision modérateur pour "${sessionTitle}"`,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; padding: 20px;">
-                        <h3 style="color: ${isApproved ? '#059669' : '#dc2626'}">
-                            Décision: ${isApproved ? 'VALIDÉE' : 'INVALIDÉE'}
-                        </h3>
-                        <p>Le modérateur <strong>${moderatorEmail}</strong> a rendu son verdict pour la session <strong>"${sessionTitle}"</strong>.</p>
-                        <p>Le consensus de l'élection est mis à jour en conséquence.</p>
-                    </div>
-                `
-            })
-        });
-        return res.ok;
-    } catch (error) {
-        console.error("Error notifying admin via API:", error);
-        return false;
-    }
+    const body = emailWrapper(`
+      <div style="display:inline-block;margin-bottom:20px;">
+        ${badge(statusLabel, statusBg, statusColor)}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
+        Décision du modérateur
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Un modérateur vient de rendre son verdict sur une session.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:28px;">
+        <tbody>
+          ${infoRow('Session concernée', sessionTitle)}
+          ${infoRow('Modérateur', moderatorEmail)}
+          ${infoRow('Décision', `<span style="color:${statusColor};font-weight:900;">${statusLabel}</span>`)}
+          ${infoRow('Date & heure', new Date().toLocaleString('fr-FR'))}
+        </tbody>
+      </table>
+
+      <p style="font-size:14px;color:#475569;line-height:1.7;">
+        Le consensus de l'élection a été mis à jour en conséquence. Rendez-vous sur le dashboard VoteChain pour visualiser l'état global.
+      </p>
+    `);
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      to: adminEmail,
+      subject: `[VoteChain] Verdict modérateur — ${sessionTitle}`,
+      text: `Le modérateur ${moderatorEmail} a ${isApproved ? 'validé' : 'invalidé'} la session "${sessionTitle}".`,
+      html: body,
+    });
+    return true;
+  } catch (error) {
+    console.error("Error notifying admin:", error);
+    return false;
+  }
 };
 
-/**
- * Send temporary credentials using Resend API
- */
+// ─── sendCredentials ──────────────────────────────────────────────────────
 export const sendCredentials = async (email, name, password, role, orgName = null) => {
-    try {
-        const apiKey = process.env.SMTP_PASS;
-        const from = process.env.SMTP_FROM || 'onboarding@resend.dev';
-        const isSuper = role === 'superadmin';
-        const roleLabel = isSuper ? 'Super Admin' : 'Administrateur';
+  try {
+    const isSuper = role === 'superadmin';
+    const roleLabel = isSuper ? 'Super Admin' : 'Administrateur';
+    const roleBadgeColor = isSuper ? '#7c3aed' : '#2563eb';
+    const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/login` : 'http://localhost:5173/login';
 
-        const res = await fetch(RESEND_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                from: from,
-                to: [email],
-                subject: `[VoteChain] Vos identifiants ${roleLabel}${orgName ? ` — ${orgName}` : ''}`,
-                html: `
-                    <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #fcfcfd; border: 1px solid #f1f5f9; border-radius: 24px; color: #1e293b;">
-                        <h2 style="margin: 0 0 8px 0; color: #0f172a; font-size: 22px; font-weight: 800;">Bienvenue sur VoteChain</h2>
-                        <p style="color: #64748b; margin-bottom: 24px;">Bonjour <strong>${name}</strong>,</p>
-                        <p style="color: #475569; line-height: 1.6;">
-                            Un compte <strong>${roleLabel}</strong> a été créé pour vous${orgName ? ` pour l'organisation <strong>${orgName}</strong>` : ''} sur la plateforme de vote blockchain VoteChain.
-                        </p>
-                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 24px; border-radius: 16px; margin: 24px 0;">
-                            <p style="margin: 0 0 4px 0; color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">Email</p>
-                            <p style="margin: 0 0 16px 0; font-weight: 700; font-family: monospace; color: #0f172a;">${email}</p>
-                            <p style="margin: 0 0 4px 0; color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">Mot de passe temporaire</p>
-                            <p style="margin: 0; font-weight: 800; font-family: monospace; font-size: 20px; color: #2563eb; letter-spacing: 0.05em;">${password}</p>
-                        </div>
-                        ${orgName ? `<p style="color: #475569; font-size: 14px;">Organisation assignée : <strong>${orgName}</strong></p>` : ''}
-                        <p style="color: #64748b; font-size: 14px;">Veuillez vous connecter et changer votre mot de passe dès votre première visite.</p>
-                        <div style="text-align: center; margin: 32px 0;">
-                            <a href="https://blockchain-vote.onrender.com/login" style="background-color: #0f172a; color: white; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px;">Se connecter à VoteChain</a>
-                        </div>
-                        <p style="font-size: 11px; color: #94a3b8; text-align: center;">Ne partagez jamais ces identifiants.</p>
-                    </div>
-                `
-            })
-        });
-        return res.ok;
-    } catch (error) {
-        console.error("Error sending credentials via API:", error);
-        return false;
-    }
+    const body = emailWrapper(`
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
+        Bienvenue sur VoteChain 🎉
+      </h2>
+      <p style="margin:0 0 6px;font-size:14px;color:#64748b;">Bonjour <strong style="color:${BRAND_DARK};">${name || email}</strong>,</p>
+      <div style="margin-bottom:24px;">
+        ${badge(roleLabel, roleBadgeColor + '15', roleBadgeColor)}
+        ${orgName ? badge(orgName, '#e0f2fe', '#0369a1') : ''}
+      </div>
+
+      <p style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:28px;">
+        Un compte <strong>${roleLabel}</strong> a été créé pour vous${orgName ? ` au sein de l'organisation <strong>${orgName}</strong>` : ''} sur la plateforme de vote blockchain VoteChain. Voici vos identifiants de connexion.
+      </p>
+
+      <!-- Credentials Box -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_DARK};border-radius:16px;padding:0;margin-bottom:28px;overflow:hidden;">
+        <tr>
+          <td style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);">Email</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:#ffffff;font-family:monospace;">${email}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 24px;">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.4);">Mot de passe temporaire</p>
+            <p style="margin:0;font-size:22px;font-weight:900;color:#60a5fa;letter-spacing:0.06em;font-family:monospace;">${password}</p>
+          </td>
+        </tr>
+      </table>
+
+      ${ctaButton(loginUrl, 'Se connecter maintenant')}
+
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
+          🔒 Sécurité : Veuillez changer votre mot de passe dès votre première connexion. Ne partagez jamais ces identifiants.
+        </p>
+      </div>
+    `);
+
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      to: email,
+      subject: `[VoteChain] Vos identifiants ${roleLabel}${orgName ? ` — ${orgName}` : ''}`,
+      html: body,
+    });
+    console.log("Credentials email sent to", email, "role:", role, "MessageId:", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("Error sending credentials:", error);
+    return false;
+  }
 };

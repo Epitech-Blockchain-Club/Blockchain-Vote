@@ -1,9 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSettings } from '../contexts/SettingsContext'
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
-import { API_URL } from '../api';
 import Button from '../components/common/Button'
 import Card from '../components/common/Card'
 import { EnvelopeIcon, ChatBubbleBottomCenterTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
@@ -22,13 +19,24 @@ const RequestVotePage = () => {
         e.preventDefault()
         setLoading(true)
         try {
-            const res = await fetch(`${API_URL}/api/request-vote`, {
+            const res = await fetch('http://localhost:3001/api/request-vote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, description })
             });
             const result = await res.json();
             if (result.success) {
+                // Also push a superadmin notification so the bell lights up
+                try {
+                    await fetch('http://localhost:3001/api/superadmin/notifications', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email,
+                            message: `${email} souhaite lancer un scrutin — ${description.substring(0, 80)}${description.length > 80 ? '…' : ''}`
+                        })
+                    })
+                } catch (_) { /* non-blocking */ }
                 setSubmitted(true)
                 toast.success(t({ fr: 'Demande envoyée !', en: 'Request sent!' }))
             } else {
