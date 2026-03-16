@@ -14,6 +14,8 @@ export function ElectionProvider({ children }) {
   const [users, setUsers] = useState([])
   const [organizations, setOrganizations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [orgsLoading, setOrgsLoading] = useState(false)
 
   const fetchElections = async () => {
     console.log('🏁 [CONTEXT] fetchElections triggered');
@@ -246,8 +248,7 @@ export function ElectionProvider({ children }) {
 
   const createOrganization = async (orgData) => {
     try {
-      // Assuming API_URL is defined elsewhere or using direct URL
-      const res = await fetch('http://localhost:3001/api/auth/organizations', {
+      const res = await fetch(`${API_ROUTES.AUTH}/organizations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orgData)
