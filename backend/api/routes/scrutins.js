@@ -122,6 +122,8 @@ router.post('/', async (req, res) => {
         // Note: Voters should NOT receive emails - they access the voting portal directly
         // Only moderators receive invitation emails for validation
 
+        const emailResults = [];
+
         // Add sessions to the contract
         if (voteSessions && voteSessions.length > 0) {
             const scrutinContract = getScrutinContract(scrutinAddress);
@@ -185,15 +187,17 @@ router.post('/', async (req, res) => {
 
                 const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
                 const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
-                await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
-                console.log(`[SCRUTIN] Single invitation sent to moderator ${mod} for all their sessions`);
+                const sent = await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
+                emailResults.push({ email: mod, sent });
+                console.log(`[SCRUTIN] Invitation to ${mod}: ${sent ? 'sent' : 'FAILED'}`);
             }
         }
 
         res.status(201).json({
             success: true,
             address: scrutinAddress,
-            txHash: receipt.hash
+            txHash: receipt.hash,
+            emails: emailResults
         });
     } catch (error) {
         console.error("Error creating scrutin:", error);
