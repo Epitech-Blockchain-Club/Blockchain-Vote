@@ -126,11 +126,19 @@ const LoginForm = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('google')}
+              className="h-14 flex items-center justify-center gap-3 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-bold text-slate-600 text-sm"
+            >
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+              Gmail
+            </button>
             <button
               type="button"
               onClick={() => handleOAuthLogin('office')}
-              className="w-full h-14 flex items-center justify-center gap-3 bg-[#2563EB] rounded-2xl hover:bg-blue-700 transition-all font-bold text-white text-sm"
+              className="h-14 flex items-center justify-center gap-3 bg-[#2563EB] rounded-2xl hover:bg-blue-700 transition-all font-bold text-white text-sm"
             >
               <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="MS" />
               Office 365

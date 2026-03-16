@@ -101,6 +101,14 @@ const VoterPage = () => {
                     {/* Authentication Section */}
                     <div className="space-y-4">
                         <button
+                            onClick={handleGoogleLogin}
+                            disabled={searching}
+                            className="w-full h-15 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-bold text-[#334155] shadow-sm active:scale-[0.98] py-4 disabled:opacity-60"
+                        >
+                            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+                            {searching ? 'Recherche en cours...' : 'Se connecter avec Gmail'}
+                        </button>
+                        <button
                             onClick={handleMicrosoftLogin}
                             disabled={searching}
                             className="w-full h-15 bg-[#2563EB] rounded-2xl flex items-center justify-center gap-3 hover:bg-blue-700 transition-all font-bold text-white shadow-md active:scale-[0.98] py-4 disabled:opacity-60"
