@@ -4,11 +4,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+const isSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465 || smtpPort === 443;
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: process.env.SMTP_HOST,
   port: smtpPort,
-  secure: smtpPort === 465, // true for 465 (Implicit TLS), false for other ports (STARTTLS)
+  secure: isSecure,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
