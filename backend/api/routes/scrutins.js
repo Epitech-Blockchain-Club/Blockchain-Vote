@@ -1,56 +1,34 @@
 import express from 'express';
 import { ethers } from 'ethers';
-import { getFactoryContract, getScrutinContract, getVoteSessionContract, getNextNonce, resetNonce } from '../services/blockchain.js';
+import { getFactoryContract, getScrutinContract, getVoteSessionContract, getNextNonce } from '../services/blockchain.js';
 import { storage } from '../services/storage.js';
 import { sendModeratorInvitation } from '../services/email.js';
 import crypto from 'crypto';
 
 const router = express.Router();
 
-// GET /api/scrutins/available - Get active scrutins for voter email
+// GET /api/scrutins/available
 router.get('/available', async (req, res) => {
     try {
         const { email } = req.query;
-
-        if (!email) {
-            return res.status(400).json({
-                success: false,
-                error: 'Email parameter is required'
-            });
-        }
+        if (!email)
+            return res.status(400).json({ success: false, error: 'Email parameter is required' });
 
         const voterEmail = email.toLowerCase();
-        const allScrutins = storage.getAllScrutins();
+        const allScrutins = await storage.getAllScrutins();
+        const now = new Date();
         const availableScrutins = [];
 
-        // Filter scrutins where voter is authorized and scrutin is in progress
         for (const scrutin of allScrutins) {
-            // Check if scrutin is in progress (simplified check - in production would check actual dates)
-            const now = new Date();
-            const startDate = new Date(scrutin.startDate);
-            const endDate = new Date(scrutin.endDate);
+            if (now < new Date(scrutin.startDate) || now > new Date(scrutin.endDate)) continue;
 
-            if (now < startDate || now > endDate) {
-                continue; // Skip scrutins that haven't started or have ended
-            }
-
-            // Check if voter is authorized (global or session-specific)
-            let isAuthorized = false;
-
-            // Check global voters
             const globalVoters = scrutin.voters || [];
-            if (globalVoters.some(v => v.toLowerCase() === voterEmail)) {
-                isAuthorized = true;
-            } else {
-                // Check session-specific voters
-                const sessions = scrutin.sessions || [];
-                for (const session of sessions) {
-                    const sessionVoters = session.voters || [];
-                    if (sessionVoters.some(v => v.toLowerCase() === voterEmail)) {
-                        isAuthorized = true;
-                        break;
-                    }
-                }
+            let isAuthorized = globalVoters.some(v => v.toLowerCase() === voterEmail);
+
+            if (!isAuthorized) {
+                isAuthorized = (scrutin.sessions || []).some(session =>
+                    (session.voters || []).some(v => v.toLowerCase() === voterEmail)
+                );
             }
 
             if (isAuthorized) {
@@ -58,74 +36,52 @@ router.get('/available', async (req, res) => {
                     id: scrutin.address || scrutin.id,
                     name: scrutin.title,
                     country: scrutin.country || 'France',
-                    status: 'in_progress'
+                    status: 'in_progress',
                 });
             }
         }
 
-        res.json({
-            success: true,
-            scrutins: availableScrutins
-        });
-
+        res.json({ success: true, scrutins: availableScrutins });
     } catch (error) {
         console.error('Error fetching available scrutins:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Server error fetching available scrutins'
-        });
+        res.status(500).json({ success: false, error: 'Server error fetching available scrutins' });
     }
 });
 
-// POST /api/scrutins - Create a new scrutin
+// POST /api/scrutins
 router.post('/', async (req, res) => {
     try {
         const { title, description, scope, country, timingMode, startDate, endDate, voteSessions, voters } = req.body;
-        console.log(`[SCRUTIN] Creating new scrutin: "${title}"`);
-        console.log(`[SCRUTIN] Received ${voters?.length || 0} global voters`);
+        console.log(`[SCRUTIN] Creating: "${title}" — ${voters?.length || 0} global voters`);
 
         const factory = getFactoryContract();
-        console.log(`Calling createScrutin...`);
-
         const startTime = Math.floor(new Date(startDate || Date.now()).getTime() / 1000);
-        const endTime = Math.floor(new Date(endDate || Date.now() + 86400000).getTime() / 1000);
+        const endTime   = Math.floor(new Date(endDate   || Date.now() + 86400000).getTime() / 1000);
 
         const tx = await factory.createScrutin(
-            title, description || "", scope || "", country || "", startTime, endTime,
+            title, description || '', scope || '', country || '', startTime, endTime,
             { nonce: await getNextNonce() }
         );
-        console.log(`Transaction sent: ${tx.hash}`);
         const receipt = await tx.wait();
-        console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
+        console.log(`[SCRUTIN] Confirmed in block ${receipt.blockNumber}`);
 
-        // Extract contract address from event
-        // En ethers v6, receipt.logs contains the logs
         const event = receipt.logs.find(log => log.eventName === 'ScrutinCreated');
         const scrutinAddress = event.args[0];
 
-        // Save metadata off-chain
-        const createdAt = new Date().toISOString();
-        console.log(`[SCRUTIN] Saving metadata for ${scrutinAddress}`);
-
-        storage.saveScrutin(scrutinAddress, {
+        await storage.saveScrutin(scrutinAddress, {
             title, description, scope, country, timingMode, startDate, endDate,
             type: req.body.org || 'epitech',
-            createdAt,
             voters: voters || [],
             sessions: voteSessions ? voteSessions.map(s => ({
                 ...s,
                 txHash: receipt.hash,
-                voters: s.voters || [] // Ensure session voters are stored
-            })) : []
+                voters: s.voters || [],
+            })) : [],
         });
-
-        // Note: Voters should NOT receive emails - they access the voting portal directly
-        // Only moderators receive invitation emails for validation
 
         const emailResults = [];
 
-        // Add sessions to the contract
-        if (voteSessions && voteSessions.length > 0) {
+        if (voteSessions?.length > 0) {
             const scrutinContract = getScrutinContract(scrutinAddress);
             const adminAddress = await getFactoryContract().runner.getAddress();
 
@@ -133,106 +89,84 @@ router.post('/', async (req, res) => {
                 const session = voteSessions[i];
                 console.log(`[SCRUTIN] Adding session ${i}: "${session.title}"`);
 
-                // Sanitize moderators: ENS is not supported on local networks, so we must ensure 
-                // all moderators are valid hex addresses. If they are emails, we map to admin for now.
-                const sanitizedModerators = (session.moderators || []).map(m => {
-                    if (ethers.isAddress(m)) return m;
-                    return adminAddress; // Fallback to current admin if it's an email/invalid
-                });
+                const sanitizedModerators = (session.moderators || []).map(m =>
+                    ethers.isAddress(m) ? m : adminAddress
+                );
 
                 const sessionTx = await scrutinContract.addVoteSession(
                     session.title,
-                    session.description || "",
+                    session.description || '',
                     session.voterCount || 0,
                     sanitizedModerators,
                     { nonce: await getNextNonce() }
                 );
                 await sessionTx.wait();
-                console.log(`[SCRUTIN] Session "${session.title}" added to blockchain`);
 
-                // Save session voters explicitly in storage if not already handled by parent
-                if (session.voters && session.voters.length > 0) {
-                    storage.saveSessionVoters(scrutinAddress, i, session.voters);
+                if (session.voters?.length > 0) {
+                    await storage.saveSessionVoters(scrutinAddress, i, session.voters);
                 }
             }
 
-            // --- INDEX SESSION ADDRESSES ---
             try {
                 const sessionAddresses = await scrutinContract.getSessions();
-                storage.updateSessionAddresses(scrutinAddress, sessionAddresses);
-                console.log(`[SCRUTIN] Indexed ${sessionAddresses.length} session addresses for ${scrutinAddress}`);
+                await storage.updateSessionAddresses(scrutinAddress, sessionAddresses);
+                console.log(`[SCRUTIN] Indexed ${sessionAddresses.length} session addresses`);
             } catch (indexErr) {
-                console.warn(`[SCRUTIN] Critical: Failed to index session addresses: ${indexErr.message}`);
+                console.warn(`[SCRUTIN] Failed to index session addresses: ${indexErr.message}`);
             }
 
-            // --- DE-DUPLICATED MODERATOR INVITATIONS ---
-            // 1. Collect all unique moderators across all sessions
+            // One email per unique moderator
             const uniqueModerators = new Set();
             voteSessions.forEach(session => {
-                if (session.moderators && session.moderators.length > 0) {
-                    session.moderators.forEach(mod => {
-                        if (mod) uniqueModerators.add(mod.toLowerCase());
-                    });
-                }
+                (session.moderators || []).forEach(mod => {
+                    if (mod) uniqueModerators.add(mod.toLowerCase());
+                });
             });
 
-            // 2. Send one email per unique moderator
             for (const mod of uniqueModerators) {
                 const token = crypto.randomBytes(32).toString('hex');
-                storage.saveModeratorToken(token, {
+                await storage.saveModeratorToken(token, {
                     email: mod,
                     scrutinId: scrutinAddress,
-                    type: 'moderator'
+                    type: 'moderator',
                 });
 
-                if (!process.env.FRONTEND_URL) {
-                    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] FRONTEND_URL is not set in environment variables! Moderator links will be broken.");
-                }
                 const baseUrl = process.env.FRONTEND_URL || '';
                 const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
-                const sent = await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
+                const sent = await sendModeratorInvitation(mod, title, 'Toutes vos sessions assignées', portalLink);
                 emailResults.push({ email: mod, sent });
                 console.log(`[SCRUTIN] Invitation to ${mod}: ${sent ? 'sent' : 'FAILED'}`);
             }
         }
 
-        res.status(201).json({
-            success: true,
-            address: scrutinAddress,
-            txHash: receipt.hash,
-            emails: emailResults
-        });
+        res.status(201).json({ success: true, address: scrutinAddress, txHash: receipt.hash, emails: emailResults });
     } catch (error) {
-        console.error("Error creating scrutin:", error);
+        console.error('Error creating scrutin:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// GET /api/scrutins - List all scrutins
+// GET /api/scrutins
 router.get('/', async (req, res) => {
     try {
         const orgFilter = req.query.org?.toLowerCase();
-        const factory = getFactoryContract();
+        const factory   = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
 
         const scrutins = await Promise.all(addresses.map(async (addr) => {
             console.log(`[API] Processing scrutin: ${addr}`);
-            const metadata = storage.getScrutin(addr) || {};
+            const metadata = await storage.getScrutin(addr) || {};
             const contract = getScrutinContract(addr);
 
-            // Fetch session addresses from contract
-            let sessions = [];
+            let sessions     = [];
             let sessionAddrs = [];
+
             try {
                 sessionAddrs = await contract.getSessions();
-                console.log(`[API] Found ${sessionAddrs.length} sessions for scrutin ${addr}`);
 
                 sessions = await Promise.all(sessionAddrs.map(async (sAddr, idx) => {
-                    const sessionMetadata = (metadata.sessions && metadata.sessions[idx]) ? metadata.sessions[idx] : {};
-                    // Performance optimization: Only check blockchain if not already validated in storage
-                    let isValidated = sessionMetadata.isValidated;
-                    let isInvalidated = sessionMetadata.isInvalidated;
-                    let invalidationReason = sessionMetadata.invalidationReason;
+                    const sessionMetadata = metadata.sessions?.[idx] || {};
+                    let { isValidated, isInvalidated, invalidationReason } = sessionMetadata;
 
                     if (!isValidated && !isInvalidated) {
                         try {
@@ -240,33 +174,29 @@ router.get('/', async (req, res) => {
                             [isValidated, isInvalidated, invalidationReason] = await Promise.all([
                                 sContract.isValidated(),
                                 sContract.isInvalidated(),
-                                sContract.invalidationReason()
+                                sContract.invalidationReason(),
                             ]);
 
-                            // Update metadata with blockchain status
-                            if (isValidated || isInvalidated) {
-                                if (metadata.sessions && metadata.sessions[idx]) {
-                                    metadata.sessions[idx].isValidated = isValidated;
-                                    metadata.sessions[idx].isInvalidated = isInvalidated;
-                                    metadata.sessions[idx].invalidationReason = invalidationReason;
-                                    storage.saveScrutin(addr, metadata);
-                                }
+                            if ((isValidated || isInvalidated) && metadata.sessions?.[idx]) {
+                                metadata.sessions[idx].isValidated        = isValidated;
+                                metadata.sessions[idx].isInvalidated      = isInvalidated;
+                                metadata.sessions[idx].invalidationReason = invalidationReason;
+                                await storage.saveScrutin(addr, metadata);
                             }
                         } catch (sErr) {
-                            console.warn(`[API] Error checking status for session ${sAddr}: ${sErr.message}`);
+                            console.warn(`[API] Status check failed for session ${sAddr}: ${sErr.message}`);
                         }
                     }
 
-                    // Self-healing: Update storage if address is missing
-                    if (metadata.sessions && metadata.sessions[idx] && !metadata.sessions[idx].address) {
+                    if (metadata.sessions?.[idx] && !metadata.sessions[idx].address) {
                         metadata.sessions[idx].address = sAddr.toLowerCase();
-                        storage.saveScrutin(addr, metadata);
-                        console.log(`[API] Fixed missing session address in storage for ${sAddr}`);
+                        await storage.saveScrutin(addr, metadata);
                     }
 
-                    const decisions = storage.getSessionDecisions(sAddr);
-                    const validations = decisions.filter(d => d.decision === 'validate').length;
-                    const totalMods = (sessionMetadata.moderators || []).length;
+                    const decisions    = await storage.getSessionDecisions(sAddr);
+                    const validations  = decisions.filter(d => d.decision === 'validate').length;
+                    const totalMods    = (sessionMetadata.moderators || []).length;
+                    const sessionVotes = await storage.getVotesLog(sAddr);
 
                     return {
                         ...sessionMetadata,
@@ -276,70 +206,59 @@ router.get('/', async (req, res) => {
                         invalidationReason,
                         consensusPercentage: totalMods > 0 ? Math.round((validations / totalMods) * 100) : 0,
                         validationCount: validations,
-                        moderatorCount: totalMods,
+                        moderatorCount:  totalMods,
                         moderators: (sessionMetadata.moderators || []).map(email => {
                             const d = decisions.find(dec => dec.email.toLowerCase() === email.toLowerCase());
                             return {
                                 email,
-                                status: d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
-                                timestamp: d ? d.timestamp : null
+                                status:    d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
+                                timestamp: d ? d.createdAt : null,
                             };
                         }),
                         voters: sessionMetadata.voters || [],
-                        votes: storage.getVotesLog(sAddr).reduce((acc, v) => {
+                        votes:  sessionVotes.reduce((acc, v) => {
                             acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
                             return acc;
-                        }, {})
+                        }, {}),
                     };
                 }));
             } catch (e) {
                 console.warn(`[API] Could not fetch sessions for ${addr}: ${e.message}`);
-                // Fallback to metadata
                 sessions = (metadata.sessions || []).map(s => ({ ...s, address: 'unknown' }));
             }
 
-            // Aggregate votes and prepare time series
-            const aggregatedVotes = {};
-            const timeSeriesArray = [];
+            // Aggregate votes + time series
+            const aggregatedVotes  = {};
+            const timeSeriesArray  = [];
 
-            sessions.forEach(s => {
+            await Promise.all(sessions.map(async s => {
                 if (!s.address || s.address === 'unknown') return;
-
-                const sessionVotes = storage.getVotesLog(s.address);
+                const sessionVotes = await storage.getVotesLog(s.address);
                 sessionVotes.forEach(v => {
-                    const optionIdx = v.optionIndex;
-                    aggregatedVotes[optionIdx] = (aggregatedVotes[optionIdx] || 0) + 1;
-
-                    const time = new Date(v.timestamp);
+                    aggregatedVotes[v.optionIndex] = (aggregatedVotes[v.optionIndex] || 0) + 1;
+                    const time = new Date(v.createdAt || v.timestamp);
                     const timeKey = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-
-                    timeSeriesArray.push({
-                        time: timeKey,
-                        timestamp: v.timestamp,
-                        optionIndex: optionIdx,
-                        sessionId: s.address
-                    });
+                    timeSeriesArray.push({ time: timeKey, timestamp: v.createdAt || v.timestamp, optionIndex: v.optionIndex, sessionId: s.address });
                 });
-            });
+            }));
 
-            // Convert to sorted array
-            const timeSeries = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const timeSeries  = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const votedCount  = (await storage.getVotersForScrutin(addr)).length;
 
             return {
                 address: addr,
                 ...metadata,
                 sessions,
-                votes: aggregatedVotes,
-                votedCount: storage.getVotersForScrutin(addr).length,
+                votes:      aggregatedVotes,
+                votedCount,
                 timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
-                voters: metadata.voters || []
+                voters:     metadata.voters || [],
             };
         }));
 
-        let filteredScrutins = scrutins;
-        if (orgFilter) {
-            filteredScrutins = scrutins.filter(s => s.type?.toLowerCase() === orgFilter);
-        }
+        const filteredScrutins = orgFilter
+            ? scrutins.filter(s => s.type?.toLowerCase() === orgFilter)
+            : scrutins;
 
         res.json({ success: true, data: filteredScrutins });
     } catch (error) {
@@ -347,198 +266,141 @@ router.get('/', async (req, res) => {
     }
 });
 
-/**
- * GET /api/scrutins/authorized
- * Find all scrutins and sessions where a voter (email) is authorized
- */
+// GET /api/scrutins/authorized
 router.get('/authorized', async (req, res) => {
     try {
         const email = req.query.email?.toLowerCase();
-        if (!email) return res.status(400).json({ success: false, error: "Email is required" });
+        if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
         console.log(`[AUTHORIZED] Searching for voter: ${email}`);
-
-        const factory = getFactoryContract();
+        const factory   = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
         console.log(`[AUTHORIZED] ${addresses.length} deployed scrutin(s)`);
 
         const authorizedScrutins = [];
 
         for (const addr of addresses) {
-            const laddr = addr.toLowerCase();
-            const metadata = storage.getScrutin(laddr) || {};
-            if (!metadata.sessions || metadata.sessions.length === 0) {
-                console.log(`[AUTHORIZED] Skip ${laddr}: no session metadata`);
-                continue;
-            }
+            const laddr    = addr.toLowerCase();
+            const metadata = await storage.getScrutin(laddr) || {};
+            if (!metadata.sessions?.length) continue;
 
-            console.log(`[AUTHORIZED] Scrutin "${metadata.title}" (${laddr}) — ${metadata.sessions.length} session(s)`);
-
-            // Fetch and self-heal session addresses
-            const contract = getScrutinContract(laddr);
+            const contract     = getScrutinContract(laddr);
             const sessionAddrs = await contract.getSessions();
-            console.log(`[AUTHORIZED]  Blockchain sessions: ${sessionAddrs.length}`);
-
             if (sessionAddrs.length > 0) {
-                storage.updateSessionAddresses(laddr, sessionAddrs);
+                await storage.updateSessionAddresses(laddr, sessionAddrs);
             }
 
             const voterSessions = [];
             for (let i = 0; i < metadata.sessions.length; i++) {
                 const sMetadata = metadata.sessions[i] || {};
-                const voterInList = sMetadata.voters?.some(v => v.toLowerCase() === email);
-                console.log(`[AUTHORIZED]  Session[${i}] "${sMetadata.title}" — email in voters: ${voterInList}`);
-                if (!voterInList) continue;
+                if (!sMetadata.voters?.some(v => v.toLowerCase() === email)) continue;
 
                 const sAddr = (sessionAddrs[i] || sMetadata.address || '').toLowerCase();
-                if (!sAddr) {
-                    console.warn(`[AUTHORIZED]  Session[${i}] — NO address found, skipping`);
-                    continue;
-                }
+                if (!sAddr) continue;
 
                 try {
                     const sContract = getVoteSessionContract(sAddr);
                     const [isValidated, isInvalidated] = await Promise.all([
                         sContract.isValidated(),
-                        sContract.isInvalidated()
+                        sContract.isInvalidated(),
                     ]);
-                    console.log(`[AUTHORIZED]  Session[${i}] isValidated=${isValidated} isInvalidated=${isInvalidated}`);
 
                     if (isValidated === true && isInvalidated !== true) {
-                        voterSessions.push({
-                            ...sMetadata,
-                            address: sAddr,
-                            isValidated: true,
-                            isInvalidated: false,
-                            index: i
-                        });
-                        console.log(`[AUTHORIZED]  Session[${i}] ✅ Accessible`);
-                    } else {
-                        console.log(`[AUTHORIZED]  Session[${i}] ❌ Not accessible (validated=${isValidated}, invalidated=${isInvalidated})`);
+                        voterSessions.push({ ...sMetadata, address: sAddr, isValidated: true, isInvalidated: false, index: i });
                     }
                 } catch (e) {
-                    console.warn(`[AUTHORIZED]  Session[${i}] blockchain error: ${e.message}`);
+                    console.warn(`[AUTHORIZED] Session[${i}] blockchain error: ${e.message}`);
                 }
             }
 
             if (voterSessions.length > 0) {
                 authorizedScrutins.push({
-                    address: laddr,
-                    title: metadata.title,
-                    country: metadata.country || 'International',
+                    address:   laddr,
+                    title:     metadata.title,
+                    country:   metadata.country || 'International',
                     startDate: metadata.startDate,
-                    endDate: metadata.endDate,
-                    sessions: voterSessions
+                    endDate:   metadata.endDate,
+                    sessions:  voterSessions,
                 });
             }
         }
 
-        console.log(`[AUTHORIZED] Returning ${authorizedScrutins.length} scrutin(s) to ${email}`);
         res.json({ success: true, data: authorizedScrutins });
     } catch (error) {
-        console.error("Error in /authorized:", error);
+        console.error('Error in /authorized:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-/**
- * POST /api/scrutins/:address/vote
- * Handle multi-session global vote submission
- */
+// POST /api/scrutins/:address/vote
 router.post('/:address/vote', async (req, res) => {
     try {
         const scrutinAddress = req.params.address;
-        const { email, selections } = req.body; // selections: { sessionAddress: optionIndex }
+        const { email, selections } = req.body;
 
-        if (!email || !selections) {
-            return res.status(400).json({ success: false, error: "Email and selections required" });
-        }
+        if (!email || !selections)
+            return res.status(400).json({ success: false, error: 'Email and selections required' });
 
-        // 1. Prevent double voting
-        if (storage.hasVoterVoted(email, scrutinAddress)) {
-            return res.status(401).json({ success: false, error: "Vous avez déjà voté pour ce scrutin." });
-        }
+        if (await storage.hasVoterVoted(email, scrutinAddress))
+            return res.status(401).json({ success: false, error: 'Vous avez déjà voté pour ce scrutin.' });
 
-        const metadata = storage.getScrutin(scrutinAddress);
-        if (!metadata) return res.status(404).json({ success: false, error: "Scrutin not found" });
+        const metadata = await storage.getScrutin(scrutinAddress);
+        if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
 
-        // 2. Submit votes to the blockchain (Relayer model)
-        // In a real app, this would be a multi-vote transaction or individual ones
         const txHashes = [];
-
         for (const [sAddr, optionIdx] of Object.entries(selections)) {
-            console.log(`[VOTE] New voter detected for scrutin ${scrutinAddress} | Session: ${sAddr} | Voter: ${email} | Choice: ${optionIdx}`);
-            const sessionContract = getVoteSessionContract(sAddr);
+            console.log(`[VOTE] Session: ${sAddr} | Voter: ${email} | Choice: ${optionIdx}`);
 
-            // Simulation of blockchain call (would be a real transaction on Hardhat)
-            // const tx = await sessionContract.vote(optionIdx);
-            // await tx.wait();
-
-            // Log the vote off-chain for the real-time tally
-            storage.logVote({
-                sessionId: sAddr,
-                voterEmail: email,
+            await storage.logVote({
+                sessionId:   sAddr,
+                voterEmail:  email,
                 optionIndex: parseInt(optionIdx),
-                timestamp: new Date()
             });
 
             txHashes.push('0x' + Math.random().toString(16).substring(2, 66));
         }
 
-        // 3. Mark voter as voted
-        storage.markVoterAsVoted(email, scrutinAddress, txHashes[0]);
-
+        await storage.markVoterAsVoted(email, scrutinAddress, txHashes[0]);
         res.json({ success: true, txHashes });
     } catch (error) {
-        console.error("Error submitting vote:", error);
+        console.error('Error submitting vote:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// GET /api/scrutins/:address/results - Get calculated results
+// GET /api/scrutins/:address/results
 router.get('/:address/results', async (req, res) => {
     try {
-        const address = req.params.address;
-        const metadata = storage.getScrutin(address);
-        if (!metadata) return res.status(404).json({ success: false, error: "Scrutin not found" });
+        const address  = req.params.address;
+        const metadata = await storage.getScrutin(address);
+        if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
 
-        const contract = getScrutinContract(address);
+        const contract     = getScrutinContract(address);
         const sessionAddrs = await contract.getSessions();
 
         const results = await Promise.all(sessionAddrs.map(async (sAddr, idx) => {
-            const sessionMetadata = metadata.sessions ? metadata.sessions[idx] : {};
-            const votes = storage.getVotesLog(sAddr);
-
-            // Calculate counts per candidate index
+            const sessionMetadata = metadata.sessions?.[idx] || {};
+            const votes = await storage.getVotesLog(sAddr);
             const counts = {};
-            votes.forEach(v => {
-                counts[v.optionIndex] = (counts[v.optionIndex] || 0) + 1;
-            });
-
+            votes.forEach(v => { counts[v.optionIndex] = (counts[v.optionIndex] || 0) + 1; });
             const totalVotes = votes.length;
 
-            // Map candidates from metadata and add stats
             const candidates = (sessionMetadata.options || []).map((opt, oIdx) => {
                 const voteCount = counts[oIdx] || 0;
                 return {
                     ...opt,
-                    id: oIdx,
+                    id:         oIdx,
                     voteCount,
-                    percentage: totalVotes > 0 ? parseFloat(((voteCount / totalVotes) * 100).toFixed(1)) : 0
+                    percentage: totalVotes > 0 ? parseFloat(((voteCount / totalVotes) * 100).toFixed(1)) : 0,
                 };
             });
 
-            return {
-                address: sAddr,
-                title: sessionMetadata.title,
-                totalVotes,
-                candidates
-            };
+            return { address: sAddr, title: sessionMetadata.title, totalVotes, candidates };
         }));
 
         res.json({ success: true, data: results });
     } catch (error) {
-        console.error("Error fetching results:", error);
+        console.error('Error fetching results:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

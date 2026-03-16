@@ -237,7 +237,7 @@ if (!import.meta.env.VITE_API_URL) {
                         <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0; padding: 20px; text-align: center;">
                             <img src="https://www.${provider}.com/favicon.ico" style="width: 48px; margin-bottom: 20px;">
                             <h2 style="color: #0f172a; margin-bottom: 8px;">Vérification Identity</h2>
-                            <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Choisissez un compte pour continuer vers <b>VoteChain</b></p>
+                            <p style="color: #64748b; font-size: 14px; margin-bottom: 30px;">Choisissez un compte pour continuer vers <b>EpiVote</b></p>
                             <div onclick="window.close()" style="cursor: pointer; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px 25px; display: flex; align-items: center; gap: 15px; width: 100%; max-width: 300px; transition: background 0.2s;">
                                 <div style="width: 32px; height: 32px; background: #2563eb; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">${user?.email?.charAt(0).toUpperCase()}</div>
                                 <div style="text-align: left;">
@@ -447,7 +447,7 @@ if (!import.meta.env.VITE_API_URL) {
                         <ShieldCheckIcon className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest">Portail Modérateur · VoteChain</p>
+                        <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest">Portail Modérateur · EpiVote</p>
                         <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">Validation du Scrutin</h1>
                     </div>
                 </div>

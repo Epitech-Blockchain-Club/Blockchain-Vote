@@ -1,13 +1,14 @@
 services:
   mongodb:
     image: mongo:6.0
-    container_name: votechain-mongodb
+    container_name: epivote-mongodb
     restart: always
     stop_grace_period: 30s
     env_file:
       - ./backend/.env.production
     volumes:
-      - votechain-mongo-data:/data/db
+      - epivote-mongo-data:/data/db
+      - epivote-mongo-configdb:/data/configdb
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -15,11 +16,11 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - votechain_net
+      - epivote_net
 
   besu-node:
     image: hyperledger/besu:24.12.1
-    container_name: votechain-besu
+    container_name: epivote-besu
     restart: always
     stop_grace_period: 60s
     environment:
@@ -38,7 +39,7 @@ services:
       "--data-path=/opt/besu/data"
     ]
     volumes:
-      - votechain-besu-data:/opt/besu/data
+      - epivote-besu-data:/opt/besu/data
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8545' || exit 1"]
       interval: 10s
@@ -46,13 +47,13 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - votechain_net
+      - epivote_net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: votechain-backend
+    container_name: epivote-backend
     restart: always
     stop_grace_period: 15s
     depends_on:
@@ -64,10 +65,8 @@ services:
       - ./backend/.env.production
     ports:
       - "3001:3001"
-    volumes:
-      - votechain-app-data:/app/data
     networks:
-      - votechain_net
+      - epivote_net
 
   frontend:
     build:
@@ -81,7 +80,7 @@ services:
         - VITE_MICROSOFT_TENANT_ID=${VITE_MICROSOFT_TENANT_ID:-901cb4ca-b862-4029-9306-e5cd0f6d9f86}
     env_file:
       - ./frontend/.env.production
-    container_name: votechain-frontend
+    container_name: epivote-frontend
     restart: always
     ports:
       - "80:80"
@@ -89,16 +88,16 @@ services:
       backend:
         condition: service_started
     networks:
-      - votechain_net
+      - epivote_net
 
 volumes:
-  votechain-mongo-data:
-    name: votechain-mongo-data
-  votechain-besu-data:
-    name: votechain-besu-data
-  votechain-app-data:
-    name: votechain-app-data
+  epivote-mongo-data:
+    name: epivote-mongo-data
+  epivote-mongo-configdb:
+    name: epivote-mongo-configdb
+  epivote-besu-data:
+    name: epivote-besu-data
 
 networks:
-  votechain_net:
+  epivote_net:
     driver: bridge

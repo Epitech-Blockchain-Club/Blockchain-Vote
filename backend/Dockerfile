@@ -7,8 +7,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-# Compile Hardhat contracts inside the container before running
-RUN npx hardhat compile
+# Use pre-compiled artifacts (avoids downloading Solidity compiler in restricted networks)
+# To recompile locally: npx hardhat compile
+RUN if [ ! -d "artifacts/contracts" ]; then npx hardhat compile; fi
 
 # Stage 2: Production runtime
 FROM node:20-alpine

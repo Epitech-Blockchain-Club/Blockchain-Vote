@@ -1,307 +1,263 @@
 /**
- * File-backed storage for off-chain metadata.
- * All data is persisted to JSON files under DATA_DIR (/app/data by default)
- * so it survives container restarts. Mount DATA_DIR as a Docker volume.
+ * MongoDB-backed storage service.
+ * All methods are async and use Mongoose models.
+ * Replaces the previous file-based JSON storage.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
-import { join } from 'path';
+import User             from '../models/User.js';
+import Organization     from '../models/Organization.js';
+import Scrutin          from '../models/Scrutin.js';
+import Vote             from '../models/Vote.js';
+import VoterRecord      from '../models/VoterRecord.js';
+import ModeratorToken   from '../models/ModeratorToken.js';
+import ModeratorDecision from '../models/ModeratorDecision.js';
+import VoteRequest      from '../models/VoteRequest.js';
+import Notification     from '../models/Notification.js';
 
-const DATA_DIR = process.env.DATA_DIR || '/app/data';
+// ── Seed initial users/org on first run ──────────────────────────────────────
 
-if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-    console.log(`[STORAGE] Created data directory: ${DATA_DIR}`);
-}
+const seedDefaults = async () => {
+    const superEmail = process.env.INITIAL_SUPERADMIN_EMAIL;
+    const superPass  = process.env.INITIAL_SUPERADMIN_PASSWORD;
+    const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
+    const adminPass  = process.env.INITIAL_ADMIN_PASSWORD;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const loadJSON = (filename, defaultValue) => {
-    const filepath = join(DATA_DIR, filename);
-    if (existsSync(filepath)) {
-        try {
-            return JSON.parse(readFileSync(filepath, 'utf8'));
-        } catch (e) {
-            console.error(`[STORAGE] Failed to load ${filename}:`, e.message);
-        }
+    if (!superEmail || !superPass) {
+        console.warn('[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_SUPERADMIN_EMAIL or INITIAL_SUPERADMIN_PASSWORD missing — SuperAdmin not seeded.');
+    } else {
+        await User.findOneAndUpdate(
+            { email: superEmail.toLowerCase() },
+            { email: superEmail.toLowerCase(), password: superPass, role: 'superadmin', name: 'Super Admin', bio: 'Platform Architect' },
+            { upsert: true, new: true }
+        );
     }
-    return defaultValue;
+
+    if (!adminEmail || !adminPass) {
+        console.warn('[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD missing — Admin not seeded.');
+    } else {
+        await User.findOneAndUpdate(
+            { email: adminEmail.toLowerCase() },
+            { email: adminEmail.toLowerCase(), password: adminPass, role: 'admin', name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' },
+            { upsert: true, new: true }
+        );
+        await Organization.findOneAndUpdate(
+            { id: 'epitech' },
+            { id: 'epitech', name: 'epitech', location: 'France', admins: [adminEmail.toLowerCase()], status: 'Active' },
+            { upsert: true, new: true }
+        );
+    }
+
+    console.log('[STORAGE] Seed complete.');
 };
 
-const saveJSON = (filename, data) => {
-    const filepath = join(DATA_DIR, filename);
-    const tmppath = filepath + '.tmp';
-    try {
-        writeFileSync(tmppath, JSON.stringify(data, null, 2), 'utf8');
-        renameSync(tmppath, filepath);
-    } catch (e) {
-        console.error(`[STORAGE] Failed to save ${filename}:`, e.message);
-    }
-};
-
-// ── Seed defaults (used only when no persisted file exists) ───────────────────
-
-const SUPERADMIN_EMAIL = process.env.INITIAL_SUPERADMIN_EMAIL;
-const SUPERADMIN_PASSWORD = process.env.INITIAL_SUPERADMIN_PASSWORD;
-const ADMIN_EMAIL = process.env.INITIAL_ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
-
-if (!SUPERADMIN_EMAIL || !SUPERADMIN_PASSWORD) {
-    console.warn("[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_SUPERADMIN_EMAIL or INITIAL_SUPERADMIN_PASSWORD is missing in environment variables. Initial SuperAdmin will not be created!");
-}
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    console.warn("[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD is missing in environment variables. Initial Admin will not be created!");
-}
-
-const DEFAULT_USERS = [];
-if (SUPERADMIN_EMAIL && SUPERADMIN_PASSWORD) {
-    DEFAULT_USERS.push([SUPERADMIN_EMAIL.toLowerCase(), { email: SUPERADMIN_EMAIL, role: 'superadmin', password: SUPERADMIN_PASSWORD, name: 'Super Admin', bio: 'Platform Architect' }]);
-}
-if (ADMIN_EMAIL && ADMIN_PASSWORD) {
-    DEFAULT_USERS.push([ADMIN_EMAIL.toLowerCase(), { email: ADMIN_EMAIL, role: 'admin', password: ADMIN_PASSWORD, name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' }]);
-}
-
-const DEFAULT_ORGS = [
-    ['epitech', { id: 'epitech', name: 'epitech', location: 'France', admins: ADMIN_EMAIL ? [ADMIN_EMAIL.toLowerCase()] : [], status: 'Active' }]
-];
-
-// ── Load persisted state ───────────────────────────────────────────────────────
-
-const scrutinsMetadata = new Map(loadJSON('scrutins.json', []));
-const votesLog = loadJSON('votes.json', []);
-const voterRecords = new Map(loadJSON('voter_records.json', []));
-const users = new Map(loadJSON('users.json', DEFAULT_USERS));
-const organizations = new Map(loadJSON('organizations.json', DEFAULT_ORGS));
-const moderatorTokens = new Map(loadJSON('moderator_tokens.json', []));
-const moderatorDecisions = new Map(loadJSON('moderator_decisions.json', []));
-const voteRequests = loadJSON('vote_requests.json', []);
-const notifications = loadJSON('notifications.json', []);
-
-console.log(`[STORAGE] Loaded: ${scrutinsMetadata.size} scrutins, ${votesLog.length} votes, ${users.size} users`);
-
-// ── Public API (identical to the original in-memory version) ─────────────────
+// ── Storage API ───────────────────────────────────────────────────────────────
 
 export const storage = {
 
     // ── Moderator decisions ──────────────────────────────────────────────────
-    saveModeratorDecision: (email, sessionAddress, decision, reason = '') => {
-        const key = `${email.toLowerCase()}|${sessionAddress.toLowerCase()}`;
-        moderatorDecisions.set(key, { email: email.toLowerCase(), sessionAddress: sessionAddress.toLowerCase(), decision, reason, timestamp: new Date() });
-        saveJSON('moderator_decisions.json', [...moderatorDecisions.entries()]);
-        console.log(`[STORAGE] Saved decision '${decision}' from ${email} for session ${sessionAddress}`);
+
+    saveModeratorDecision: async (email, sessionAddress, decision, reason = '') => {
+        await ModeratorDecision.findOneAndUpdate(
+            { email: email.toLowerCase(), sessionAddress: sessionAddress.toLowerCase() },
+            { email: email.toLowerCase(), sessionAddress: sessionAddress.toLowerCase(), decision, reason },
+            { upsert: true, new: true }
+        );
+        console.log(`[STORAGE] Decision '${decision}' saved — ${email} → ${sessionAddress}`);
     },
-    hasModeratorDecided: (email, sessionAddress) => {
-        const key = `${email.toLowerCase()}|${sessionAddress.toLowerCase()}`;
-        return moderatorDecisions.has(key);
+
+    hasModeratorDecided: async (email, sessionAddress) => {
+        const doc = await ModeratorDecision.findOne({
+            email: email.toLowerCase(),
+            sessionAddress: sessionAddress.toLowerCase(),
+        }).lean();
+        return !!doc;
     },
-    getSessionDecisions: (sessionAddress) => {
-        const addr = sessionAddress.toLowerCase();
-        const results = [];
-        for (const [key, value] of moderatorDecisions.entries()) {
-            if (key.endsWith(`|${addr}`)) results.push({ ...value });
-        }
-        return results;
+
+    getSessionDecisions: async (sessionAddress) => {
+        return ModeratorDecision.find({ sessionAddress: sessionAddress.toLowerCase() }).lean();
     },
-    getRecentDecisions: (limit = 10) => {
-        return Array.from(moderatorDecisions.values())
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            .slice(0, limit);
+
+    getRecentDecisions: async (limit = 10) => {
+        return ModeratorDecision.find().sort({ createdAt: -1 }).limit(limit).lean();
     },
 
     // ── Moderator tokens ─────────────────────────────────────────────────────
-    saveModeratorToken: (token, data) => {
-        moderatorTokens.set(token, { ...data, createdAt: new Date() });
-        saveJSON('moderator_tokens.json', [...moderatorTokens.entries()]);
+
+    saveModeratorToken: async (token, data) => {
+        await ModeratorToken.create({ token, ...data });
     },
-    getModeratorToken: (token) => moderatorTokens.get(token),
-    deleteModeratorToken: (token) => {
-        moderatorTokens.delete(token);
-        saveJSON('moderator_tokens.json', [...moderatorTokens.entries()]);
+
+    getModeratorToken: async (token) => {
+        return ModeratorToken.findOne({ token }).lean();
+    },
+
+    deleteModeratorToken: async (token) => {
+        await ModeratorToken.deleteOne({ token });
     },
 
     // ── Scrutins ─────────────────────────────────────────────────────────────
-    saveScrutin: (address, metadata) => {
+
+    saveScrutin: async (address, metadata) => {
         const addr = address.toLowerCase();
-        console.log(`[STORAGE] Saving scrutin metadata for ${addr}:`, {
-            title: metadata.title,
-            voterCount: (metadata.voters || []).length,
-            sessionCount: (metadata.sessions || []).length
-        });
-        scrutinsMetadata.set(addr, { ...metadata, createdAt: metadata.createdAt || new Date() });
-        saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
+        await Scrutin.findOneAndUpdate(
+            { address: addr },
+            { address: addr, ...metadata },
+            { upsert: true, new: true, overwrite: false }
+        );
+        console.log(`[STORAGE] Scrutin saved: ${addr}`);
     },
-    getScrutin: (address) => scrutinsMetadata.get(address.toLowerCase()),
-    getSessionMetadata: (sessionAddress) => {
+
+    getScrutin: async (address) => {
+        return Scrutin.findOne({ address: address.toLowerCase() }).lean();
+    },
+
+    getSessionMetadata: async (sessionAddress) => {
         const addr = sessionAddress.toLowerCase();
-        for (const scrutin of scrutinsMetadata.values()) {
-            if (!scrutin.sessions) continue;
-            const session = scrutin.sessions.find(s => s.address?.toLowerCase() === addr);
-            if (session) return session;
-        }
-        return null;
+        const scrutin = await Scrutin.findOne({ 'sessions.address': addr }).lean();
+        if (!scrutin) return null;
+        return scrutin.sessions.find(s => s.address?.toLowerCase() === addr) || null;
     },
-    updateScrutin: (address, updates) => {
-        const addr = address.toLowerCase();
-        const current = scrutinsMetadata.get(addr);
-        if (current) {
-            scrutinsMetadata.set(addr, { ...current, ...updates });
-            saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
-        }
+
+    updateScrutin: async (address, updates) => {
+        await Scrutin.findOneAndUpdate({ address: address.toLowerCase() }, { $set: updates });
     },
-    updateSessionAddresses: (scrutinAddress, sessionAddresses) => {
+
+    updateSessionAddresses: async (scrutinAddress, sessionAddresses) => {
         const addr = scrutinAddress.toLowerCase();
-        const meta = scrutinsMetadata.get(addr);
-        if (meta && meta.sessions) {
-            sessionAddresses.forEach((sAddr, idx) => {
-                if (meta.sessions[idx]) meta.sessions[idx].address = sAddr.toLowerCase();
-            });
-            scrutinsMetadata.set(addr, meta);
-            saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
-            console.log(`[STORAGE] Updated ${sessionAddresses.length} session addresses for scrutin ${addr}`);
-        }
+        const scrutin = await Scrutin.findOne({ address: addr });
+        if (!scrutin?.sessions) return;
+        sessionAddresses.forEach((sAddr, idx) => {
+            if (scrutin.sessions[idx]) {
+                scrutin.sessions[idx].address = sAddr.toLowerCase();
+            }
+        });
+        await scrutin.save();
+        console.log(`[STORAGE] Updated ${sessionAddresses.length} session addresses for ${addr}`);
     },
-    getAllScrutins: () => Array.from(scrutinsMetadata.values()),
+
+    saveSessionVoters: async (address, sessionIdx, voters) => {
+        await Scrutin.findOneAndUpdate(
+            { address: address.toLowerCase() },
+            { $set: { [`sessions.${sessionIdx}.voters`]: voters } }
+        );
+        console.log(`[STORAGE] Saved ${voters.length} voters for ${address} session ${sessionIdx}`);
+    },
+
+    getSessionVoters: async (address, sessionIdx) => {
+        const scrutin = await Scrutin.findOne({ address: address.toLowerCase() }).lean();
+        return scrutin?.sessions?.[sessionIdx]?.voters || [];
+    },
+
+    getAllScrutins: async () => {
+        return Scrutin.find().lean();
+    },
 
     // ── Votes ────────────────────────────────────────────────────────────────
-    logVote: (voteData) => {
-        const normalizedData = { ...voteData, sessionId: voteData.sessionId?.toLowerCase(), timestamp: new Date() };
-        votesLog.push(normalizedData);
-        saveJSON('votes.json', votesLog);
-        console.log(`[STORAGE] Logged vote for session ${normalizedData.sessionId}`);
-    },
-    getVotesLog: (sessionId) => {
-        const addr = sessionId?.toLowerCase();
-        const votes = votesLog.filter(v => v.sessionId?.toLowerCase() === addr);
-        console.log(`[STORAGE] Retrieved ${votes.length} votes for session ${addr}`);
-        return votes;
+
+    logVote: async (voteData) => {
+        await Vote.create({ ...voteData, sessionId: voteData.sessionId?.toLowerCase() });
+        console.log(`[STORAGE] Vote logged for session ${voteData.sessionId}`);
     },
 
-    // ── Session voters ────────────────────────────────────────────────────────
-    saveSessionVoters: (address, sessionIdx, voters) => {
-        const addr = address.toLowerCase();
-        const meta = scrutinsMetadata.get(addr) || {};
-        if (!meta.sessions) meta.sessions = [];
-        if (!meta.sessions[sessionIdx]) meta.sessions[sessionIdx] = {};
-        meta.sessions[sessionIdx].voters = voters;
-        scrutinsMetadata.set(addr, meta);
-        saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
-        console.log(`[STORAGE] Saved ${voters.length} voters for scrutin ${addr} session ${sessionIdx}`);
-    },
-    getSessionVoters: (address, sessionIdx) => {
-        const addr = address.toLowerCase();
-        const meta = scrutinsMetadata.get(addr);
-        if (meta && meta.sessions && meta.sessions[sessionIdx]) {
-            const voters = meta.sessions[sessionIdx].voters || [];
-            console.log(`Retrieved voters for scrutin ${addr} session ${sessionIdx}:`, voters);
-            return voters;
-        }
-        return [];
+    getVotesLog: async (sessionId) => {
+        return Vote.find({ sessionId: sessionId?.toLowerCase() }).lean();
     },
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    getUser: (email) => users.get(email.toLowerCase()),
-    createUser: (userData) => {
-        users.set(userData.email.toLowerCase(), { ...userData, createdAt: new Date() });
-        saveJSON('users.json', [...users.entries()]);
+
+    getUser: async (email) => {
+        return User.findOne({ email: email.toLowerCase() }).lean();
     },
-    getAllUsers: () => Array.from(users.values()),
+
+    createUser: async (userData) => {
+        await User.findOneAndUpdate(
+            { email: userData.email.toLowerCase() },
+            { ...userData, email: userData.email.toLowerCase() },
+            { upsert: true, new: true }
+        );
+    },
+
+    getAllUsers: async () => {
+        return User.find().lean();
+    },
 
     // ── Organizations ─────────────────────────────────────────────────────────
-    getAllOrganizations: () => Array.from(organizations.values()),
-    saveOrganization: (orgData) => {
-        organizations.set(orgData.id.toLowerCase(), orgData);
-        saveJSON('organizations.json', [...organizations.entries()]);
-    },
-    assignAdminToOrg: (orgId, adminEmail) => {
-        const org = organizations.get(orgId.toLowerCase());
-        if (org) {
-            if (!org.admins.includes(adminEmail.toLowerCase())) {
-                org.admins.push(adminEmail.toLowerCase());
-            }
-            saveJSON('organizations.json', [...organizations.entries()]);
-        }
+
+    getAllOrganizations: async () => {
+        return Organization.find().lean();
     },
 
-    // ── Voter records (double-vote prevention) ────────────────────────────────
-    hasVoterVoted: (email, scrutinId) => {
-        const key = `${email.toLowerCase()}:${scrutinId.toLowerCase()}`;
-        return voterRecords.get(key)?.hasVoted || false;
+    saveOrganization: async (orgData) => {
+        await Organization.findOneAndUpdate(
+            { id: orgData.id.toLowerCase() },
+            { ...orgData, id: orgData.id.toLowerCase() },
+            { upsert: true, new: true }
+        );
     },
-    markVoterAsVoted: (email, scrutinId, transactionHash = null) => {
-        const key = `${email.toLowerCase()}:${scrutinId.toLowerCase()}`;
-        voterRecords.set(key, { hasVoted: true, votedAt: new Date(), transactionHash });
-        saveJSON('voter_records.json', [...voterRecords.entries()]);
-        console.log(`[STORAGE] Marked voter ${email} as voted for scrutin ${scrutinId}`);
+
+    assignAdminToOrg: async (orgId, adminEmail) => {
+        await Organization.findOneAndUpdate(
+            { id: orgId.toLowerCase() },
+            { $addToSet: { admins: adminEmail.toLowerCase() } }
+        );
     },
-    getVoterRecord: (email, scrutinId) => {
-        const key = `${email.toLowerCase()}:${scrutinId.toLowerCase()}`;
-        return voterRecords.get(key);
+
+    // ── Voter records (anti double-vote) ──────────────────────────────────────
+
+    hasVoterVoted: async (email, scrutinId) => {
+        const record = await VoterRecord.findOne({
+            email: email.toLowerCase(),
+            scrutinId: scrutinId.toLowerCase(),
+        }).lean();
+        return record?.hasVoted || false;
     },
-    getVotersForScrutin: (scrutinId) => {
-        const sid = scrutinId.toLowerCase();
-        const results = [];
-        for (const [key] of voterRecords.entries()) {
-            if (key.endsWith(`:${sid}`)) results.push(key.split(':')[0]);
-        }
-        return results;
+
+    markVoterAsVoted: async (email, scrutinId, transactionHash = null) => {
+        await VoterRecord.findOneAndUpdate(
+            { email: email.toLowerCase(), scrutinId: scrutinId.toLowerCase() },
+            { hasVoted: true, votedAt: new Date(), txHash: transactionHash },
+            { upsert: true, new: true }
+        );
+        console.log(`[STORAGE] Voter ${email} marked as voted for ${scrutinId}`);
+    },
+
+    getVoterRecord: async (email, scrutinId) => {
+        return VoterRecord.findOne({
+            email: email.toLowerCase(),
+            scrutinId: scrutinId.toLowerCase(),
+        }).lean();
+    },
+
+    getVotersForScrutin: async (scrutinId) => {
+        const records = await VoterRecord.find({ scrutinId: scrutinId.toLowerCase() }).lean();
+        return records.map(r => r.email);
     },
 
     // ── Vote requests ─────────────────────────────────────────────────────────
-    saveVoteRequest: (request) => {
-        const newRequest = { id: Date.now().toString(), ...request, status: 'pending', createdAt: new Date().toISOString() };
-        voteRequests.push(newRequest);
-        saveJSON('vote_requests.json', voteRequests);
-        storage.addNotification({
-            type: 'VOTE_REQUEST',
-            title: 'Nouvelle demande de vote',
-            message: `Demande de ${request.email}: ${request.description?.substring(0, 50)}...`,
-            data: newRequest
-        });
-        return newRequest;
+
+    saveVoteRequest: async (request) => {
+        const doc = await VoteRequest.create({ ...request });
+        return doc.toObject();
     },
-    getVoteRequests: () => voteRequests,
+
+    getVoteRequests: async () => {
+        return VoteRequest.find().sort({ createdAt: -1 }).lean();
+    },
 
     // ── Notifications ─────────────────────────────────────────────────────────
-    addNotification: (notif) => {
-        notifications.push({ id: Date.now().toString(), ...notif, createdAt: new Date().toISOString(), read: false });
-        saveJSON('notifications.json', notifications);
+
+    addNotification: async (notif) => {
+        await Notification.create(notif);
     },
-    getNotifications: () => notifications,
 
-    // ── Maintenance ───────────────────────────────────────────────────────────
-    startMaintenance: () => {
-        console.log('[STORAGE] Starting 5-minute maintenance routine...');
-        setInterval(() => {
-            console.log(`[STORAGE] [${new Date().toLocaleTimeString()}] Running voter session audit...`);
-            let changed = false;
-            voterRecords.forEach((record, key) => {
-                if (record.hasVoted && !record.inactivated) {
-                    record.inactivated = true;
-                    changed = true;
-                    console.log(`[STORAGE] Confirmed inactivation for voter record: ${key}`);
-                }
-            });
-            if (changed) saveJSON('voter_records.json', [...voterRecords.entries()]);
-        }, 5 * 60 * 1000);
-    }
+    getNotifications: async () => {
+        return Notification.find().sort({ createdAt: -1 }).lean();
+    },
+
+    deleteNotification: async (id) => {
+        await Notification.findByIdAndDelete(id);
+    },
+
+    // ── Init seed ─────────────────────────────────────────────────────────────
+
+    seed: seedDefaults,
 };
-
-storage.startMaintenance();
-
-// ── Graceful shutdown — flush all data on SIGTERM/SIGINT ─────────────────────
-
-const flushAll = () => {
-    console.log('[STORAGE] Flushing all data to disk before shutdown...');
-    saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
-    saveJSON('votes.json', votesLog);
-    saveJSON('voter_records.json', [...voterRecords.entries()]);
-    saveJSON('users.json', [...users.entries()]);
-    saveJSON('organizations.json', [...organizations.entries()]);
-    saveJSON('moderator_tokens.json', [...moderatorTokens.entries()]);
-    saveJSON('moderator_decisions.json', [...moderatorDecisions.entries()]);
-    saveJSON('vote_requests.json', voteRequests);
-    saveJSON('notifications.json', notifications);
-    console.log('[STORAGE] All data flushed successfully.');
-};
-
-process.on('SIGTERM', () => { flushAll(); process.exit(0); });
-process.on('SIGINT', () => { flushAll(); process.exit(0); });

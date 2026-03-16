@@ -11,7 +11,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   LanguageIcon,
-  BellIcon
+  BellIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline'
 import { ROUTES } from '../../constants/routes'
 import epitechLogo from '../../assets/epitech-logo.png'
@@ -74,7 +75,6 @@ if (!import.meta.env.VITE_API_URL) {
     navLinks.push({ name: t({ fr: 'SuperAdmin', en: 'SuperAdmin' }), path: '/superadmin', icon: ShieldCheckIcon })
   } else {
     navLinks.push({ name: t({ fr: 'Accueil', en: 'Home' }), path: ROUTES.HOME, icon: HomeIcon })
-    navLinks.push({ name: t({ fr: 'Voter', en: 'Vote' }), path: ROUTES.VOTER, icon: UserGroupIcon })
   }
 
   return (
@@ -90,7 +90,7 @@ if (!import.meta.env.VITE_API_URL) {
               <img src={epitechLogo} alt="Epitech Logo" className="relative h-10 w-auto object-contain transition-transform group-hover:scale-110 z-10" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">VoteChain</span>
+              <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">EpiVote</span>
               <span className="text-[10px] font-bold text-primary-600 tracking-[0.2em] uppercase">Built with Epitech</span>
             </div>
           </Link>
@@ -121,7 +121,7 @@ if (!import.meta.env.VITE_API_URL) {
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
             {/* Language Toggle */}
-            <button
+            {/* <button
               onClick={toggleLanguage}
               className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-primary-600 transition-colors uppercase flex items-center gap-1"
               title="Changer la langue"
@@ -130,7 +130,7 @@ if (!import.meta.env.VITE_API_URL) {
               <span>{language === 'fr' ? 'EN' : 'FR'}</span>
             </button>
 
-            <div className="h-6 w-px bg-slate-100 mx-3"></div>
+            <div className="h-6 w-px bg-slate-100 mx-3"></div> */}
 
             {/* Notification Bell (Admin + SuperAdmin) */}
             {user && (user.role === 'admin' || user.role === 'superadmin') && location.pathname !== '/' && (
@@ -168,7 +168,8 @@ if (!import.meta.env.VITE_API_URL) {
                 </button>
               </div>
             ) : (
-              <Link to={ROUTES.VOTER} className="btn-primary transform scale-90">
+              <Link to={ROUTES.VOTER} className="btn-primary transform scale-90 flex items-center gap-2">
+                <CheckCircleIcon className="h-4 w-4" />
                 Voter
               </Link>
             )}

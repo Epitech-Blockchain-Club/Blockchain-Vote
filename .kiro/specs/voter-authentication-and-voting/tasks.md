@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation plan creates a secure voter authentication and multi-session voting system that integrates OAuth2 authentication with blockchain-based vote recording. The system supports two entry flows: direct link access and home page entry with scrutin selection, following existing VoteChain patterns and UI design inspiration.
+This implementation plan creates a secure voter authentication and multi-session voting system that integrates OAuth2 authentication with blockchain-based vote recording. The system supports two entry flows: direct link access and home page entry with scrutin selection, following existing EpiVote patterns and UI design inspiration.
 
 ## Tasks
 
@@ -53,7 +53,7 @@ This implementation plan creates a secure voter authentication and multi-session
     - Create email input field for voter entry
     - Add scrutin selection dropdown with country information
     - Implement available scrutins fetching based on voter email
-    - Style according to VoteChain design patterns
+    - Style according to EpiVote design patterns
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
   - [ ]* 4.2 Write unit tests for home page voter entry
@@ -83,7 +83,7 @@ This implementation plan creates a secure voter authentication and multi-session
     - Create candidate cards with photos and selection states
     - Add hover tooltips for candidate details
     - Implement single selection per session logic
-    - Style according to UI design inspiration with VoteChain branding
+    - Style according to UI design inspiration with EpiVote branding
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
   - [ ]* 5.4 Write unit tests for candidate selection
@@ -167,7 +167,7 @@ This implementation plan creates a secure voter authentication and multi-session
 
 - Tasks marked with `*` are optional and can be skipped for faster MVP
 - Each task references specific requirements for traceability
-- Implementation follows existing VoteChain patterns and UI design inspiration
+- Implementation follows existing EpiVote patterns and UI design inspiration
 - OAuth2 integration leverages existing authentication infrastructure
 - Blockchain integration uses existing vote casting endpoints
-- All components styled with VoteChain branding and professional design patterns
+- All components styled with EpiVote branding and professional design patterns

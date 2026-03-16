@@ -73,7 +73,7 @@ if (!import.meta.env.VITE_API_URL) {
             {/* Header */}
             <div>
                 <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
-                    {t({ fr: 'Propriétaire VoteChain', en: 'VoteChain Owner' })}
+                    {t({ fr: 'Propriétaire EpiVote', en: 'EpiVote Owner' })}
                 </h1>
                 <p className="text-slate-500 text-sm sm:text-lg">
                     {t({

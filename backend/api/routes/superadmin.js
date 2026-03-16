@@ -1,51 +1,48 @@
 import express from 'express';
+import { storage } from '../services/storage.js';
 
 const router = express.Router();
 
-// In-memory store for org creation requests / vote-launch requests
-// In production, this would be a DB collection
-let pendingRequests = [];
+// POST /api/superadmin/notifications
+router.post('/notifications', async (req, res) => {
+    try {
+        const { email, orgName, message } = req.body;
+        if (!email) return res.status(400).json({ success: false, error: 'Email required' });
 
-/**
- * POST /api/superadmin/notifications
- * Called by RequestVotePage (or any public page) when an entity wants to request an org/vote
- */
-router.post('/notifications', (req, res) => {
-    const { email, orgName, message } = req.body;
-    if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+        const notif = {
+            email,
+            orgName: orgName || 'Non précisé',
+            message: message || `${email} souhaite créer une organisation et lancer un vote`,
+            type: 'ORG_REQUEST',
+        };
 
-    const entry = {
-        id: Date.now().toString(),
-        email,
-        orgName: orgName || 'Non précisé',
-        message: message || `${email} souhaite créer une organisation et lancer un vote`,
-        timestamp: new Date().toISOString(),
-    };
-
-    pendingRequests.unshift(entry);
-    // Keep last 50
-    if (pendingRequests.length > 50) pendingRequests = pendingRequests.slice(0, 50);
-
-    console.log(`[SuperAdmin] New notification from ${email}`);
-    res.json({ success: true, data: entry });
+        await storage.addNotification(notif);
+        console.log(`[SuperAdmin] New notification from ${email}`);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
-/**
- * GET /api/superadmin/notifications
- * Polled by the Navbar and SuperAdminDashboard
- */
-router.get('/notifications', (req, res) => {
-    res.json({ success: true, data: pendingRequests });
+// GET /api/superadmin/notifications
+router.get('/notifications', async (req, res) => {
+    try {
+        const notifications = await storage.getNotifications();
+        // Keep same response shape as before (max 50)
+        res.json({ success: true, data: notifications.slice(0, 50) });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
-/**
- * DELETE /api/superadmin/notifications/:id
- * Mark a request as handled / dismiss it
- */
-router.delete('/notifications/:id', (req, res) => {
-    const { id } = req.params;
-    pendingRequests = pendingRequests.filter(r => r.id !== id);
-    res.json({ success: true });
+// DELETE /api/superadmin/notifications/:id
+router.delete('/notifications/:id', async (req, res) => {
+    try {
+        await storage.deleteNotification(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 export default router;

@@ -22,7 +22,7 @@ const ActivityStream = () => {
     const activities = elections.slice(0, 5).map((e, idx) => ({
         id: e.address || idx,
         type: 'SESSION',
-        org: 'VoteChain Global',
+        org: 'EpiVote Global',
         detail: `Nouveau scrutin "${e.title}" déployé sur la blockchain`,
         time: idx === 0 ? "Récent" : `${idx + 2}h ago`,
         icon: GlobeAltIcon,
@@ -36,7 +36,7 @@ const ActivityStream = () => {
             id: 0,
             type: 'NETWORK',
             org: 'Mainnet',
-            detail: 'Initialisation du réseau VoteChain réussie',
+            detail: 'Initialisation du réseau EpiVote réussie',
             time: 'En ligne',
             icon: CubeIcon,
             color: 'text-emerald-500',

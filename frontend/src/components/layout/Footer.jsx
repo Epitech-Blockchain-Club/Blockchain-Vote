@@ -21,7 +21,7 @@ const Footer = () => {
                 <span className="text-xl font-black text-slate-300">×</span>
                 <img src={clubLogo} alt="Club" className="h-8 sm:h-10 w-auto rounded-xl border border-slate-200 shadow-sm group-hover:border-primary-400 transition-colors" />
               </div>
-              <span className="text-2xl font-black text-slate-900 tracking-tighter group-hover:text-primary-600 transition-colors">VoteChain</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tighter group-hover:text-primary-600 transition-colors">EpiVote</span>
             </Link>
             <p className="text-slate-500 text-sm max-w-sm leading-relaxed mb-5">
               {t({

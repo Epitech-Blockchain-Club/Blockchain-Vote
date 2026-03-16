@@ -4,14 +4,17 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import 'dotenv/config';
 
-import scrutinRoutes from './routes/scrutins.js';
-import voteRoutes from './routes/votes.js';
-import moderatorRoutes from './routes/moderators.js';
-import authRoutes from './routes/auth.js';
-import requestVoteRoutes from './routes/request-votes.js';
-import superadminRoutes from './routes/superadmin.js';
+import { connectDB } from './services/db.js';
+import { storage }   from './services/storage.js';
 
-const app = express();
+import scrutinRoutes     from './routes/scrutins.js';
+import voteRoutes        from './routes/votes.js';
+import moderatorRoutes   from './routes/moderators.js';
+import authRoutes        from './routes/auth.js';
+import requestVoteRoutes from './routes/request-votes.js';
+import superadminRoutes  from './routes/superadmin.js';
+
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
@@ -26,17 +29,22 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api/scrutins', scrutinRoutes);
-app.use('/api/votes', voteRoutes);
-app.use('/api/moderators', moderatorRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/scrutins',     scrutinRoutes);
+app.use('/api/votes',        voteRoutes);
+app.use('/api/moderators',   moderatorRoutes);
+app.use('/api/auth',         authRoutes);
 app.use('/api/request-vote', requestVoteRoutes);
-app.use('/api/superadmin', superadminRoutes);
+app.use('/api/superadmin',   superadminRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
-});
+// Start only after DB is ready
+(async () => {
+    await connectDB();
+    await storage.seed();
+    app.listen(PORT, () => {
+        console.log(`Backend server running on http://localhost:${PORT}`);
+    });
+})();

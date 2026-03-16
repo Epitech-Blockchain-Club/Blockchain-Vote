@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-console.log("=== VoteChain Email Tester ===");
+console.log("=== EpiVote Email Tester ===");
 console.log(`SMTP Host: ${process.env.SMTP_HOST}`);
 console.log(`SMTP User: ${process.env.SMTP_USER}`);
 
@@ -20,8 +20,8 @@ const transporter = nodemailer.createTransport({
 const testMail = {
     from: process.env.SMTP_FROM,
     to: process.env.SMTP_USER, // Send to self
-    subject: "VoteChain Test Email",
-    text: "Ceci est un test de configuration SMTP pour VoteChain.",
+    subject: "EpiVote Test Email",
+    text: "Ceci est un test de configuration SMTP pour EpiVote.",
 };
 
 transporter.sendMail(testMail, (err, info) => {

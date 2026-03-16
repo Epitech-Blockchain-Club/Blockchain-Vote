@@ -119,7 +119,7 @@ const SuperAdminManager = () => {
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             className="w-full px-4 py-3 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-primary-500"
-                            placeholder="owner@votechain.com"
+                            placeholder="owner@epivote.epitech.eu"
                         />
                     </div>
                     <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100">

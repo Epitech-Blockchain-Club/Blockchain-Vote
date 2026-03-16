@@ -117,11 +117,6 @@ const HomePage = () => {
                     </Button>
                   </Link>
                 )}
-                <Link to="/voter">
-                  <Button variant="outline" size="lg" className="h-16 px-12 text-lg rounded-2xl border-2">
-                    {t({ fr: 'Voter', en: 'Vote' })}
-                  </Button>
-                </Link>
               </motion.div>
             </div>
             <div className="lg:w-1/2 relative">

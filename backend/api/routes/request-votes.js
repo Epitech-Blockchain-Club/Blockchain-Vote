@@ -3,21 +3,18 @@ import { storage } from '../services/storage.js';
 
 const router = express.Router();
 
-// Submit a new vote request
-router.post('/', (req, res) => {
+// POST /api/request-vote
+router.post('/', async (req, res) => {
     try {
         const { email, description } = req.body;
-
-        if (!email || !description) {
+        if (!email || !description)
             return res.status(400).json({ success: false, error: 'Email et description requis' });
-        }
 
-        const request = storage.saveVoteRequest({ email, description });
-
+        const request = await storage.saveVoteRequest({ email, description });
         res.json({
             success: true,
             message: 'Demande enregistrée avec succès. Un administrateur vous contactera bientôt.',
-            data: request
+            data: request,
         });
     } catch (error) {
         console.error('Error saving vote request:', error);
@@ -25,10 +22,10 @@ router.post('/', (req, res) => {
     }
 });
 
-// Get all requests (for SuperAdmin)
-router.get('/', (req, res) => {
+// GET /api/request-vote
+router.get('/', async (req, res) => {
     try {
-        const requests = storage.getVoteRequests();
+        const requests = await storage.getVoteRequests();
         res.json({ success: true, data: requests });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Erreur serveur' });

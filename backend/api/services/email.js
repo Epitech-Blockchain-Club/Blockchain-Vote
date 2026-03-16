@@ -34,7 +34,7 @@ const emailWrapper = (content) => `
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>VoteChain</title>
+  <title>EpiVote</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:${FONT};">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;min-height:100vh;">
@@ -49,7 +49,7 @@ const emailWrapper = (content) => `
                 <tr>
                   <td>
                     <span style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:12px;padding:8px 16px;">
-                      <span style="font-size:18px;font-weight:900;color:#ffffff;letter-spacing:-0.025em;">VoteChain</span>
+                      <span style="font-size:18px;font-weight:900;color:#ffffff;letter-spacing:-0.025em;">EpiVote</span>
                     </span>
                   </td>
                   <td align="right">
@@ -70,7 +70,7 @@ const emailWrapper = (content) => `
             <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:24px 40px;">
               <p style="margin:0;font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;">
                 Cet email est confidentiel et destiné uniquement à son destinataire.<br/>
-                © ${new Date().getFullYear()} VoteChain by Epitech Blockchain Club · Ne pas répondre à cet email.
+                © ${new Date().getFullYear()} EpiVote by Epitech Blockchain Club · Ne pas répondre à cet email.
               </p>
             </td>
           </tr>
@@ -136,10 +136,10 @@ export const sendModeratorInvitation = async (email, electionTitle, sessionTitle
     `);
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
       to: email,
       subject: `[Modération] Invitation — ${electionTitle}`,
-      text: `Bonjour,\n\nVous avez été désigné modérateur pour la session "${sessionTitle}" du scrutin "${electionTitle}".\n\nPortal: ${portalLink}\n\nCordialement,\nL'équipe VoteChain`,
+      text: `Bonjour,\n\nVous avez été désigné modérateur pour la session "${sessionTitle}" du scrutin "${electionTitle}".\n\nPortal: ${portalLink}\n\nCordialement,\nL'équipe EpiVote`,
       html: body,
     });
     console.log("Moderator invitation sent to", email, "MessageId:", info.messageId);
@@ -179,14 +179,14 @@ export const notifyAdminOfDecision = async (adminEmail, result, moderatorEmail, 
       </table>
 
       <p style="font-size:14px;color:#475569;line-height:1.7;">
-        Le consensus de l'élection a été mis à jour en conséquence. Rendez-vous sur le dashboard VoteChain pour visualiser l'état global.
+        Le consensus de l'élection a été mis à jour en conséquence. Rendez-vous sur le dashboard EpiVote pour visualiser l'état global.
       </p>
     `);
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
       to: adminEmail,
-      subject: `[VoteChain] Verdict modérateur — ${sessionTitle}`,
+      subject: `[EpiVote] Verdict modérateur — ${sessionTitle}`,
       text: `Le modérateur ${moderatorEmail} a ${isApproved ? 'validé' : 'invalidé'} la session "${sessionTitle}".`,
       html: body,
     });
@@ -211,7 +211,7 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
 
     const body = emailWrapper(`
       <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
-        Bienvenue sur VoteChain 🎉
+        Bienvenue sur EpiVote 🎉
       </h2>
       <p style="margin:0 0 6px;font-size:14px;color:#64748b;">Bonjour <strong style="color:${BRAND_DARK};">${name || email}</strong>,</p>
       <div style="margin-bottom:24px;">
@@ -220,7 +220,7 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
       </div>
 
       <p style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:28px;">
-        Un compte <strong>${roleLabel}</strong> a été créé pour vous${orgName ? ` au sein de l'organisation <strong>${orgName}</strong>` : ''} sur la plateforme de vote blockchain VoteChain. Voici vos identifiants de connexion.
+        Un compte <strong>${roleLabel}</strong> a été créé pour vous${orgName ? ` au sein de l'organisation <strong>${orgName}</strong>` : ''} sur la plateforme de vote blockchain EpiVote. Voici vos identifiants de connexion.
       </p>
 
       <!-- Credentials Box -->
@@ -249,9 +249,9 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
     `);
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"VoteChain" <noreply@votechain.com>',
+      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
       to: email,
-      subject: `[VoteChain] Vos identifiants ${roleLabel}${orgName ? ` — ${orgName}` : ''}`,
+      subject: `[EpiVote] Vos identifiants ${roleLabel}${orgName ? ` — ${orgName}` : ''}`,
       html: body,
     });
     console.log("Credentials email sent to", email, "role:", role, "MessageId:", info.messageId);
