@@ -40,26 +40,41 @@ const saveJSON = (filename, data) => {
 
 // ── Seed defaults (used only when no persisted file exists) ───────────────────
 
-const DEFAULT_USERS = [
-    ['super@votechain.com', { email: 'super@votechain.com', role: 'superadmin', password: 'password123', name: 'Super Admin', bio: 'Platform Architect' }],
-    ['admin@votechain.com', { email: 'admin@votechain.com', role: 'admin', password: 'password123', name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' }]
-];
+const SUPERADMIN_EMAIL = process.env.INITIAL_SUPERADMIN_EMAIL;
+const SUPERADMIN_PASSWORD = process.env.INITIAL_SUPERADMIN_PASSWORD;
+const ADMIN_EMAIL = process.env.INITIAL_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD;
+
+if (!SUPERADMIN_EMAIL || !SUPERADMIN_PASSWORD) {
+    console.warn("[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_SUPERADMIN_EMAIL or INITIAL_SUPERADMIN_PASSWORD is missing in environment variables. Initial SuperAdmin will not be created!");
+}
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.warn("[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD is missing in environment variables. Initial Admin will not be created!");
+}
+
+const DEFAULT_USERS = [];
+if (SUPERADMIN_EMAIL && SUPERADMIN_PASSWORD) {
+    DEFAULT_USERS.push([SUPERADMIN_EMAIL.toLowerCase(), { email: SUPERADMIN_EMAIL, role: 'superadmin', password: SUPERADMIN_PASSWORD, name: 'Super Admin', bio: 'Platform Architect' }]);
+}
+if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+    DEFAULT_USERS.push([ADMIN_EMAIL.toLowerCase(), { email: ADMIN_EMAIL, role: 'admin', password: ADMIN_PASSWORD, name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' }]);
+}
 
 const DEFAULT_ORGS = [
-    ['epitech', { id: 'epitech', name: 'epitech', location: 'France', admins: ['admin@votechain.com'], status: 'Active' }]
+    ['epitech', { id: 'epitech', name: 'epitech', location: 'France', admins: ADMIN_EMAIL ? [ADMIN_EMAIL.toLowerCase()] : [], status: 'Active' }]
 ];
 
 // ── Load persisted state ───────────────────────────────────────────────────────
 
-const scrutinsMetadata  = new Map(loadJSON('scrutins.json',           []));
-const votesLog          =          loadJSON('votes.json',             []);
-const voterRecords      = new Map(loadJSON('voter_records.json',       []));
-const users             = new Map(loadJSON('users.json',              DEFAULT_USERS));
-const organizations     = new Map(loadJSON('organizations.json',      DEFAULT_ORGS));
-const moderatorTokens   = new Map(loadJSON('moderator_tokens.json',   []));
-const moderatorDecisions= new Map(loadJSON('moderator_decisions.json',[]));
-const voteRequests      =          loadJSON('vote_requests.json',     []);
-const notifications     =          loadJSON('notifications.json',     []);
+const scrutinsMetadata = new Map(loadJSON('scrutins.json', []));
+const votesLog = loadJSON('votes.json', []);
+const voterRecords = new Map(loadJSON('voter_records.json', []));
+const users = new Map(loadJSON('users.json', DEFAULT_USERS));
+const organizations = new Map(loadJSON('organizations.json', DEFAULT_ORGS));
+const moderatorTokens = new Map(loadJSON('moderator_tokens.json', []));
+const moderatorDecisions = new Map(loadJSON('moderator_decisions.json', []));
+const voteRequests = loadJSON('vote_requests.json', []);
+const notifications = loadJSON('notifications.json', []);
 
 console.log(`[STORAGE] Loaded: ${scrutinsMetadata.size} scrutins, ${votesLog.length} votes, ${users.size} users`);
 
@@ -276,17 +291,17 @@ storage.startMaintenance();
 
 const flushAll = () => {
     console.log('[STORAGE] Flushing all data to disk before shutdown...');
-    saveJSON('scrutins.json',           [...scrutinsMetadata.entries()]);
-    saveJSON('votes.json',              votesLog);
-    saveJSON('voter_records.json',      [...voterRecords.entries()]);
-    saveJSON('users.json',              [...users.entries()]);
-    saveJSON('organizations.json',      [...organizations.entries()]);
-    saveJSON('moderator_tokens.json',   [...moderatorTokens.entries()]);
+    saveJSON('scrutins.json', [...scrutinsMetadata.entries()]);
+    saveJSON('votes.json', votesLog);
+    saveJSON('voter_records.json', [...voterRecords.entries()]);
+    saveJSON('users.json', [...users.entries()]);
+    saveJSON('organizations.json', [...organizations.entries()]);
+    saveJSON('moderator_tokens.json', [...moderatorTokens.entries()]);
     saveJSON('moderator_decisions.json', [...moderatorDecisions.entries()]);
-    saveJSON('vote_requests.json',      voteRequests);
-    saveJSON('notifications.json',      notifications);
+    saveJSON('vote_requests.json', voteRequests);
+    saveJSON('notifications.json', notifications);
     console.log('[STORAGE] All data flushed successfully.');
 };
 
 process.on('SIGTERM', () => { flushAll(); process.exit(0); });
-process.on('SIGINT',  () => { flushAll(); process.exit(0); });
+process.on('SIGINT', () => { flushAll(); process.exit(0); });

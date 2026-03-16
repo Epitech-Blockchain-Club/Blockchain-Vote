@@ -21,7 +21,11 @@ const ScrutinFactoryABI = loadABI('ScrutinFactory');
 const ScrutinABI = loadABI('Scrutin');
 const VoteSessionABI = loadABI('VoteSession');
 
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'http://127.0.0.1:1337');
+if (!process.env.RPC_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] RPC_URL is not set in environment variables! Blockchain connectivity will fail.");
+}
+
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || '');
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
 let currentNonce = -1;

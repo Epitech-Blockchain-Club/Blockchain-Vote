@@ -16,11 +16,11 @@ module.exports = {
         },
         localhost: {
             url: "http://127.0.0.1:1337",
-            accounts: ["0x1fb3cee9bedf6bc21ebda1ded51fba4814cbe0e9937e1c4da1c72e9ea46f2982"]
+            accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
         },
         besu: {
             url: process.env.RPC_URL || "http://besu-node:8545",
-            accounts: [process.env.PRIVATE_KEY || "0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63"]
+            accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
         }
     }
 };

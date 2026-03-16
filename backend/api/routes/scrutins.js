@@ -185,7 +185,10 @@ router.post('/', async (req, res) => {
                     type: 'moderator'
                 });
 
-                const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                if (!process.env.FRONTEND_URL) {
+                    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] FRONTEND_URL is not set in environment variables! Moderator links will be broken.");
+                }
+                const baseUrl = process.env.FRONTEND_URL || '';
                 const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
                 const sent = await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
                 emailResults.push({ email: mod, sent });

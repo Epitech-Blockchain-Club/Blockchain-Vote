@@ -26,8 +26,7 @@ const AdminManager = () => {
     const handleCreateAdmin = async (e) => {
         e.preventDefault()
         const success = await addUser({
-            ...formData,
-            password: 'password123' // Default password for dev
+            ...formData
         })
         if (success) {
             toast.success('Administrateur créé ! Simulation d\'email envoyée.', {

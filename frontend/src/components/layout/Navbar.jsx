@@ -29,7 +29,10 @@ const Navbar = () => {
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [notifLoading, setNotifLoading] = useState(true)
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+  const API_BASE = import.meta.env.VITE_API_URL;
+if (!import.meta.env.VITE_API_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+}
 
   useEffect(() => {
     if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return

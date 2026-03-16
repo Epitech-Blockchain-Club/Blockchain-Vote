@@ -203,7 +203,11 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
     const isSuper = role === 'superadmin';
     const roleLabel = isSuper ? 'Super Admin' : 'Administrateur';
     const roleBadgeColor = isSuper ? '#7c3aed' : '#2563eb';
-    const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/admin-login` : 'http://localhost:5173/admin-login';
+
+    if (!process.env.FRONTEND_URL) {
+      console.error("[\x1b[31mCONFIG ERROR\x1b[0m] FRONTEND_URL is not set in environment variables! Email links will be broken.");
+    }
+    const loginUrl = `${process.env.FRONTEND_URL || ''}/admin-login`;
 
     const body = emailWrapper(`
       <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">

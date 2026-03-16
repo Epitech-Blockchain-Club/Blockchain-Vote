@@ -33,7 +33,10 @@ const SuperAdminDashboard = () => {
     const { t } = useSettings()
     const { elections, loading } = useElections()
     const [notifications, setNotifications] = useState([])
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+    const API_BASE = import.meta.env.VITE_API_URL;
+if (!import.meta.env.VITE_API_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+}
 
     useEffect(() => {
         const fetchNotifs = async () => {

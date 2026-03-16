@@ -19,7 +19,10 @@ import { useElections } from '../../contexts/ElectionContext'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_BASE = import.meta.env.VITE_API_URL;
+if (!import.meta.env.VITE_API_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+}
 
 const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
@@ -151,7 +154,10 @@ const OrgDetail = ({ org, elections, users, onBack }) => {
         if (!adminEmail) return
         setIsSubmitting(true)
         const password = generatePassword()
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+        const API_BASE = import.meta.env.VITE_API_URL;
+if (!import.meta.env.VITE_API_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+}
         try {
             const res = await fetch(`${API_BASE}/auth/add-admin-to-org`, {
                 method: 'POST',

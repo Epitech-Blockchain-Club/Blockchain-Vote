@@ -3,7 +3,10 @@ import toast from 'react-hot-toast'
 
 const BlockchainContext = createContext()
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_BASE = import.meta.env.VITE_API_URL;
+if (!import.meta.env.VITE_API_URL) {
+    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+}
 
 export function BlockchainProvider({ children }) {
   const [connected, setConnected] = useState(false)
