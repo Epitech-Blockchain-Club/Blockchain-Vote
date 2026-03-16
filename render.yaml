@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: blockchain-vote-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    # Use the specific script that starts Hardhat + Node API
+    dockerCommand: ./render-start.sh
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: '465'
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FRONTEND_URL
+        value: https://blockchain-vote-frontend.onrender.com
+
+  - type: web
+    name: blockchain-vote-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        value: https://blockchain-vote-backend.onrender.com
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+      - key: VITE_MICROSOFT_CLIENT_ID
+        sync: false

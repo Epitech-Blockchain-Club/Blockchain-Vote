@@ -1,0 +1,83 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: votechain-mongodb
+    restart: always
+    env_file:
+      - ./backend/.env.production
+    volumes:
+      - votechain-mongo-data:/data/db
+    networks:
+      - votechain_net
+
+  besu-node:
+    image: hyperledger/besu:24.12.1
+    container_name: votechain-besu
+    restart: always
+    environment:
+      # Optional Java tuning
+      - BESU_OPTS=-Xmx2g
+    # We run in dev mode to have a quick pre-configured local network with 1 node mining and a pre-funded default account.
+    # The default dev account private key is: 0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63
+    command: [
+      "--network=dev",
+      "--rpc-http-enabled",
+      "--rpc-http-host=0.0.0.0",
+      "--rpc-http-port=8545",
+      "--rpc-http-cors-origins=*",
+      "--rpc-http-api=WEB3,ETH,NET,MINER",
+      "--host-allowlist=*",
+      "--discovery-enabled=false",
+      "--miner-enabled",
+      "--miner-coinbase=0xfe3b557e8fb62b89f4916b721be55ceb828dbd73",
+      "--data-path=/opt/besu/data"
+    ]
+    volumes:
+      - votechain-besu-data:/opt/besu/data
+    networks:
+      - votechain_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: votechain-backend
+    restart: always
+    depends_on:
+      - mongodb
+      - besu-node
+    env_file:
+      - ./backend/.env.production
+    ports:
+      - "3001:3001"
+    networks:
+      - votechain_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Docker Compose needs default fallbacks here, otherwise it warns they are empty in the shell.
+        # The actual values will be read from the env_file below during the build phase.
+        - VITE_API_URL=${VITE_API_URL:-""}
+        - VITE_APP_ENV=${VITE_APP_ENV:-""}
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-""}
+        - VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID:-""}
+        - VITE_MICROSOFT_TENANT_ID=${VITE_MICROSOFT_TENANT_ID:-""}
+    env_file:
+      - ./frontend/.env.production
+    container_name: votechain-frontend
+    restart: always
+    ports:
+      - "80:80"
+    networks:
+      - votechain_net
+
+volumes:
+  votechain-mongo-data:
+  votechain-besu-data:
+
+networks:
+  votechain_net:
+    driver: bridge

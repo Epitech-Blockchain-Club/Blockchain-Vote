@@ -12,6 +12,7 @@ import {
     ChevronDownIcon,
     ChevronUpIcon,
     ArrowDownTrayIcon,
+    LockClosedIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -39,7 +40,7 @@ const StatusBadge = ({ status }) => {
 // ─── ModeratorPortalPage ──────────────────────────────────────────────────────
 const ModeratorPortalPage = () => {
     const { id, sessionId } = useParams()
-    const { user, loginWithToken } = useAuth()
+    const { user, loginWithToken, loginWithGoogle, loginWithOffice365 } = useAuth()
     const [scrutin, setScrutin] = useState(null)
     const [loading, setLoading] = useState(true)
 
@@ -346,6 +347,38 @@ const ModeratorPortalPage = () => {
         })
     )
 
+    if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 px-6 text-left">
+                <div className="max-w-md w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-[40px] p-12 text-center shadow-2xl">
+                    <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-900/40">
+                        <LockClosedIcon className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-black text-white mb-4 tracking-tight">Authentification Requise</h2>
+                    <p className="text-slate-400 font-medium mb-8 text-sm leading-relaxed">
+                        Vous devez vous authentifier pour accéder à ce portail de modération.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={() => loginWithGoogle(id)}
+                            className="flex items-center justify-center gap-3 px-6 py-4 bg-white text-slate-900 rounded-2xl font-black hover:bg-slate-100 transition-all shadow-lg"
+                        >
+                            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+                            Continuer avec Google
+                        </button>
+                        <button
+                            onClick={() => loginWithOffice365(id)}
+                            className="flex items-center justify-center gap-3 px-6 py-4 bg-[#00A4EF]/10 border border-[#00A4EF]/20 text-[#00A4EF] rounded-2xl font-black hover:bg-[#00A4EF]/20 transition-all"
+                        >
+                            <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5" alt="Microsoft" />
+                            Continuer avec Office 365
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (!isAuthorized && user?.role !== 'superadmin') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-900 px-6 text-left">
@@ -354,10 +387,10 @@ const ModeratorPortalPage = () => {
                     <h2 className="text-2xl font-black text-white mb-4">Accès Refusé</h2>
                     <p className="text-slate-400 font-medium mb-8">
                         Votre adresse ({user?.email || 'non identifiée'}) n'est pas autorisée comme modérateur pour ce scrutin.
-                        Si vous avez reçu un mail, assurez-vous d'utiliser le lien original.
+                        Si vous avez reçu un mail, assurez-vous d'utiliser le compte lié à cette adresse.
                     </p>
                     <button onClick={() => window.location.href = '/login'} className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black transition-all">
-                        Se connecter autrement
+                        Se connecter avec un autre compte
                     </button>
                 </div>
             </div>

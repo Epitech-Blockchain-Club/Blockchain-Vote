@@ -183,7 +183,8 @@ router.post('/', async (req, res) => {
                     type: 'moderator'
                 });
 
-                const portalLink = `http://localhost:5173/moderate/${scrutinAddress}?token=${token}`;
+                const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
                 await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
                 console.log(`[SCRUTIN] Single invitation sent to moderator ${mod} for all their sessions`);
             }
@@ -203,6 +204,7 @@ router.post('/', async (req, res) => {
 // GET /api/scrutins - List all scrutins
 router.get('/', async (req, res) => {
     try {
+        const orgFilter = req.query.org?.toLowerCase();
         const factory = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
 
@@ -327,7 +329,12 @@ router.get('/', async (req, res) => {
             };
         }));
 
-        res.json({ success: true, data: scrutins });
+        let filteredScrutins = scrutins;
+        if (orgFilter) {
+            filteredScrutins = scrutins.filter(s => s.type?.toLowerCase() === orgFilter);
+        }
+
+        res.json({ success: true, data: filteredScrutins });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

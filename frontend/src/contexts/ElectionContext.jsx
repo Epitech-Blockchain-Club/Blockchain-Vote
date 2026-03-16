@@ -18,7 +18,12 @@ export function ElectionProvider({ children }) {
     console.log('🏁 [CONTEXT] fetchElections triggered');
     try {
       setLoading(true)
-      const res = await fetch('http://localhost:3001/api/scrutins')
+      let url = 'http://localhost:3001/api/scrutins'
+      // If the user is a regular admin (not superadmin), filter by their organization
+      if (user && user.role === 'admin' && user.org) {
+        url += `?org=${encodeURIComponent(user.org)}`
+      }
+      const res = await fetch(url)
       const result = await res.json()
       if (result.success) {
         // Map backend scrutin to frontend election model
@@ -90,7 +95,7 @@ export function ElectionProvider({ children }) {
     // Auto-refresh every 45 seconds to pick up blockchain state changes
     const interval = setInterval(() => fetchElections(), 45000)
     return () => clearInterval(interval)
-  }, [])
+  }, [user?.email, user?.role, user?.org])
 
   const getResults = async (address) => {
     try {
