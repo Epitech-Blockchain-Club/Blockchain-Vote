@@ -4,7 +4,7 @@ services:
     name: blockchain-vote-api
     env: docker
     dockerContext: backend
-    dockerfilePath: Dockerfile.render
+    dockerfilePath: backend/Dockerfile.render
     plan: free # Force free plan for trial
     envVars:
       - key: PORT
@@ -16,17 +16,17 @@ services:
         placeholder: "mongodb+srv://..."
       - key: FRONTEND_URL
         fromService:
-          type: static
+          type: web
           name: blockchain-vote-web
           property: url
 
   # 2. Frontend App (Static Site)
   - type: web
     name: blockchain-vote-web
-    env: static
+    runtime: static
     buildCommand: npm install && npm run build
-    buildContext: frontend
-    publishPath: dist
+    rootDir: frontend
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
