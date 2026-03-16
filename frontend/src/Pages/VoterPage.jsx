@@ -19,6 +19,7 @@ const VoterPage = () => {
     const { loginWithGoogle, loginWithOffice365 } = useAuth();
     const [email, setEmail] = useState('');
     const [searching, setSearching] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [availableElections, setAvailableElections] = useState([]);
     const [selectedElection, setSelectedElection] = useState('');
 
@@ -30,10 +31,11 @@ const VoterPage = () => {
             const res = await fetch(`${API_URL}/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
             const result = await res.json();
             if (result.success) {
-                // Backend already returns ONLY scrutins with at least one 
+                // Backend already returns ONLY scrutins with at least one
                 // validated, non-invalidated session for this specific voter
                 const elections = result.data || [];
                 setAvailableElections(elections);
+                setIsAuthenticated(true);
                 if (elections.length === 0) {
                     toast.error("Aucun scrutin avec session validée trouvé pour votre compte.");
                 } else {
@@ -89,74 +91,92 @@ const VoterPage = () => {
                 </div>
 
                 <div className="p-10">
-                    <div className="mb-0">
-                        <h3 className="text-2xl font-black text-[#0F172A] mb-2 leading-tight">Connectez-vous pour voter</h3>
-                        <p className="text-[#64748B] text-sm font-medium mb-10 leading-relaxed">
-                            Choisissez votre méthode d'authentification préférée pour continuer.
-                        </p>
-                    </div>
-
-                    {/* Authentication Section */}
-                    <div className="space-y-4">
-                        <button
-                            onClick={handleGoogleLogin}
-                            disabled={searching}
-                            className="w-full h-15 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-bold text-[#334155] shadow-sm active:scale-[0.98] py-4 disabled:opacity-60"
-                        >
-                            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-                            {searching ? 'Recherche en cours...' : 'Se connecter avec Google'}
-                        </button>
-
-                        <button
-                            onClick={handleMicrosoftLogin}
-                            disabled={searching}
-                            className="w-full h-15 bg-[#2563EB] rounded-2xl flex items-center justify-center gap-3 hover:bg-blue-700 transition-all font-bold text-white shadow-md active:scale-[0.98] py-4 disabled:opacity-60"
-                        >
-                            <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="Microsoft" />
-                            Se connecter avec Office 365
-                        </button>
-                    </div>
-
-                    {availableElections.length > 0 && (
-                        <div className="mt-10 pt-10 border-t border-slate-100 animate-fade-in">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Sessions de vote disponibles</label>
-                            <div className="space-y-3 mb-6">
-                                {availableElections.map(el => (
-                                    <label
-                                        key={el.address}
-                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedElection === el.address ? 'border-primary-500 bg-primary-50' : 'border-slate-200 bg-slate-50 hover:border-primary-300'}`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="election"
-                                            value={el.address}
-                                            checked={selectedElection === el.address}
-                                            onChange={(e) => setSelectedElection(e.target.value)}
-                                            className="accent-primary-600 w-4 h-4 shrink-0"
-                                        />
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-black text-slate-900 truncate">{el.title}</p>
-                                            <p className="text-xs text-slate-500 font-medium">{el.country}</p>
-                                        </div>
-                                    </label>
-                                ))}
+                    {!isAuthenticated ? (
+                        <>
+                            <div className="mb-0">
+                                <h3 className="text-2xl font-black text-[#0F172A] mb-2 leading-tight">Connectez-vous pour voter</h3>
+                                <p className="text-[#64748B] text-sm font-medium mb-10 leading-relaxed">
+                                    Choisissez votre méthode d'authentification préférée pour continuer.
+                                </p>
                             </div>
 
-                            <Button
-                                onClick={handleGoToVote}
-                                disabled={!selectedElection}
-                                className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-black text-white shadow-xl transition-all active:scale-[0.98]"
-                            >
-                                Accéder au portail de vote
-                            </Button>
-                        </div>
-                    )}
+                            {/* Authentication Section */}
+                            <div className="space-y-4">
+                                <button
+                                    onClick={handleGoogleLogin}
+                                    disabled={searching}
+                                    className="w-full h-15 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all font-bold text-[#334155] shadow-sm active:scale-[0.98] py-4 disabled:opacity-60"
+                                >
+                                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+                                    {searching ? 'Recherche en cours...' : 'Se connecter avec Google'}
+                                </button>
 
-                    <div className="mt-10 p-5 bg-slate-50 border border-slate-100 rounded-2xl">
-                        <p className="text-[11px] text-slate-500 font-bold leading-relaxed text-center">
-                            L'identification par certificat Google ou Office 365 est requise pour garantir l'unicité de votre vote sur la blockchain.
-                        </p>
-                    </div>
+                                <button
+                                    onClick={handleMicrosoftLogin}
+                                    disabled={searching}
+                                    className="w-full h-15 bg-[#2563EB] rounded-2xl flex items-center justify-center gap-3 hover:bg-blue-700 transition-all font-bold text-white shadow-md active:scale-[0.98] py-4 disabled:opacity-60"
+                                >
+                                    <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="Microsoft" />
+                                    Se connecter avec Office 365
+                                </button>
+                            </div>
+
+                            <div className="mt-10 p-5 bg-slate-50 border border-slate-100 rounded-2xl">
+                                <p className="text-[11px] text-slate-500 font-bold leading-relaxed text-center">
+                                    L'identification par certificat Google ou Office 365 est requise pour garantir l'unicité de votre vote sur la blockchain.
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="mb-6">
+                                <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Connecté en tant que</p>
+                                <p className="text-sm font-bold text-slate-700 truncate">{email}</p>
+                            </div>
+
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                                Sessions de vote disponibles
+                            </label>
+
+                            {availableElections.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 text-sm font-medium">
+                                    Aucun scrutin disponible pour votre compte.
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-3 mb-6">
+                                        {availableElections.map(el => (
+                                            <label
+                                                key={el.address}
+                                                className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedElection === el.address ? 'border-primary-500 bg-primary-50' : 'border-slate-200 bg-slate-50 hover:border-primary-300'}`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="election"
+                                                    value={el.address}
+                                                    checked={selectedElection === el.address}
+                                                    onChange={(e) => setSelectedElection(e.target.value)}
+                                                    className="accent-primary-600 w-4 h-4 shrink-0"
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-black text-slate-900 truncate">{el.title}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{el.country}</p>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+
+                                    <Button
+                                        onClick={handleGoToVote}
+                                        disabled={!selectedElection}
+                                        className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-black text-white shadow-xl transition-all active:scale-[0.98]"
+                                    >
+                                        Accéder au portail de vote
+                                    </Button>
+                                </>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 

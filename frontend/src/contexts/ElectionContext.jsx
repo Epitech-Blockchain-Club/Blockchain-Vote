@@ -36,22 +36,35 @@ export function ElectionProvider({ children }) {
           const sessions = scrutin.sessions || []
           const allValidated = sessions.length > 0 && sessions.every(s => s.isValidated)
 
+          const candidates = sessions.flatMap(s =>
+            (s.options || []).map(opt => ({
+              id: opt.title || opt.label,
+              title: opt.title || opt.label || '',
+              name: opt.title || opt.label || '',
+              description: opt.description || '',
+              imageUrl: opt.imageUrl || '',
+              photo: opt.imageUrl || '',
+              members: opt.members || [],
+            }))
+          )
+
           return {
             id: scrutin.address,
             title: scrutin.title || 'Sans titre',
             description: scrutin.description || '',
             type: scrutin.scope || 'local',
             country: scrutin.country,
+            logoUrl: scrutin.logoUrl || '',
             startDate: scrutin.startDate || scrutin.createdAt || new Date().toISOString(),
             endDate: scrutin.endDate || new Date(new Date(scrutin.createdAt || Date.now()).getTime() + 86400000 * 7).toISOString(),
             sessions: sessions,
+            candidates: candidates,
             votes: scrutin.votes || {},
             votedCount: scrutin.votedCount || 0,
             timeSeries: scrutin.timeSeries || [],
-            voters: scrutin.voters || [], // Global voters
+            voters: scrutin.voters || [],
             voterCount: scrutin.voters?.length || sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0),
             status: allValidated ? 'active' : 'pending_validation',
-            // A scrutin is only invalidated when ALL its sessions are invalidated
             isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated)
           }
         })
@@ -62,6 +75,8 @@ export function ElectionProvider({ children }) {
     } catch (error) {
       console.error('Fetch elections error:', error)
       toast.error('Erreur lors du chargement des élections')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -157,11 +172,12 @@ export function ElectionProvider({ children }) {
           description: newElection.description,
           scope: newElection.scope,
           country: newElection.country,
-          org: user?.org || 'epitech', // Associate with user's organization
+          org: user?.org || 'epitech',
+          logoUrl: newElection.logoUrl || '',
           timingMode: newElection.timingMode,
           startDate: newElection.startDate,
           endDate: newElection.endDate,
-          voters: newElection.voters, // Root level voters
+          voters: newElection.voters,
           voteSessions: newElection.voteSessions.map(s => ({
             title: s.title,
             description: s.description,

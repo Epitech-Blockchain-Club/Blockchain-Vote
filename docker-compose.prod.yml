@@ -63,6 +63,8 @@ services:
         condition: service_healthy
     env_file:
       - ./backend/.env.production
+    volumes:
+      - epivote-backend-data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3001/health"]
       interval: 15s
@@ -101,6 +103,8 @@ volumes:
     name: epivote-mongo-configdb
   epivote-besu-data:
     name: epivote-besu-data
+  epivote-backend-data:
+    name: epivote-backend-data
 
 networks:
   epivote_net:

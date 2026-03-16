@@ -412,7 +412,7 @@ const CreateElectionForm = () => {
         setGeneratedLink(`${window.location.origin}/vote/${result.address}`)
         setIsSubmitted(true)
         toast.success('Scrutin déployé ! Invitations envoyées aux modérateurs.', { duration: 6000, icon: '📧' })
-        setTimeout(() => navigate(`/admin/elections/${result.address}`), 4000)
+        setTimeout(() => navigate(`/election/${result.address}`), 4000)
       }
     } catch (err) {
       console.error(err)

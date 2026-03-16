@@ -51,7 +51,7 @@ router.get('/available', async (req, res) => {
 // POST /api/scrutins
 router.post('/', async (req, res) => {
     try {
-        const { title, description, scope, country, timingMode, startDate, endDate, voteSessions, voters } = req.body;
+        const { title, description, scope, country, timingMode, startDate, endDate, voteSessions, voters, logoUrl } = req.body;
         console.log(`[SCRUTIN] Creating: "${title}" — ${voters?.length || 0} global voters`);
 
         const factory = getFactoryContract();
@@ -70,6 +70,7 @@ router.post('/', async (req, res) => {
 
         await storage.saveScrutin(scrutinAddress, {
             title, description, scope, country, timingMode, startDate, endDate,
+            logoUrl: logoUrl || '',
             type: req.body.org || 'epitech',
             voters: voters || [],
             sessions: voteSessions ? voteSessions.map(s => ({

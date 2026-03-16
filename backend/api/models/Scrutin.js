@@ -1,13 +1,23 @@
 import mongoose from 'mongoose';
 
+const memberSchema = new mongoose.Schema({
+    name:     { type: String },
+    role:     { type: String },
+    photoUrl: { type: String },
+}, { _id: false });
+
 const optionSchema = new mongoose.Schema({
+    title:       { type: String },
     label:       { type: String },
     description: { type: String },
+    imageUrl:    { type: String },
+    members:     [memberSchema],
 }, { _id: false });
 
 const sessionSchema = new mongoose.Schema({
     title:               { type: String },
     description:         { type: String },
+    logoUrl:             { type: String },
     options:             [optionSchema],
     voters:              [{ type: String, lowercase: true }],
     moderators:          [mongoose.Schema.Types.Mixed],
@@ -29,6 +39,7 @@ const scrutinSchema = new mongoose.Schema({
     startDate:  { type: String },
     endDate:    { type: String },
     type:       { type: String },
+    logoUrl:    { type: String },
     voters:     [{ type: String, lowercase: true }],
     sessions:   [sessionSchema],
 }, { timestamps: true });

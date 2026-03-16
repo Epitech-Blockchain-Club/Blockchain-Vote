@@ -10,9 +10,18 @@ import { COUNTRY_NAMES } from '../constants/countries'
 
 const ElectionPage = () => {
   const { id } = useParams()
-  const { elections } = useElections()
+  const { elections, loading } = useElections()
   const { user } = useAuth()
-  const election = elections.find(e => e.id === id)
+  const election = elections.find(e => e.id?.toLowerCase() === id?.toLowerCase())
+
+  if (loading && !election) {
+    return (
+      <div className="container mx-auto px-4 py-32 text-center max-w-2xl">
+        <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-6" />
+        <p className="text-slate-500 font-medium">Chargement du scrutin...</p>
+      </div>
+    )
+  }
 
   if (!election) {
     return (
