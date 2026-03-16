@@ -16,6 +16,8 @@ services:
         placeholder: "mongodb+srv://..."
       - key: FRONTEND_URL
         value: https://blockchain-vote-web.onrender.com
+      - key: SMTP_PORT
+        value: 465
 
   # 2. Frontend App (Static Site)
   - type: web
