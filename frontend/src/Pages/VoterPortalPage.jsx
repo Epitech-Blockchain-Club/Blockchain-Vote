@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 const VoterPortalPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, loginWithGoogle } = useAuth();
+    const { user, loginWithOffice365 } = useAuth();
     const { getElectionById } = useElections();
     const [election, setElection] = useState(null);
     const [authorizedSessions, setAuthorizedSessions] = useState([]);
@@ -31,7 +31,7 @@ const VoterPortalPage = () => {
 
             // Filter sessions where the user's email is present
             const userEmail = user.email.toLowerCase();
-            const allowed = el.sessions.filter(s => 
+            const allowed = el.sessions.filter(s =>
                 s.voters?.some(v => v.toLowerCase() === userEmail)
             );
 
@@ -55,7 +55,7 @@ const VoterPortalPage = () => {
             <div className="max-w-md mx-auto py-20 px-4 text-center">
                 <h2 className="text-3xl font-black mb-6">Authentification Requise</h2>
                 <p className="text-slate-500 mb-8">Veuillez vous connecter avec votre compte institutionnel pour accéder à ce vote.</p>
-                <Button onClick={loginWithGoogle} className="w-full h-14 rounded-2xl">Se connecter avec Google / Office</Button>
+                <Button onClick={loginWithOffice365} className="w-full h-14 rounded-2xl bg-[#2563EB] hover:bg-blue-700">Se connecter avec Office 365</Button>
             </div>
         );
     }

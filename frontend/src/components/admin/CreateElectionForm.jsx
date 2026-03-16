@@ -609,7 +609,11 @@ const CreateElectionForm = () => {
                     <span className="w-6 h-6 bg-primary-600 text-white text-xs font-black rounded-lg flex items-center justify-center shrink-0">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-black text-slate-900 truncate">{s.title || `Session ${i + 1}`}</p>
-                      <p className="text-xs text-slate-500 font-medium">{s.parts.length} option(s) · {s.voterCount} électeur(s)</p>
+                      <p className="text-xs text-slate-500 font-medium mb-1">{s.parts.length} option(s) · {s.voterCount} électeur(s) requis</p>
+                      <div className="flex flex-col gap-1 mt-2">
+                        <p className="text-[10px] text-slate-500"><strong className="text-slate-700">Modérateurs :</strong> {s.moderatorsText ? s.moderatorsText.split(/[\n,;]/).filter(m => m.trim() !== '').join(', ') : 'Aucun'}</p>
+                        <p className="text-[10px] text-slate-500 truncate" title={s.votersText}><strong className="text-slate-700">Votants :</strong> {s.votersText ? s.votersText.split(/[\n,;]/).filter(v => v.trim() !== '').join(', ') : 'Aucun'}</p>
+                      </div>
                     </div>
                   </div>
                 ))}

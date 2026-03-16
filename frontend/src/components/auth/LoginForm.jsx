@@ -106,19 +106,7 @@ const LoginForm = () => {
             </div>
           </div>
 
-          {window.location.pathname === '/login' && (
-            <div className="bg-primary-50/50 rounded-2xl p-5 border border-primary-100/50 space-y-3">
-              <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-1">Identifiants de test (Développement)</p>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-bold uppercase tracking-tighter">Administrateur:</span>
-                <span className="text-slate-900 font-black">admin@votechain.com</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-bold uppercase tracking-tighter">Super admin:</span>
-                <span className="text-slate-900 font-black">super@votechain.com</span>
-              </div>
-            </div>
-          )}
+
 
           <Button
             type="submit"
@@ -138,19 +126,11 @@ const LoginForm = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => handleOAuthLogin('google')}
-              className="h-14 flex items-center justify-center gap-3 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-bold text-slate-600 text-sm"
-            >
-              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-              Google
-            </button>
+          <div className="flex flex-col gap-4">
             <button
               type="button"
               onClick={() => handleOAuthLogin('office')}
-              className="h-14 flex items-center justify-center gap-3 bg-[#2563EB] rounded-2xl hover:bg-blue-700 transition-all font-bold text-white text-sm"
+              className="w-full h-14 flex items-center justify-center gap-3 bg-[#2563EB] rounded-2xl hover:bg-blue-700 transition-all font-bold text-white text-sm"
             >
               <img src="https://www.microsoft.com/favicon.ico" className="w-5 h-5 brightness-0 invert" alt="MS" />
               Office 365

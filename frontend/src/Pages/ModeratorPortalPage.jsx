@@ -17,6 +17,8 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const InfoRow = ({ label, value }) => (
     <div className="flex justify-between items-start py-3 border-b border-slate-100 last:border-0">
@@ -70,7 +72,7 @@ const ModeratorPortalPage = () => {
                 }
 
                 // 2. Fetch Scrutin data
-                const res = await fetch(`http://localhost:3001/api/scrutins`)
+                const res = await fetch(`${API_URL}/scrutins`)
                 const result = await res.json()
                 if (result.success) {
                     const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
@@ -167,7 +169,7 @@ const ModeratorPortalPage = () => {
                 reason: dec.reason
             }));
 
-            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
+            const res = await fetch(`${API_URL}/moderators/batch-decision`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -219,7 +221,7 @@ const ModeratorPortalPage = () => {
 
         try {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
-            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
+            const configRes = await fetch(`${API_URL}/auth/oauth-config`);
             const config = await configRes.json();
             toast.dismiss('oauth-init');
 

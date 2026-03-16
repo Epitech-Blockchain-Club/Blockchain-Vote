@@ -8,7 +8,7 @@ export default function Header() {
       <div className="container flex flex-col md:flex-row items-center justify-center gap-4">
         <img src={clubLogo} alt="Epitech Blockchain Club" className="h-16" />
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Plateforme de Vote BVote
+          EpiVote
         </h1>
         <img src={epitechLogo} alt="Epitech" className="h-16" />
       </div>

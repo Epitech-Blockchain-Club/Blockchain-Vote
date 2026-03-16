@@ -19,6 +19,8 @@ import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
 import Modal from '../common/Modal'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 const Navbar = () => {
   const { user, logout } = useAuth()
   const { language, toggleLanguage, t } = useSettings()
@@ -35,8 +37,8 @@ const Navbar = () => {
     const fetchNotifs = async () => {
       try {
         const endpoint = user.role === 'superadmin'
-          ? 'http://localhost:3001/api/superadmin/notifications'
-          : 'http://localhost:3001/api/moderators/notifications'
+          ? `${API_URL}/superadmin/notifications`
+          : `${API_URL}/moderators/notifications`
         const res = await fetch(endpoint)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
@@ -86,7 +88,7 @@ const Navbar = () => {
               <img src={epitechLogo} alt="Epitech Logo" className="relative h-10 w-auto object-contain transition-transform group-hover:scale-110 z-10" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">VoteChain</span>
+              <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">EpiVote</span>
               <span className="text-[10px] font-bold text-primary-600 tracking-[0.2em] uppercase">Built with Epitech</span>
             </div>
           </Link>
@@ -116,17 +118,7 @@ const Navbar = () => {
 
             <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
-            {/* Language Toggle */}
-            <button
-              onClick={toggleLanguage}
-              className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-primary-600 transition-colors uppercase flex items-center gap-1"
-              title="Changer la langue"
-            >
-              <LanguageIcon className="h-5 w-5" />
-              <span>{language === 'fr' ? 'EN' : 'FR'}</span>
-            </button>
 
-            <div className="h-6 w-px bg-slate-100 mx-3"></div>
 
             {/* Notification Bell (Admin + SuperAdmin) */}
             {user && (user.role === 'admin' || user.role === 'superadmin') && location.pathname !== '/' && (

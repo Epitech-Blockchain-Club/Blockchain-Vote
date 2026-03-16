@@ -11,6 +11,8 @@ import {
 import { useSettings } from '../../contexts/SettingsContext'
 import { useElections } from '../../contexts/ElectionContext'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 const StatCard = ({ title, value, icon: Icon, color, trend }) => (
     <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
         <div className="flex items-start justify-between mb-4">
@@ -37,7 +39,7 @@ const SuperAdminDashboard = () => {
     useEffect(() => {
         const fetchNotifs = async () => {
             try {
-                const res = await fetch('http://localhost:3001/api/superadmin/notifications')
+                const res = await fetch(`${API_URL}/superadmin/notifications`)
                 const result = await res.json()
                 if (result.success) setNotifications(result.data || [])
             } catch (err) { /* silently fail */ }

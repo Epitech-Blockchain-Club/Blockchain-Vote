@@ -19,6 +19,8 @@ import { useElections } from '../../contexts/ElectionContext'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
     let pw = ''
@@ -150,7 +152,7 @@ const OrgDetail = ({ org, elections, users, onBack }) => {
         setIsSubmitting(true)
         const password = generatePassword()
         try {
-            const res = await fetch('http://localhost:3001/api/auth/add-admin-to-org', {
+            const res = await fetch(`${API_URL}/auth/add-admin-to-org`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

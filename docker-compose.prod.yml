@@ -58,13 +58,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Docker Compose needs default fallbacks here, otherwise it warns they are empty in the shell.
-        # The actual values will be read from the env_file below during the build phase.
-        - VITE_API_URL=${VITE_API_URL:-""}
-        - VITE_APP_ENV=${VITE_APP_ENV:-""}
-        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-""}
-        - VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID:-""}
-        - VITE_MICROSOFT_TENANT_ID=${VITE_MICROSOFT_TENANT_ID:-""}
+        - VITE_API_URL
+        - VITE_APP_ENV
+        - VITE_GOOGLE_CLIENT_ID
+        - VITE_MICROSOFT_CLIENT_ID
+        - VITE_MICROSOFT_TENANT_ID
     env_file:
       - ./frontend/.env.production
     container_name: votechain-frontend

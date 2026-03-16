@@ -34,7 +34,7 @@ const HomePage = () => {
 
   const features = [
     {
-      icon: <img src="/home/brouhane/.gemini/antigravity/brain/6a9ce6e4-e2b9-433b-907c-20420c33a8b6/secure_vote_feature_1772381531717.png" alt="Secure" className="h-12 w-12 object-contain" />,
+      icon: <ShieldCheckIcon className="h-12 w-12 text-primary-600" />,
       title: t({ fr: 'Sécurité Blockchain', en: 'Blockchain Security' }),
       description: t({
         fr: "Chaque vote est enregistré de manière immuable sur la blockchain, garantissant l'intégrité totale des résultats.",
@@ -116,7 +116,7 @@ const HomePage = () => {
                 ) : (
                   <Link to="/request-vote">
                     <Button size="lg" className="h-16 px-12 text-lg group rounded-2xl shadow-xl shadow-primary-500/20">
-                      {t({ fr: 'Lancer un vote', en: 'Start Voting' })}
+                      {t({ fr: 'Voter', en: 'Vote' })}
                       <ChevronRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
@@ -146,7 +146,7 @@ const HomePage = () => {
                   transition={{ delay: 1 }}
                   className="absolute -top-10 -right-10 w-40 h-40 bg-white p-4 rounded-3xl shadow-xl border border-slate-50 hidden xl:flex items-center justify-center p-6"
                 >
-                  <img src="/src/assets/club-logo.jpg" alt="Club Logo" className="w-full h-full object-contain" />
+                  <img src="/club-logo.jpg" alt="Club Logo" className="w-full h-full object-contain" />
                 </motion.div>
                 <div className="absolute -bottom-10 -left-10 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 hidden md:block animate-bounce-slow">
                   <div className="flex items-center space-x-4">

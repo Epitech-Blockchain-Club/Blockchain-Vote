@@ -7,6 +7,8 @@ import { EnvelopeIcon, ChatBubbleBottomCenterTextIcon, CheckCircleIcon } from '@
 import { toast } from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 const RequestVotePage = () => {
     const { t } = useSettings()
     const navigate = useNavigate()
@@ -19,7 +21,7 @@ const RequestVotePage = () => {
         e.preventDefault()
         setLoading(true)
         try {
-            const res = await fetch('http://localhost:3001/api/request-vote', {
+            const res = await fetch(`${API_URL}/request-vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, description })
@@ -28,7 +30,7 @@ const RequestVotePage = () => {
             if (result.success) {
                 // Also push a superadmin notification so the bell lights up
                 try {
-                    await fetch('http://localhost:3001/api/superadmin/notifications', {
+                    await fetch(`${API_URL}/superadmin/notifications`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

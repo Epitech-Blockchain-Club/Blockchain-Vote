@@ -17,6 +17,8 @@ import Card from '../common/Card'
 import Button from '../common/Button'
 import { useState, useEffect } from 'react'
 
+const API_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '""' ? import.meta.env.VITE_API_URL : '/api';
+
 const AdminDashboard = () => {
   const { elections } = useElections()
   const { user } = useAuth()
@@ -28,7 +30,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/moderators/notifications')
+        const res = await fetch(`${API_URL}/moderators/notifications`)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }
@@ -95,7 +97,7 @@ const AdminDashboard = () => {
           <Link to="/voter">
             <Button variant="outline" className="h-11 px-5 rounded-2xl text-sm border-slate-200">
               <UserGroupIcon className="h-5 w-5 mr-2" />
-              {t({ fr: 'Lancer un vote', en: 'Start Vote' })}
+              {t({ fr: 'Voter', en: 'Vote' })}
             </Button>
           </Link>
           <Link to="/admin/elections/new">
