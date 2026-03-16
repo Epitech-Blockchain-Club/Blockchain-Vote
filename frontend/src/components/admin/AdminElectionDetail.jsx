@@ -158,13 +158,7 @@ const AdminElectionDetail = () => {
                         </div>
                     </div>
                 </div>
-                {/* Edit button — always accessible */}
-                <Link to={`/admin/elections/${id}/edit`} className="w-full sm:w-auto shrink-0">
-                    <Button variant="outline" className="w-full sm:w-auto shadow-sm bg-white border-slate-200 text-sm h-10">
-                        <PencilSquareIcon className="w-4 h-4 mr-2" />
-                        {t({ fr: 'Modifier', en: 'Edit' })}
-                    </Button>
-                </Link>
+
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-7xl mx-auto px-4 md:px-0">
@@ -223,17 +217,7 @@ const AdminElectionDetail = () => {
                                                     "{session.invalidationReason}"
                                                 </span>
                                             )}
-                                            <button
-                                                onClick={() => {
-                                                    const link = `${window.location.origin}/moderate/${election.address || election.id}/${session.address || ''}`
-                                                    navigator.clipboard.writeText(link)
-                                                    toast.success('Lien modérateur copié !')
-                                                }}
-                                                className="group flex items-center gap-2 px-3 py-1.5 bg-slate-100/50 hover:bg-primary-50 text-[10px] font-black text-slate-500 hover:text-primary-600 rounded-xl transition-all border border-slate-200/50 hover:border-primary-200 uppercase tracking-wider"
-                                            >
-                                                <ShieldCheckIcon className="w-3.5 h-3.5" />
-                                                Copier lien ID
-                                            </button>
+
                                         </div>
                                     </div>
 
