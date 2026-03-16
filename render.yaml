@@ -1,46 +1,35 @@
 services:
+  # 1. Backend API (Web Service)
   - type: web
-    name: blockchain-vote-backend
+    name: blockchain-vote-api
     env: docker
-    dockerfilePath: ./backend/Dockerfile
-    # Use the specific script that starts Hardhat + Node API
-    dockerCommand: ./render-start.sh
-    plan: free
-    healthCheckPath: /health
+    dockerContext: backend
+    dockerfilePath: Dockerfile.render
+    plan: free # Force free plan for trial
     envVars:
       - key: PORT
         value: 3001
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: MICROSOFT_CLIENT_ID
-        sync: false
-      - key: MICROSOFT_CLIENT_SECRET
-        sync: false
-      - key: JWT_SECRET
-        generateValue: true
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: '465'
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
+      - key: PRIVATE_KEY
+        value: 0x1fb3cee9bedf6bc21ebda1ded51fba4814cbe0e9937e1c4da1c72e9ea46f2982
+      - key: MONGO_URI
+        sync: false # User should set their MongoDB Atlas URI in Render Dashboard
+        placeholder: "mongodb+srv://..."
       - key: FRONTEND_URL
-        value: https://blockchain-vote-frontend.onrender.com
+        fromService:
+          type: static
+          name: blockchain-vote-web
+          property: url
 
-  - type: web
-    name: blockchain-vote-frontend
+  # 2. Frontend App (Static Site)
+  - type: static
+    name: blockchain-vote-web
     env: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/dist
-    plan: free
+    buildCommand: npm install && npm run build
+    buildContext: frontend
+    publishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://blockchain-vote-backend.onrender.com
-      - key: VITE_GOOGLE_CLIENT_ID
-        sync: false
-      - key: VITE_MICROSOFT_CLIENT_ID
-        sync: false
+        fromService:
+          type: web
+          name: blockchain-vote-api
+          property: url

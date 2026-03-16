@@ -1,42 +1,38 @@
 #!/bin/bash
+# render-start.sh : Startup script for Render Free Tier (Lightweight)
 set -e
 
-echo "Starting Render Boot Script (Backend + Local Hardhat Blockchain)"
+echo "🚀 Starting Render Boot Sequence..."
 
-# Start Hardhat node in background
-echo "Starting Hardhat node..."
-npx hardhat node --hostname 127.0.0.1 --port 1337 --config hardhat.config.cjs > node.log 2>&1 &
-NODE_PID=$!
+# 1. Start a local Hardhat node in the background
+# We use --hostname 0.0.0.0 so the API can reach it internally if needed,
+# though here they share the same container.
+echo "⛓️ Starting internal Hardhat node..."
+npx hardhat node --port 1337 --network hardhat > /app/hardhat_node.log 2>&1 &
 
-echo "Waiting for node on port 1337..."
-MAX_ATTEMPTS=30
-ATTEMPT=0
+# Wait for Hardhat node to be ready
+echo "⏳ Waiting for Hardhat node to initialize..."
 until curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' http://127.0.0.1:1337 > /dev/null; do
-  ATTEMPT=$((ATTEMPT + 1))
-  if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
-    echo "Timeout waiting for Hardhat node."
-    cat node.log
-    kill $NODE_PID || true
-    exit 1
-  fi
-  sleep 1
+  sleep 2
 done
-echo "Node is ready."
+echo "✅ Hardhat node is ready!"
 
-echo "Deploying contracts..."
+# 2. Deploy contracts to the internal node
+echo "📜 Deploying contracts to internal network..."
+# We use the localhost network defined in hardhat.config.cjs which points to 127.0.0.1:1337
 DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network localhost --config hardhat.config.cjs)
 echo "$DEPLOY_OUTPUT"
+
+# Extract Factory address
 FACTORY_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "ScrutinFactory deployed to:" | awk '{print $NF}')
-
 if [ -z "$FACTORY_ADDR" ]; then
-  echo "Failed to get Factory address"
-  kill $NODE_PID
-  exit 1
+    echo "❌ Deployment failed. Check logs."
+    exit 1
 fi
-
-echo "Factory Address: $FACTORY_ADDR"
+echo "📍 ScrutinFactory: $FACTORY_ADDR"
 export FACTORY_ADDRESS=$FACTORY_ADDR
 export RPC_URL="http://127.0.0.1:1337"
 
-echo "Starting Express API on port ${PORT:-3001}..."
+# 3. Start the Express API
+echo "🌐 Starting Express API on port ${PORT:-3001}..."
 exec node api/server.js

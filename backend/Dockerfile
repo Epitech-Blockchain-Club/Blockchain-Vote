@@ -27,10 +27,9 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/hardhat.config.cjs ./
 COPY boot.sh ./
-COPY render-start.sh ./
 
-# Ensure boot scripts are executable
-RUN chmod +x boot.sh render-start.sh
+# Ensure boot script is executable
+RUN chmod +x boot.sh
 
 # Prune dev dependencies to reduce image size (Optional, but Hardhat deploy needs ethers which is in dependencies)
 # RUN npm prune --production
