@@ -183,7 +183,9 @@ router.post('/', async (req, res) => {
                     type: 'moderator'
                 });
 
-                const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                // Prioritize FRONTEND_URL, fallback to request origin if available
+                const baseUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+                const loginUrl = `${baseUrl}/login`;
                 const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
                 await sendModeratorInvitation(mod, title, "Toutes vos sessions assignées", portalLink);
                 console.log(`[SCRUTIN] Single invitation sent to moderator ${mod} for all their sessions`);
