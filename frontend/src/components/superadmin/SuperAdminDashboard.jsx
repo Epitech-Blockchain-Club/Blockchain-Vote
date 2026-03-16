@@ -33,11 +33,12 @@ const SuperAdminDashboard = () => {
     const { t } = useSettings()
     const { elections, loading } = useElections()
     const [notifications, setNotifications] = useState([])
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
     useEffect(() => {
         const fetchNotifs = async () => {
             try {
-                const res = await fetch('http://localhost:3001/api/superadmin/notifications')
+                const res = await fetch(`${API_BASE}/superadmin/notifications`)
                 const result = await res.json()
                 if (result.success) setNotifications(result.data || [])
             } catch (err) { /* silently fail */ }

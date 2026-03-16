@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 const OAuthCallbackPage = () => {
     useEffect(() => {
         const handleOAuthCallback = async () => {
@@ -50,7 +52,7 @@ const OAuthCallbackPage = () => {
                                 if (userProfile && userProfile.email) {
                                     // Verify voter authorization if scrutinId is provided
                                     if (scrutinId) {
-                                        const authResponse = await fetch('http://localhost:3001/api/auth/verify-voter', {
+                                        const authResponse = await fetch(`${API_BASE}/auth/verify-voter`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({

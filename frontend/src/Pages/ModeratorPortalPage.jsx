@@ -43,6 +43,7 @@ const ModeratorPortalPage = () => {
     const { user, loginWithToken, loginWithGoogle, loginWithOffice365 } = useAuth()
     const [scrutin, setScrutin] = useState(null)
     const [loading, setLoading] = useState(true)
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
     // Per-session decision state: { [sessionId]: { status, reason } }
     const [decisions, setDecisions] = useState({})
@@ -70,7 +71,7 @@ const ModeratorPortalPage = () => {
                 }
 
                 // 2. Fetch Scrutin data
-                const res = await fetch(`http://localhost:3001/api/scrutins`)
+                const res = await fetch(`${API_BASE}/scrutins`)
                 const result = await res.json()
                 if (result.success) {
                     const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
@@ -167,7 +168,7 @@ const ModeratorPortalPage = () => {
                 reason: dec.reason
             }));
 
-            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
+            const res = await fetch(`${API_BASE}/moderators/batch-decision`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -219,7 +220,7 @@ const ModeratorPortalPage = () => {
 
         try {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
-            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
+            const configRes = await fetch(`${API_BASE}/auth/oauth-config`);
             const config = await configRes.json();
             toast.dismiss('oauth-init');
 
@@ -389,7 +390,7 @@ const ModeratorPortalPage = () => {
                         Votre adresse ({user?.email || 'non identifiée'}) n'est pas autorisée comme modérateur pour ce scrutin.
                         Si vous avez reçu un mail, assurez-vous d'utiliser le compte lié à cette adresse.
                     </p>
-                    <button onClick={() => window.location.href = '/login'} className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black transition-all">
+                    <button onClick={() => window.location.href = '/admin-login'} className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black transition-all">
                         Se connecter avec un autre compte
                     </button>
                 </div>

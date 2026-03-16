@@ -106,20 +106,6 @@ const LoginForm = () => {
             </div>
           </div>
 
-          {window.location.pathname === '/login' && (
-            <div className="bg-primary-50/50 rounded-2xl p-5 border border-primary-100/50 space-y-3">
-              <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mb-1">Identifiants de test (Développement)</p>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-bold uppercase tracking-tighter">Administrateur:</span>
-                <span className="text-slate-900 font-black">admin@votechain.com</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-bold uppercase tracking-tighter">Super admin:</span>
-                <span className="text-slate-900 font-black">super@votechain.com</span>
-              </div>
-            </div>
-          )}
-
           <Button
             type="submit"
             size="lg"

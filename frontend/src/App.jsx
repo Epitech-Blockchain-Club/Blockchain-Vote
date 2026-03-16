@@ -63,7 +63,7 @@ function App() {
                   <Route path="/results/:id" element={<ResultsPage />} />
                   <Route path="/admin/*" element={<AdminPage />} />
                   <Route path="/superadmin/*" element={<SuperAdminPage />} />
-                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/admin-login" element={<LoginPage />} />
                   <Route path="/verify/:txHash" element={<VerificationPage />} />
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

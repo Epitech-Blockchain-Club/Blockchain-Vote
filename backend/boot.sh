@@ -3,12 +3,14 @@ set -e
 
 echo "Starting Backend Boot Script..."
 
+DATA_DIR=${DATA_DIR:-/app/data}
+export DATA_DIR
+FACTORY_FILE="$DATA_DIR/factory.address"
+
+# Ensure data directory exists (in case the volume isn't mounted yet)
+mkdir -p "$DATA_DIR"
+
 # 1. Wait for MongoDB
-echo "Waiting for MongoDB ($MONGO_URI)..."
-MAX_ATTEMPTS=30
-ATTEMPT=0
-# Since we might not have a full mongo client, we check the port TCP connection using nc or wait for the API to retry.
-# Better: wait for Besu which is slower
 echo "Skipping strict Mongo wait, Mongoose will handle reconnection retries."
 
 # 2. Wait for Besu Blockchain RPC
@@ -26,19 +28,45 @@ until curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.
 done
 echo "Besu Node is ready!"
 
-# 3. Deploy Factory Contract if FACTORY_ADDRESS is not provided
+# 3. Resolve FACTORY_ADDRESS — priority: ENV var > persisted file > fresh deploy
+if [ -z "$FACTORY_ADDRESS" ] && [ -f "$FACTORY_FILE" ]; then
+  FACTORY_ADDRESS=$(cat "$FACTORY_FILE")
+  echo "Loaded FACTORY_ADDRESS from persisted file: $FACTORY_ADDRESS"
+  export FACTORY_ADDRESS
+fi
+
+# 3b. Validate that the factory contract actually exists on-chain
+#     (protects against blockchain reset while factory.address file persists)
+if [ -n "$FACTORY_ADDRESS" ]; then
+  echo "Validating factory contract at $FACTORY_ADDRESS on-chain..."
+  CODE=$(curl -s -X POST -H "Content-Type: application/json" \
+    --data "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$FACTORY_ADDRESS\",\"latest\"],\"id\":1}" \
+    "$RPC_URL" | grep -o '"result":"[^"]*"' | cut -d'"' -f4)
+
+  if [ "$CODE" = "0x" ] || [ -z "$CODE" ]; then
+    echo "WARNING: Factory contract not found on-chain (blockchain may have been reset)."
+    echo "Clearing stale factory address and re-deploying..."
+    rm -f "$FACTORY_FILE"
+    FACTORY_ADDRESS=""
+  else
+    echo "Factory contract validated on-chain."
+  fi
+fi
+
 if [ -z "$FACTORY_ADDRESS" ]; then
-  echo "FACTORY_ADDRESS is block. Deploying ScrutinFactory..."
+  echo "No FACTORY_ADDRESS found. Deploying ScrutinFactory..."
   DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network besu --config hardhat.config.cjs)
   echo "$DEPLOY_OUTPUT"
   FACTORY_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "ScrutinFactory deployed to:" | awk '{print $NF}')
-  
+
   if [ -z "$FACTORY_ADDR" ]; then
     echo "Failed to extract Factory address from deployment output."
     exit 1
   fi
+
   echo "Extracted Factory Address: $FACTORY_ADDR"
-  # Export it so the Node.js API can read it
+  echo "$FACTORY_ADDR" > "$FACTORY_FILE"
+  echo "Factory address saved to $FACTORY_FILE"
   export FACTORY_ADDRESS=$FACTORY_ADDR
 else
   echo "Using existing FACTORY_ADDRESS: $FACTORY_ADDRESS"

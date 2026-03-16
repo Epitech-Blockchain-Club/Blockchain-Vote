@@ -19,7 +19,7 @@ export const ROUTES = {
     ADMINS: '/superadmin/admins',
     ACTIVITIES: '/superadmin/activities'
   },
-  LOGIN: '/login',
+  LOGIN: '/admin-login',
   ABOUT: '/about',
   VERIFY: (txHash) => `/verify/${txHash}`
 }

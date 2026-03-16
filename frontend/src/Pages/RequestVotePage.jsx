@@ -14,12 +14,13 @@ const RequestVotePage = () => {
     const [description, setDescription] = useState('')
     const [submitted, setSubmitted] = useState(false)
     const [loading, setLoading] = useState(false)
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
         try {
-            const res = await fetch('http://localhost:3001/api/request-vote', {
+            const res = await fetch(`${API_BASE}/request-vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, description })
@@ -28,7 +29,7 @@ const RequestVotePage = () => {
             if (result.success) {
                 // Also push a superadmin notification so the bell lights up
                 try {
-                    await fetch('http://localhost:3001/api/superadmin/notifications', {
+                    await fetch(`${API_BASE}/superadmin/notifications`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

@@ -29,14 +29,15 @@ const Navbar = () => {
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [notifLoading, setNotifLoading] = useState(true)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
   useEffect(() => {
     if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return
     const fetchNotifs = async () => {
       try {
         const endpoint = user.role === 'superadmin'
-          ? 'http://localhost:3001/api/superadmin/notifications'
-          : 'http://localhost:3001/api/moderators/notifications'
+          ? `${API_BASE}/superadmin/notifications`
+          : `${API_BASE}/moderators/notifications`
         const res = await fetch(endpoint)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
@@ -164,8 +165,8 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <Link to={ROUTES.LOGIN} className="btn-primary transform scale-90">
-                Connexion
+              <Link to={ROUTES.VOTER} className="btn-primary transform scale-90">
+                Voter
               </Link>
             )}
           </div>
@@ -244,11 +245,11 @@ const Navbar = () => {
               </div>
             ) : (
               <Link
-                to={ROUTES.LOGIN}
+                to={ROUTES.VOTER}
                 className="btn-primary w-full text-center block py-4"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Connexion
+                Voter
               </Link>
             )}
           </div>

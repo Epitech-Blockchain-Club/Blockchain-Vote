@@ -2,11 +2,8 @@ import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
-import { useElections } from '../contexts/ElectionContext'
 import { useSettings } from '../contexts/SettingsContext'
-import ElectionList from '../components/elections/ElectionList'
 import Button from '../components/common/Button'
-import Card from '../components/common/Card'
 import {
   ShieldCheckIcon,
   LockClosedIcon,
@@ -21,7 +18,6 @@ import {
 } from '@heroicons/react/24/outline'
 
 const HomePage = () => {
-  const { elections, loading } = useElections()
   const { user } = useAuth()
   const { t } = useSettings()
   const navigate = useNavigate()
@@ -245,38 +241,6 @@ const HomePage = () => {
               ))}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Active Elections */}
-      <section className="py-32">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-20 gap-8">
-            <div>
-              <h2 className="text-sm font-black text-primary-600 tracking-[0.3em] uppercase mb-4">{t({ fr: 'Scrutins Live', en: 'Live Ballots' })}</h2>
-              <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">{t({ fr: 'Élections en cours', en: 'Ongoing Elections' })}</h3>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-80 bg-slate-50 rounded-[40px] animate-pulse border border-slate-100"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="relative">
-              <div className="absolute -inset-10 bg-primary-100/5 rounded-[100px] blur-3xl"></div>
-              <div className="relative">
-                <ElectionList
-                  elections={elections.filter(e => {
-                    const now = new Date()
-                    return now >= new Date(e.startDate) && now <= new Date(e.endDate)
-                  })}
-                />
-              </div>
-            </div>
-          )}
         </div>
       </section>
 

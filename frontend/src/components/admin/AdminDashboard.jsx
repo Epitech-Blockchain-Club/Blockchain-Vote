@@ -24,11 +24,12 @@ const AdminDashboard = () => {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [notifLoading, setNotifLoading] = useState(true)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/moderators/notifications')
+        const res = await fetch(`${API_BASE}/moderators/notifications`)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }

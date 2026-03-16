@@ -3,10 +3,17 @@ services:
     image: mongo:6.0
     container_name: votechain-mongodb
     restart: always
+    stop_grace_period: 30s
     env_file:
       - ./backend/.env.production
     volumes:
       - votechain-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - votechain_net
 
@@ -14,11 +21,9 @@ services:
     image: hyperledger/besu:24.12.1
     container_name: votechain-besu
     restart: always
+    stop_grace_period: 60s
     environment:
-      # Optional Java tuning
       - BESU_OPTS=-Xmx2g
-    # We run in dev mode to have a quick pre-configured local network with 1 node mining and a pre-funded default account.
-    # The default dev account private key is: 0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63
     command: [
       "--network=dev",
       "--rpc-http-enabled",
@@ -34,6 +39,12 @@ services:
     ]
     volumes:
       - votechain-besu-data:/opt/besu/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}' http://localhost:8545 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - votechain_net
 
@@ -43,13 +54,18 @@ services:
       dockerfile: Dockerfile
     container_name: votechain-backend
     restart: always
+    stop_grace_period: 15s
     depends_on:
-      - mongodb
-      - besu-node
+      mongodb:
+        condition: service_healthy
+      besu-node:
+        condition: service_healthy
     env_file:
       - ./backend/.env.production
     ports:
       - "3001:3001"
+    volumes:
+      - votechain-app-data:/app/data
     networks:
       - votechain_net
 
@@ -58,25 +74,30 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Docker Compose needs default fallbacks here, otherwise it warns they are empty in the shell.
-        # The actual values will be read from the env_file below during the build phase.
-        - VITE_API_URL=${VITE_API_URL:-""}
-        - VITE_APP_ENV=${VITE_APP_ENV:-""}
-        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-""}
-        - VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID:-""}
-        - VITE_MICROSOFT_TENANT_ID=${VITE_MICROSOFT_TENANT_ID:-""}
+        - VITE_API_URL=${VITE_API_URL:-/api}
+        - VITE_APP_ENV=${VITE_APP_ENV:-production}
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID:-681526645303-f0kn1mt7cuh1i1d2lbt9gs1quru438o6.apps.googleusercontent.com}
+        - VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID:-c4771f6c-58bf-45c1-84c4-b8d04a75fc99}
+        - VITE_MICROSOFT_TENANT_ID=${VITE_MICROSOFT_TENANT_ID:-901cb4ca-b862-4029-9306-e5cd0f6d9f86}
     env_file:
       - ./frontend/.env.production
     container_name: votechain-frontend
     restart: always
     ports:
       - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
     networks:
       - votechain_net
 
 volumes:
   votechain-mongo-data:
+    name: votechain-mongo-data
   votechain-besu-data:
+    name: votechain-besu-data
+  votechain-app-data:
+    name: votechain-app-data
 
 networks:
   votechain_net:

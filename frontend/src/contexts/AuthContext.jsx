@@ -3,6 +3,8 @@ import toast from 'react-hot-toast'
 
 const AuthContext = createContext()
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -26,7 +28,7 @@ export function AuthProvider({ children }) {
 
   const fetchOAuthConfig = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/oauth-config')
+      const res = await fetch(`${API_BASE}/auth/oauth-config`)
       const result = await res.json()
       if (result.success) {
         setOAuthConfig({
@@ -58,7 +60,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/login', {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -114,7 +116,7 @@ export function AuthProvider({ children }) {
           };
 
           try {
-            const res = await fetch('http://localhost:3001/api/auth/oauth-login', {
+            const res = await fetch(`${API_BASE}/auth/oauth-login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: userData.email, name: userData.name, provider: 'google' })
@@ -193,7 +195,7 @@ export function AuthProvider({ children }) {
           };
 
           try {
-            const res = await fetch('http://localhost:3001/api/auth/oauth-login', {
+            const res = await fetch(`${API_BASE}/auth/oauth-login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: userData.email, name: userData.name, provider: 'microsoft' })
@@ -239,7 +241,7 @@ export function AuthProvider({ children }) {
 
   const loginWithToken = async (token) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/moderator/verify', {
+      const res = await fetch(`${API_BASE}/auth/moderator/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token })
@@ -290,7 +292,7 @@ export function AuthProvider({ children }) {
 
   const verifyVoterForScrutin = async (email, scrutinId) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/verify-voter', {
+      const res = await fetch(`${API_BASE}/auth/verify-voter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, scrutinId })
@@ -328,7 +330,7 @@ export function AuthProvider({ children }) {
 
   const getAvailableScrutins = async (email) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/scrutins/available?email=${encodeURIComponent(email)}`)
+      const res = await fetch(`${API_BASE}/scrutins/available?email=${encodeURIComponent(email)}`)
       const result = await res.json()
 
       if (result.success) {
