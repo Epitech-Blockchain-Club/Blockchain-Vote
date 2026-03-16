@@ -110,9 +110,9 @@ const HomePage = () => {
                     </Button>
                   </Link>
                 ) : (
-                  <Link to="/request-vote">
+                  <Link to="/voter">
                     <Button size="lg" className="h-16 px-12 text-lg group rounded-2xl shadow-xl shadow-primary-500/20">
-                      {t({ fr: 'Lancer un vote', en: 'Start Voting' })}
+                      {t({ fr: 'Voter', en: 'Vote' })}
                       <ChevronRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
