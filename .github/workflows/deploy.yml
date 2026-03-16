@@ -71,7 +71,7 @@ jobs:
 
     environment:
       name: production
-      url: http://${{ secrets.SSH_HOST }}
+      url: http://${{ vars.APP_URL }} 
 
     steps:
       - name: Checkout
