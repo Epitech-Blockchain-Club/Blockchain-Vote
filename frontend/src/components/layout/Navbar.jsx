@@ -16,7 +16,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { ROUTES } from '../../constants/routes'
 import epitechLogo from '../../assets/epitech-logo.png'
-import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
 import Modal from '../common/Modal'
 
@@ -90,7 +89,7 @@ if (!import.meta.env.VITE_API_URL) {
               <img src={epitechLogo} alt="Epitech Logo" className="relative h-10 w-auto object-contain transition-transform group-hover:scale-110 z-10" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-slate-900 tracking-tighter leading-none">EpiVote</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tighter leading-none">EpiVote</span>
               <span className="text-[10px] font-bold text-primary-600 tracking-[0.2em] uppercase">Built with Epitech</span>
             </div>
           </Link>

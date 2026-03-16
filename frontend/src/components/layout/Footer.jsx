@@ -2,7 +2,6 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes'
 import epitechLogo from '../../assets/epitech-logo.png'
-import clubLogo from '../../assets/club-logo.jpg'
 import { useSettings } from '../../contexts/SettingsContext'
 
 const Footer = () => {
@@ -19,7 +18,7 @@ const Footer = () => {
               <div className="flex items-center space-x-3 mb-3">
                 <img src={epitechLogo} alt="Epitech" className="h-8 sm:h-10 w-auto group-hover:scale-105 transition-transform" />
                 <span className="text-xl font-black text-slate-300">×</span>
-                <img src={clubLogo} alt="Club" className="h-8 sm:h-10 w-auto rounded-xl border border-slate-200 shadow-sm group-hover:border-primary-400 transition-colors" />
+                <img src="/club-logo.jpg" alt="Club" className="h-8 sm:h-10 w-auto rounded-xl border border-slate-200 shadow-sm group-hover:border-primary-400 transition-colors" />
               </div>
               <span className="text-2xl font-black text-slate-900 tracking-tighter group-hover:text-primary-600 transition-colors">EpiVote</span>
             </Link>

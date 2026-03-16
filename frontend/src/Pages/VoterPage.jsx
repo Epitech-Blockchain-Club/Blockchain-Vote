@@ -1,13 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {
-    GlobeAltIcon,
-    MagnifyingGlassIcon,
-    InboxArrowDownIcon,
-    ChevronRightIcon,
     ShieldCheckIcon,
     LockClosedIcon
 } from '@heroicons/react/24/outline';
@@ -125,23 +120,26 @@ const VoterPage = () => {
                     {availableElections.length > 0 && (
                         <div className="mt-10 pt-10 border-t border-slate-100 animate-fade-in">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Sessions de vote disponibles</label>
-                            <div className="relative mb-6">
-                                <InboxArrowDownIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 shadow-sm" />
-                                <select
-                                    value={selectedElection}
-                                    onChange={(e) => setSelectedElection(e.target.value)}
-                                    className="w-full pl-12 pr-10 py-4 bg-primary-50 border border-primary-100 rounded-2xl appearance-none focus:ring-2 focus:ring-primary-500 font-black text-primary-900 cursor-pointer transition-all text-sm"
-                                >
-                                    <option value="">Choisir un scrutin...</option>
-                                    {availableElections.map(el => (
-                                        <option key={el.address} value={el.address}>
-                                            {el.title} ({el.country})
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-primary-400">
-                                    <ChevronRightIcon className="w-5 h-5 rotate-90" />
-                                </div>
+                            <div className="space-y-3 mb-6">
+                                {availableElections.map(el => (
+                                    <label
+                                        key={el.address}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedElection === el.address ? 'border-primary-500 bg-primary-50' : 'border-slate-200 bg-slate-50 hover:border-primary-300'}`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="election"
+                                            value={el.address}
+                                            checked={selectedElection === el.address}
+                                            onChange={(e) => setSelectedElection(e.target.value)}
+                                            className="accent-primary-600 w-4 h-4 shrink-0"
+                                        />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-black text-slate-900 truncate">{el.title}</p>
+                                            <p className="text-xs text-slate-500 font-medium">{el.country}</p>
+                                        </div>
+                                    </label>
+                                ))}
                             </div>
 
                             <Button

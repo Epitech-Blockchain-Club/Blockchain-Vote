@@ -9,7 +9,9 @@
       "Bash(docker compose:*)",
       "Bash(grep -r \"/admin-login\\\\|admin.*login\" \"d:/projects/Epitech/Hub d''''innovation/Blockchain-Vote/frontend/src\" --include=*.jsx --include=*.tsx)",
       "Bash(find \"d:\\\\projects\\\\Epitech\\\\Hub d''''innovation\\\\Blockchain-Vote\" -type f \\\\\\(-name manifest.json -o -name robots.txt -o -name sitemap.xml -o -name _document.* -o -name layout.* \\\\\\))",
-      "Bash(docker volume:*)"
+      "Bash(docker volume:*)",
+      "Bash(npm install:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

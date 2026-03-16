@@ -41,11 +41,11 @@ services:
     volumes:
       - epivote-besu-data:/opt/besu/data
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8545' || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://localhost:8545 | grep -q result"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 45s
     networks:
       - epivote_net
 
@@ -63,8 +63,12 @@ services:
         condition: service_healthy
     env_file:
       - ./backend/.env.production
-    ports:
-      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
     networks:
       - epivote_net
 
@@ -86,7 +90,7 @@ services:
       - "80:80"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - epivote_net
 

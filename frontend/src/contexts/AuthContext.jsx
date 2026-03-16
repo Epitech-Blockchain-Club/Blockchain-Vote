@@ -10,6 +10,7 @@ if (!import.meta.env.VITE_API_URL) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [authToken, setAuthToken] = useState(null)
   const [loading, setLoading] = useState(true)
 
   // Voter authentication state
@@ -47,10 +48,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
+    const storedToken = localStorage.getItem('authToken')
     const storedVoterAuth = localStorage.getItem('voterAuth')
 
     if (storedUser) {
       setUser(JSON.parse(storedUser))
+    }
+    if (storedToken) {
+      setAuthToken(storedToken)
     }
 
     if (storedVoterAuth) {
@@ -74,6 +79,10 @@ export function AuthProvider({ children }) {
         const userData = result.user
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
+        if (result.token) {
+          setAuthToken(result.token)
+          localStorage.setItem('authToken', result.token)
+        }
         toast.success(`Bienvenue, ${userData.role}`)
         return userData
       } else {
@@ -371,7 +380,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null)
+    setAuthToken(null)
     localStorage.removeItem('user')
+    localStorage.removeItem('authToken')
     clearVoterAuth()
     toast.success('Déconnexion réussie')
   }
@@ -390,6 +401,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user,
+      authToken,
       loading,
       login,
       loginWithGoogle,

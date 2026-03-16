@@ -13,7 +13,7 @@ if (!import.meta.env.VITE_API_URL) {
 // Données réelles chargées via l'API
 
 export function ElectionProvider({ children }) {
-  const { user } = useAuth()
+  const { user, authToken } = useAuth()
   const [elections, setElections] = useState([])
   const [users, setUsers] = useState([])
   const [organizations, setOrganizations] = useState([])
@@ -65,9 +65,13 @@ export function ElectionProvider({ children }) {
     }
   }
 
+  const authHeaders = () => authToken
+    ? { 'Authorization': `Bearer ${authToken}` }
+    : {}
+
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/users`)
+      const res = await fetch(`${API_BASE}/auth/users`, { headers: authHeaders() })
       const result = await res.json()
       if (result.success) setUsers(result.data)
     } catch (err) { console.error(err) }
@@ -75,7 +79,7 @@ export function ElectionProvider({ children }) {
 
   const fetchOrganizations = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/organizations`)
+      const res = await fetch(`${API_BASE}/auth/organizations`, { headers: authHeaders() })
       const result = await res.json()
       if (result.success) setOrganizations(result.data)
     } catch (err) { console.error(err) }
@@ -87,7 +91,11 @@ export function ElectionProvider({ children }) {
       // Add a max-timeout so loading never spinns indefinitely
       const timeout = setTimeout(() => setLoading(false), 8000)
       try {
-        await Promise.all([fetchElections(), fetchUsers(), fetchOrganizations()])
+        const isSuperAdmin = user?.role === 'superadmin'
+        await Promise.all([
+          fetchElections(),
+          ...(isSuperAdmin ? [fetchUsers(), fetchOrganizations()] : [])
+        ])
       } catch (err) {
         console.error('Init error:', err)
       } finally {
@@ -221,7 +229,7 @@ export function ElectionProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/auth/organizations/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ orgId, adminEmail })
       })
       const result = await res.json()
@@ -238,7 +246,7 @@ export function ElectionProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/auth/organizations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(orgData)
       })
       const result = await res.json()

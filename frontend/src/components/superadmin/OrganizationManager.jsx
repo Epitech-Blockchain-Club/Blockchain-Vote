@@ -16,6 +16,7 @@ import {
     ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import { useElections } from '../../contexts/ElectionContext'
+import { useAuth } from '../../contexts/AuthContext'
 import Button from '../common/Button'
 import Modal from '../common/Modal'
 
@@ -141,6 +142,7 @@ const OrgList = ({ organizations, elections, onSelect, onCreateOrg }) => {
 
 // ─── Org Detail View ─────────────────────────────────────────────────────
 const OrgDetail = ({ org, elections, users, onBack }) => {
+    const { authToken } = useAuth()
     const [addAdminOpen, setAddAdminOpen] = useState(false)
     const [adminEmail, setAdminEmail] = useState('')
     const [adminName, setAdminName] = useState('')
@@ -161,7 +163,10 @@ if (!import.meta.env.VITE_API_URL) {
         try {
             const res = await fetch(`${API_BASE}/auth/add-admin-to-org`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                },
                 body: JSON.stringify({
                     email: adminEmail,
                     name: adminName || adminEmail.split('@')[0],
@@ -330,6 +335,7 @@ if (!import.meta.env.VITE_API_URL) {
 // ─── Root Component ──────────────────────────────────────────────────────
 const OrganizationManager = () => {
     const { elections, organizations, users, createOrganization } = useElections()
+    const { authToken } = useAuth()
     const [selectedOrg, setSelectedOrg] = useState(null)
     const [createOrgOpen, setCreateOrgOpen] = useState(false)
     const [orgForm, setOrgForm] = useState({ name: '', location: '' })

@@ -603,16 +603,42 @@ const CreateElectionForm = () => {
             </Card>
             <Card className="p-8 bg-white border-slate-100 shadow-sm rounded-[32px] mb-8">
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Résumé des Sessions</h3>
-              <div className="space-y-3">
-                {formData.voteSessions.map((s, i) => (
-                  <div key={s.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                    <span className="w-6 h-6 bg-primary-600 text-white text-xs font-black rounded-lg flex items-center justify-center shrink-0">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-slate-900 truncate">{s.title || `Session ${i + 1}`}</p>
-                      <p className="text-xs text-slate-500 font-medium">{s.parts.length} option(s) · {s.voterCount} électeur(s)</p>
+              <div className="space-y-4">
+                {formData.voteSessions.map((s, i) => {
+                  const voters = s.votersText ? s.votersText.split(/[\n,;]/).map(v => v.trim()).filter(Boolean) : [];
+                  const mods = (s.moderators || []).filter(Boolean);
+                  return (
+                    <div key={s.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 bg-primary-600 text-white text-xs font-black rounded-lg flex items-center justify-center shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-900 truncate">{s.title || `Session ${i + 1}`}</p>
+                          <p className="text-xs text-slate-500 font-medium">{s.parts.length} option(s) · {voters.length} électeur(s) · {mods.length} modérateur(s)</p>
+                        </div>
+                      </div>
+                      {mods.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Modérateurs</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {mods.map((m, mi) => (
+                              <span key={mi} className="px-2 py-0.5 bg-secondary-50 border border-secondary-100 text-secondary-700 text-[11px] font-bold rounded-lg">{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {voters.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Électeurs ({voters.length})</p>
+                          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                            {voters.map((v, vi) => (
+                              <span key={vi} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-lg">{v}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </motion.div>

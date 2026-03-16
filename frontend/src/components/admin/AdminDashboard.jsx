@@ -99,7 +99,7 @@ if (!import.meta.env.VITE_API_URL) {
           <Link to="/voter">
             <Button variant="outline" className="h-11 px-5 rounded-2xl text-sm border-slate-200">
               <UserGroupIcon className="h-5 w-5 mr-2" />
-              {t({ fr: 'Lancer un vote', en: 'Start Vote' })}
+              {t({ fr: 'Voter', en: 'Vote' })}
             </Button>
           </Link>
           <Link to="/admin/elections/new">

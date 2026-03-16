@@ -3,6 +3,7 @@
  * All methods are async and use Mongoose models.
  * Replaces the previous file-based JSON storage.
  */
+import bcrypt          from 'bcryptjs';
 import User             from '../models/User.js';
 import Organization     from '../models/Organization.js';
 import Scrutin          from '../models/Scrutin.js';
@@ -24,21 +25,23 @@ const seedDefaults = async () => {
     if (!superEmail || !superPass) {
         console.warn('[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_SUPERADMIN_EMAIL or INITIAL_SUPERADMIN_PASSWORD missing — SuperAdmin not seeded.');
     } else {
-        await User.findOneAndUpdate(
-            { email: superEmail.toLowerCase() },
-            { email: superEmail.toLowerCase(), password: superPass, role: 'superadmin', name: 'Super Admin', bio: 'Platform Architect' },
-            { upsert: true, new: true }
-        );
+        const existing = await User.findOne({ email: superEmail.toLowerCase() });
+        if (!existing) {
+            const hashed = await bcrypt.hash(superPass, 12);
+            await User.create({ email: superEmail.toLowerCase(), password: hashed, role: 'superadmin', name: 'Super Admin', bio: 'Platform Architect' });
+            console.log('[STORAGE] SuperAdmin created.');
+        }
     }
 
     if (!adminEmail || !adminPass) {
         console.warn('[\x1b[31mSECURITY WARNING\x1b[0m] INITIAL_ADMIN_EMAIL or INITIAL_ADMIN_PASSWORD missing — Admin not seeded.');
     } else {
-        await User.findOneAndUpdate(
-            { email: adminEmail.toLowerCase() },
-            { email: adminEmail.toLowerCase(), password: adminPass, role: 'admin', name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' },
-            { upsert: true, new: true }
-        );
+        const existing = await User.findOne({ email: adminEmail.toLowerCase() });
+        if (!existing) {
+            const hashed = await bcrypt.hash(adminPass, 12);
+            await User.create({ email: adminEmail.toLowerCase(), password: hashed, role: 'admin', name: 'Global Admin', bio: 'Main Election Moderator', org: 'epitech' });
+            console.log('[STORAGE] Admin created.');
+        }
         await Organization.findOneAndUpdate(
             { id: 'epitech' },
             { id: 'epitech', name: 'epitech', location: 'France', admins: [adminEmail.toLowerCase()], status: 'Active' },
@@ -169,9 +172,13 @@ export const storage = {
     },
 
     createUser: async (userData) => {
+        const data = { ...userData, email: userData.email.toLowerCase() };
+        if (data.password && !data.password.startsWith('$2')) {
+            data.password = await bcrypt.hash(data.password, 12);
+        }
         await User.findOneAndUpdate(
-            { email: userData.email.toLowerCase() },
-            { ...userData, email: userData.email.toLowerCase() },
+            { email: data.email },
+            data,
             { upsert: true, new: true }
         );
     },

@@ -1,6 +1,9 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { storage } from '../services/storage.js';
 import { sendCredentials } from '../services/email.js';
+import { requireSuperAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -12,11 +15,17 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Email and password required' });
 
         const user = await storage.getUser(email);
-        if (!user || user.password !== password)
+        const validPassword = user && await bcrypt.compare(password, user.password || '');
+        if (!validPassword)
             return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
         const { password: _, ...userData } = user;
-        res.json({ success: true, user: userData });
+        const token = jwt.sign(
+            { email: userData.email, role: userData.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        res.json({ success: true, user: userData, token });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ success: false, error: 'Server error' });
@@ -40,7 +49,7 @@ router.post('/verify', async (req, res) => {
 });
 
 // GET /api/auth/users
-router.get('/users', async (req, res) => {
+router.get('/users', requireSuperAdmin, async (req, res) => {
     try {
         const allUsers = await storage.getAllUsers();
         const sanitized = allUsers.map(({ password: _, ...u }) => u);
@@ -51,7 +60,7 @@ router.get('/users', async (req, res) => {
 });
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', requireSuperAdmin, async (req, res) => {
     try {
         const { email, password, name, role } = req.body;
         if (!email || !password)
@@ -69,7 +78,7 @@ router.post('/register', async (req, res) => {
 });
 
 // GET /api/auth/organizations
-router.get('/organizations', async (req, res) => {
+router.get('/organizations', requireSuperAdmin, async (req, res) => {
     try {
         const orgs = await storage.getAllOrganizations();
         res.json({ success: true, data: orgs });
@@ -79,7 +88,7 @@ router.get('/organizations', async (req, res) => {
 });
 
 // POST /api/auth/organizations/assign
-router.post('/organizations/assign', async (req, res) => {
+router.post('/organizations/assign', requireSuperAdmin, async (req, res) => {
     try {
         const { orgId, adminEmail } = req.body;
         if (!orgId || !adminEmail)
@@ -93,7 +102,7 @@ router.post('/organizations/assign', async (req, res) => {
 });
 
 // POST /api/auth/organizations
-router.post('/organizations', async (req, res) => {
+router.post('/organizations', requireSuperAdmin, async (req, res) => {
     try {
         const { name, location } = req.body;
         if (!name)
@@ -113,7 +122,7 @@ router.post('/organizations', async (req, res) => {
 });
 
 // POST /api/auth/add-admin-to-org
-router.post('/add-admin-to-org', async (req, res) => {
+router.post('/add-admin-to-org', requireSuperAdmin, async (req, res) => {
     try {
         const { email, name, orgId, orgName, password } = req.body;
         if (!email || !orgId || !password)
