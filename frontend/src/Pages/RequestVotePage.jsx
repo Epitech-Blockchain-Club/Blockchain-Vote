@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSettings } from '../contexts/SettingsContext'
-import { API_ROUTES } from '../config/api'
 import Button from '../components/common/Button'
 import Card from '../components/common/Card'
 import { EnvelopeIcon, ChatBubbleBottomCenterTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
@@ -20,7 +19,7 @@ const RequestVotePage = () => {
         e.preventDefault()
         setLoading(true)
         try {
-            const res = await fetch(`${API_ROUTES.REQUEST_VOTE} `, {
+            const res = await fetch('http://localhost:3001/api/request-vote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, description })
@@ -29,7 +28,7 @@ const RequestVotePage = () => {
             if (result.success) {
                 // Also push a superadmin notification so the bell lights up
                 try {
-                    await fetch(`${API_ROUTES.SUPERADMIN}/notifications`, {
+                    await fetch('http://localhost:3001/api/superadmin/notifications', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

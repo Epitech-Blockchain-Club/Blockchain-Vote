@@ -16,7 +16,6 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
-import { API_ROUTES } from '../config/api'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const InfoRow = ({ label, value }) => (
@@ -71,7 +70,7 @@ const ModeratorPortalPage = () => {
                 }
 
                 // 2. Fetch Scrutin data
-                const res = await fetch(`${API_ROUTES.SCRUTINS}`)
+                const res = await fetch(`http://localhost:3001/api/scrutins`)
                 const result = await res.json()
                 if (result.success) {
                     const found = result.data.find(s => s.address?.toLowerCase() === id?.toLowerCase())
@@ -168,7 +167,7 @@ const ModeratorPortalPage = () => {
                 reason: dec.reason
             }));
 
-            const res = await fetch(`${API_ROUTES.MODERATORS}/batch-decision`, {
+            const res = await fetch('http://localhost:3001/api/moderators/batch-decision', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -220,7 +219,7 @@ const ModeratorPortalPage = () => {
 
         try {
             toast.loading("Initialisation sécurisée...", { id: 'oauth-init' });
-            const configRes = await fetch(`${API_ROUTES.AUTH}/oauth-config`);
+            const configRes = await fetch('http://localhost:3001/api/auth/oauth-config');
             const config = await configRes.json();
             toast.dismiss('oauth-init');
 

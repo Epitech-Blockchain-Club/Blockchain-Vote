@@ -1,6 +1,5 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { API_ROUTES } from '../../config/api'
 import { useElections } from '../../contexts/ElectionContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -29,7 +28,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
-        const res = await fetch(`${API_ROUTES.MODERATORS}/notifications`)
+        const res = await fetch('http://localhost:3001/api/moderators/notifications')
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }

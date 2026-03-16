@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_ROUTES, API_BASE_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -15,7 +14,7 @@ import {
 import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 
-const API_URL = `${API_BASE_URL}/api`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const VoterPage = () => {
     const navigate = useNavigate();
@@ -30,7 +29,7 @@ const VoterPage = () => {
         setEmail(userEmail);
         setSearching(true);
         try {
-            const res = await fetch(`${API_ROUTES.SCRUTINS}/authorized?email=${encodeURIComponent(userEmail)}`);
+            const res = await fetch(`${API_URL}/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
             const result = await res.json();
             if (result.success) {
                 // Backend already returns ONLY scrutins with at least one 

@@ -11,9 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
 import Button from '../common/Button';
-import { API_BASE_URL, API_ROUTES } from '../../config/api';
-
-const API_URL = `${API_BASE_URL}/api`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const VoterInterface = ({ election, authorizedSessions, user }) => {
     const navigate = useNavigate();

@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import toast from 'react-hot-toast'
-import { API_ROUTES } from '../../config/api'
 import {
     BuildingOfficeIcon,
     PlusIcon,
@@ -151,7 +150,7 @@ const OrgDetail = ({ org, elections, users, onBack }) => {
         setIsSubmitting(true)
         const password = generatePassword()
         try {
-            const res = await fetch(`${API_ROUTES.AUTH}/add-admin-to-org`, {
+            const res = await fetch('http://localhost:3001/api/auth/add-admin-to-org', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

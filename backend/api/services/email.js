@@ -4,12 +4,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
-const isSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465 || smtpPort === 443;
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: smtpPort,
-  secure: isSecure,
+  secure: smtpPort === 465, // true for 465 (Implicit TLS), false for other ports (STARTTLS)
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -204,8 +203,7 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
     const isSuper = role === 'superadmin';
     const roleLabel = isSuper ? 'Super Admin' : 'Administrateur';
     const roleBadgeColor = isSuper ? '#7c3aed' : '#2563eb';
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const loginUrl = `${baseUrl}/login`;
+    const loginUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/login` : 'http://localhost:5173/login';
 
     const body = emailWrapper(`
       <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
