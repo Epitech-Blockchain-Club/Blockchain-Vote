@@ -15,10 +15,7 @@ services:
         sync: false # User should set their MongoDB Atlas URI in Render Dashboard
         placeholder: "mongodb+srv://..."
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: blockchain-vote-web
-          property: url
+        value: https://blockchain-vote-web.onrender.com
 
   # 2. Frontend App (Static Site)
   - type: web
@@ -29,7 +26,4 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: blockchain-vote-api
-          property: url
+        value: https://blockchain-vote-api.onrender.com
