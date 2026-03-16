@@ -21,7 +21,7 @@ services:
           property: url
 
   # 2. Frontend App (Static Site)
-  - type: static
+  - type: web
     name: blockchain-vote-web
     env: static
     buildCommand: npm install && npm run build
