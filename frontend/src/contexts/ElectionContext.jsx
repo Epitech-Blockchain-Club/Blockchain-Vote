@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 import { useAuth } from './AuthContext'
+import { API_ROUTES } from '../config/api'
 
 const ElectionContext = createContext()
 
@@ -18,7 +19,7 @@ export function ElectionProvider({ children }) {
     console.log('🏁 [CONTEXT] fetchElections triggered');
     try {
       setLoading(true)
-      let url = 'http://localhost:3001/api/scrutins'
+      let url = `${API_ROUTES.SCRUTINS}`
       // If the user is a regular admin (not superadmin), filter by their organization
       if (user && user.role === 'admin' && user.org) {
         url += `?org=${encodeURIComponent(user.org)}`
@@ -57,23 +58,37 @@ export function ElectionProvider({ children }) {
     } catch (error) {
       console.error('Fetch elections error:', error)
       toast.error('Erreur lors du chargement des élections')
+    } finally {
+      setLoading(false)
     }
   }
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/users')
+      setUsersLoading(true)
+      const res = await fetch(`${API_ROUTES.AUTH}/users`)
       const result = await res.json()
       if (result.success) setUsers(result.data)
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      toast.error('Erreur lors du chargement des utilisateurs')
+    } finally {
+      setUsersLoading(false)
+    }
   }
 
   const fetchOrganizations = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/organizations')
+      setOrgsLoading(true)
+      const res = await fetch(`${API_ROUTES.AUTH}/organizations`)
       const result = await res.json()
       if (result.success) setOrganizations(result.data)
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      toast.error('Erreur lors du chargement des organisations')
+    } finally {
+      setOrgsLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -99,7 +114,7 @@ export function ElectionProvider({ children }) {
 
   const getResults = async (address) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/scrutins/${address}/results`)
+      const res = await fetch(`${API_ROUTES.SCRUTINS}/${address}/results`)
       const result = await res.json()
       if (result.success) return result.data
       throw new Error(result.error)
@@ -111,7 +126,7 @@ export function ElectionProvider({ children }) {
 
   const castVote = async ({ electionId, candidateId, email, country }) => {
     try {
-      const res = await fetch('http://localhost:3001/api/votes/cast', {
+      const res = await fetch(`${API_ROUTES.VOTES}/cast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,7 +151,7 @@ export function ElectionProvider({ children }) {
 
   const addElection = async (newElection) => {
     try {
-      const res = await fetch('http://localhost:3001/api/scrutins', {
+      const res = await fetch(`${API_ROUTES.SCRUTINS}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,7 +209,7 @@ export function ElectionProvider({ children }) {
 
   const addUser = async (userData) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/register', {
+      const res = await fetch(`${API_ROUTES.AUTH}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -214,7 +229,7 @@ export function ElectionProvider({ children }) {
 
   const assignAdminToOrg = async (orgId, adminEmail) => {
     try {
-      const res = await fetch('http://localhost:3001/api/auth/organizations/assign', {
+      const res = await fetch(`${API_ROUTES.AUTH}/organizations/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orgId, adminEmail })

@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { API_ROUTES } from '../config/api';
 
 const OAuthCallbackPage = () => {
     useEffect(() => {
@@ -50,7 +52,7 @@ const OAuthCallbackPage = () => {
                                 if (userProfile && userProfile.email) {
                                     // Verify voter authorization if scrutinId is provided
                                     if (scrutinId) {
-                                        const authResponse = await fetch('http://localhost:3001/api/auth/verify-voter', {
+                                        const authResponse = await fetch(`${API_ROUTES.AUTH}/verify-voter`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({

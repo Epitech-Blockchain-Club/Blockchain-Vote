@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { API_ROUTES } from '../../config/api'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   HomeIcon,
@@ -34,10 +35,10 @@ const Navbar = () => {
     if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) return
     const fetchNotifs = async () => {
       try {
-        const endpoint = user.role === 'superadmin'
-          ? 'http://localhost:3001/api/superadmin/notifications'
-          : 'http://localhost:3001/api/moderators/notifications'
-        const res = await fetch(endpoint)
+        const notificationUrl = user?.role === 'superadmin'
+          ? `${API_ROUTES.SUPERADMIN}/notifications`
+          : `${API_ROUTES.MODERATORS}/notifications`
+        const res = await fetch(notificationUrl)
         const result = await res.json()
         if (result.success) setNotifications(result.data)
       } catch (err) { console.error(err) }

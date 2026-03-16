@@ -10,6 +10,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useElections } from '../../contexts/ElectionContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { API_ROUTES } from '../../config/api'
 
 const StatCard = ({ title, value, icon: Icon, color, trend }) => (
     <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
@@ -37,7 +39,7 @@ const SuperAdminDashboard = () => {
     useEffect(() => {
         const fetchNotifs = async () => {
             try {
-                const res = await fetch('http://localhost:3001/api/superadmin/notifications')
+                const res = await fetch(`${API_ROUTES.MODERATORS}/notifications`)
                 const result = await res.json()
                 if (result.success) setNotifications(result.data || [])
             } catch (err) { /* silently fail */ }
