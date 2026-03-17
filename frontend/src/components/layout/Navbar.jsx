@@ -53,6 +53,10 @@ if (!import.meta.env.VITE_API_URL) {
   }, [user])
 
   useEffect(() => {
+    if (!user) setIsMobileMenuOpen(false)
+  }, [user])
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20)
     }
@@ -74,6 +78,7 @@ if (!import.meta.env.VITE_API_URL) {
     navLinks.push({ name: t({ fr: 'SuperAdmin', en: 'SuperAdmin' }), path: '/superadmin', icon: ShieldCheckIcon })
   } else {
     navLinks.push({ name: t({ fr: 'Accueil', en: 'Home' }), path: ROUTES.HOME, icon: HomeIcon })
+    navLinks.push({ name: t({ fr: 'Résultats', en: 'Results' }), path: ROUTES.RESULTS, icon: ChartBarIcon })
   }
 
   return (
@@ -116,20 +121,6 @@ if (!import.meta.env.VITE_API_URL) {
                 </Link>
               )
             })}
-
-            <div className="h-6 w-px bg-slate-100 mx-3"></div>
-
-            {/* Language Toggle */}
-            {/* <button
-              onClick={toggleLanguage}
-              className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-primary-600 transition-colors uppercase flex items-center gap-1"
-              title="Changer la langue"
-            >
-              <LanguageIcon className="h-5 w-5" />
-              <span>{language === 'fr' ? 'EN' : 'FR'}</span>
-            </button>
-
-            <div className="h-6 w-px bg-slate-100 mx-3"></div> */}
 
             {/* Notification Bell (Admin + SuperAdmin) */}
             {user && (user.role === 'admin' || user.role === 'superadmin') && location.pathname !== '/' && (

@@ -187,13 +187,31 @@ if (!import.meta.env.VITE_API_URL) {
           <div className="bg-white border border-slate-200 rounded-[32px] shadow-sm overflow-hidden">
             {filteredElections.length === 0 ? (
               <div className="p-16 text-center">
-                <p className="text-slate-500 font-medium mb-6">Aucun scrutin correspondant trouvé.</p>
                 {searchQuery || statusFilter !== 'all' ? (
-                  <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>Réinitialiser les filtres</Button>
+                  <>
+                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <MagnifyingGlassIcon className="w-7 h-7 text-slate-300" />
+                    </div>
+                    <p className="text-slate-900 font-black text-lg mb-1">Aucun résultat</p>
+                    <p className="text-slate-400 text-sm font-medium mb-6">Aucun scrutin ne correspond à votre recherche ou filtre.</p>
+                    <Button variant="outline" onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}>Réinitialiser les filtres</Button>
+                  </>
                 ) : (
-                  <Link to="/admin/elections/new">
-                    <Button variant="outline">Créer votre premier scrutin</Button>
-                  </Link>
+                  <>
+                    <div className="w-16 h-16 bg-primary-50 rounded-[20px] flex items-center justify-center mx-auto mb-5 border border-primary-100">
+                      <DocumentCheckIcon className="w-8 h-8 text-primary-400" />
+                    </div>
+                    <p className="text-slate-900 font-black text-xl mb-2 tracking-tight">Aucun scrutin pour l'instant</p>
+                    <p className="text-slate-400 text-sm font-medium max-w-xs mx-auto mb-8 leading-relaxed">
+                      Créez votre premier scrutin pour commencer à organiser des votes certifiés par la blockchain.
+                    </p>
+                    <Link to="/admin/elections/new">
+                      <Button className="shadow-lg shadow-primary-500/20 h-12 px-8 rounded-2xl">
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        Créer un scrutin
+                      </Button>
+                    </Link>
+                  </>
                 )}
               </div>
             ) : (
@@ -270,7 +288,7 @@ if (!import.meta.env.VITE_API_URL) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            Live Activity
+            Activité en direct
           </h2>
           <Card className="bg-white border-slate-100 shadow-sm p-0 overflow-hidden rounded-[32px]">
             <div className="p-6 border-b border-slate-50">

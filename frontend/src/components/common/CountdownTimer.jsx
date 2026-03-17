@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { ClockIcon, LockOpenIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect, useRef } from 'react'
+import { LockOpenIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -29,28 +29,36 @@ const CountdownTimer = ({ startDate, endDate, targetDate, onComplete }) => {
 
   const getState = () => {
     const now = new Date()
-    if (start && now < new Date(start)) return 'pending'
-    if (end && now <= new Date(end)) return 'open'
+    const startTs = start ? new Date(start) : null
+    const endTs = end ? new Date(end) : null
+    if (startTs && !isNaN(startTs) && now < startTs) return 'pending'
+    if (!endTs || isNaN(endTs) || now <= endTs) return 'open'
     return 'closed'
   }
 
   const [state, setState] = useState(getState)
   const [timeLeft, setTimeLeft] = useState(() => {
     const s = getState()
-    return s === 'pending' ? diff(start) : s === 'open' ? diff(end) : null
+    return s === 'pending' ? diff(start) : s === 'open' && end ? diff(end) : null
   })
+
+  const intervalRef = useRef(null)
 
   useEffect(() => {
     const tick = () => {
       const s = getState()
       setState(s)
       if (s === 'pending') setTimeLeft(diff(start))
-      else if (s === 'open') setTimeLeft(diff(end))
-      else { setTimeLeft(null); onComplete?.() }
+      else if (s === 'open') setTimeLeft(end ? diff(end) : null)
+      else {
+        clearInterval(intervalRef.current)
+        setTimeLeft(null)
+        onComplete?.()
+      }
     }
     tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
+    intervalRef.current = setInterval(tick, 1000)
+    return () => clearInterval(intervalRef.current)
   }, [start, end])
 
   if (state === 'closed') {
@@ -63,10 +71,10 @@ const CountdownTimer = ({ startDate, endDate, targetDate, onComplete }) => {
   }
 
   const isPending = state === 'pending'
-  const label = isPending ? "Ouverture dans" : "Fermeture dans"
+  const label = isPending ? "Ouverture dans" : timeLeft ? "Fermeture dans" : "Scrutin en cours"
   const color = isPending ? 'text-amber-600' : 'text-primary-600'
   const bg = isPending ? 'bg-amber-50 border-amber-100' : 'bg-primary-50 border-primary-100'
-  const Icon = isPending ? LockOpenIcon : LockClosedIcon
+  const Icon = isPending ? LockClosedIcon : LockOpenIcon
 
   return (
     <div className={`rounded-2xl border p-5 ${bg}`}>
@@ -90,20 +98,22 @@ const CountdownTimer = ({ startDate, endDate, targetDate, onComplete }) => {
       <div className="flex items-center gap-3">
         <Icon className={`h-5 w-5 shrink-0 ${color}`} />
         <p className={`text-[10px] font-black uppercase tracking-widest ${color}`}>{label}</p>
-        <div className="flex gap-2 ml-auto">
-          {timeLeft?.days > 0 && (
-            <div className="text-center">
-              <span className={`text-2xl font-black ${color}`}>{timeLeft.days}</span>
-              <span className="text-[10px] text-slate-400 ml-0.5">j</span>
-            </div>
-          )}
-          {[['hours', 'h'], ['minutes', 'm'], ['seconds', 's']].map(([key, unit]) => (
-            <div key={key} className="text-center">
-              <span className={`text-2xl font-black ${color}`}>{pad(timeLeft?.[key] ?? 0)}</span>
-              <span className="text-[10px] text-slate-400 ml-0.5">{unit}</span>
-            </div>
-          ))}
-        </div>
+        {timeLeft && (
+          <div className="flex gap-2 ml-auto">
+            {timeLeft.days > 0 && (
+              <div className="text-center">
+                <span className={`text-2xl font-black ${color}`}>{timeLeft.days}</span>
+                <span className="text-[10px] text-slate-400 ml-0.5">j</span>
+              </div>
+            )}
+            {[['hours', 'h'], ['minutes', 'm'], ['seconds', 's']].map(([key, unit]) => (
+              <div key={key} className="text-center">
+                <span className={`text-2xl font-black ${color}`}>{pad(timeLeft[key])}</span>
+                <span className="text-[10px] text-slate-400 ml-0.5">{unit}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

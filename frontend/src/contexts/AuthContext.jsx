@@ -393,12 +393,19 @@ export function AuthProvider({ children }) {
   }
 
   const updateUser = async (newData) => {
+    if (!authToken) {
+      // Voter (OAuth) — no JWT, persist locally only
+      const updatedUser = { ...user, ...newData }
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      return updatedUser
+    }
     try {
       const res = await fetch(`${API_BASE}/auth/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+          Authorization: `Bearer ${authToken}`
         },
         body: JSON.stringify(newData)
       })

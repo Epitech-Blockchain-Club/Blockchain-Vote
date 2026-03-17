@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useConfetti } from '../../hooks/useConfetti'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -30,7 +31,7 @@ const makeSession = () => ({
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const readPhoto = (file, cb) => {
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) { toast.error('Image trop volumineuse (> 2Mo)'); return }
+  if (file.size > 2 * 1024 * 1024) { toast.error('Image trop volumineuse (max 2 Mo)'); return }
   const r = new FileReader(); r.onloadend = () => cb(r.result); r.readAsDataURL(file)
 }
 const parseCSV = (text) => text.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0 && s.includes('@'))
@@ -328,6 +329,7 @@ const CreateElectionForm = () => {
   const { id } = useParams()
   const { elections, addElection } = useElections()
   const [step, setStep] = useState(0)
+  const { celebrate } = useConfetti()
   const [loading, setLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('')
@@ -423,6 +425,7 @@ const CreateElectionForm = () => {
       if (result && result.address) {
         setGeneratedLink(`${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/vote/${result.address}`)
         setIsSubmitted(true)
+        celebrate()
         toast.success('Scrutin déployé ! Invitations envoyées aux modérateurs.', { duration: 6000, icon: '📧' })
         setTimeout(() => navigate(`/election/${result.address}`), 4000)
       }

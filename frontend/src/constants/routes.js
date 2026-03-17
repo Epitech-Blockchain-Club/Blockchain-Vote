@@ -21,5 +21,6 @@ export const ROUTES = {
   },
   LOGIN: '/admin-login',
   ABOUT: '/about',
+  PRIVACY: '/confidentialite',
   VERIFY: (txHash) => `/verify/${txHash}`
 }

@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useConfetti } from '../hooks/useConfetti'
 import { useParams, Link } from 'react-router-dom'
 import { useElections } from '../contexts/ElectionContext'
 import { useAuth } from '../contexts/AuthContext'
 import ResultsChart from '../components/elections/ResultsChart'
-import { DocumentArrowDownIcon, LockClosedIcon, LinkIcon } from '@heroicons/react/24/outline'
+import { DocumentArrowDownIcon, LockClosedIcon, LinkIcon, ShareIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import Button from '../components/common/Button'
 import toast from 'react-hot-toast'
 
@@ -16,11 +17,17 @@ const ResultsPage = () => {
   const [loadingResults, setLoadingResults] = useState(false)
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const { sides } = useConfetti()
+  const confettiFired = useRef(false)
   const visibleElections = isAdmin ? elections : elections.filter(e => e.showResultsToVoters !== false)
 
   const election = elections.find(e => e.id?.toLowerCase() === selectedElection?.toLowerCase())
   const now = new Date()
   const isEnded = election && new Date(election.endDate) < now
+
+  React.useEffect(() => {
+    confettiFired.current = false
+  }, [selectedElection])
 
   React.useEffect(() => {
     if (selectedElection) {
@@ -35,6 +42,19 @@ const ResultsPage = () => {
       setBackendResults(null)
     }
   }, [selectedElection, getResults])
+
+  // Fire confetti once when closed election results load with votes
+  useEffect(() => {
+    if (!confettiFired.current && isEnded && backendResults?.length > 0) {
+      const totalVotes = backendResults.reduce((acc, s) => acc + s.totalVotes, 0)
+      if (totalVotes > 0) {
+        confettiFired.current = true
+        setTimeout(sides, 400)
+      }
+    }
+  }, [backendResults, isEnded])
+
+  const shareUrl = `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/results/${election?.id || ''}`
 
   const handleExport = () => {
     if (!election || !backendResults) return
@@ -60,6 +80,56 @@ const ResultsPage = () => {
     a.href = url
     a.download = `resultats-${election.id}.json`
     a.click()
+  }
+
+  const handleExportPDF = () => {
+    if (!election || !backendResults) return
+    const totalVotes = backendResults.reduce((acc, s) => acc + s.totalVotes, 0)
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Résultats — ${election.title}</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; color: #0f172a; }
+      h1 { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
+      .meta { color: #64748b; font-size: 12px; margin-bottom: 32px; }
+      h2 { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin: 24px 0 12px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+      th { text-align: left; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; padding: 8px 12px; border-bottom: 2px solid #f1f5f9; }
+      td { padding: 10px 12px; border-bottom: 1px solid #f8fafc; font-size: 13px; }
+      .bar { background: #e2e8f0; height: 6px; border-radius: 4px; overflow: hidden; }
+      .bar-fill { background: #2563eb; height: 100%; border-radius: 4px; }
+      .footer { margin-top: 40px; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+    </style></head><body>
+    <h1>${election.title}</h1>
+    <p class="meta">Généré le ${new Date().toLocaleString('fr-FR')} • ${totalVotes} votant(s) certifié(s) • ${election.id}</p>
+    ${backendResults.map(session => `
+      <h2>${session.title}</h2>
+      <table>
+        <thead><tr><th>Candidat / Option</th><th>Voix</th><th>%</th><th style="width:120px">Répartition</th></tr></thead>
+        <tbody>${session.candidates.map(c => `
+          <tr>
+            <td><strong>${c.title}</strong></td>
+            <td>${c.voteCount}</td>
+            <td>${c.percentage}%</td>
+            <td><div class="bar"><div class="bar-fill" style="width:${c.percentage}%"></div></div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`).join('')}
+    <p class="footer">EpiVote — Résultats certifiés blockchain • Contrat : ${election.id}</p>
+    </body></html>`
+
+    const win = window.open('', '_blank')
+    win.document.write(html)
+    win.document.close()
+    win.print()
+  }
+
+  const handleShare = (platform) => {
+    const text = `Résultats du scrutin "${election?.title}" — certifiés blockchain`
+    const urls = {
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(text + ' ' + shareUrl)}`,
+    }
+    window.open(urls[platform], '_blank', 'width=600,height=500')
   }
 
   if (!isAdmin && election && !election.showResultsToVoters) {
@@ -127,10 +197,27 @@ const ResultsPage = () => {
               <p className="text-slate-500 font-medium leading-relaxed max-w-2xl">{election.description}</p>
             </div>
             {isEnded && (
-              <Button onClick={handleExport} variant="outline" size="sm" className="border-slate-200 text-slate-500 h-10 px-6 rounded-xl">
-                <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
-                Détails JSON
-              </Button>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <Button onClick={handleExportPDF} variant="outline" size="sm" className="border-slate-200 text-slate-500 h-10 px-4 rounded-xl">
+                  <PrinterIcon className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+                <Button onClick={handleExport} variant="outline" size="sm" className="border-slate-200 text-slate-500 h-10 px-4 rounded-xl">
+                  <DocumentArrowDownIcon className="h-4 w-4 mr-2" />
+                  JSON
+                </Button>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleShare('twitter')} className="w-9 h-10 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all" title="Partager sur X">
+                    <svg className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.736-8.834L2.25 2.25h6.928l4.27 5.646zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  </button>
+                  <button onClick={() => handleShare('linkedin')} className="w-9 h-10 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all" title="Partager sur LinkedIn">
+                    <svg className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                  </button>
+                  <button onClick={() => handleShare('whatsapp')} className="w-9 h-10 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all" title="Partager sur WhatsApp">
+                    <svg className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

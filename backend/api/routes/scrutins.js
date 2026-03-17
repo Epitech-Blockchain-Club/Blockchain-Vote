@@ -422,6 +422,34 @@ router.patch('/:address/settings', requireAdmin, async (req, res) => {
     }
 });
 
+// GET /api/scrutins/:address/monitor-access?email=...
+// Verifies that the given email is a moderator of at least one session of this scrutin
+router.get('/:address/monitor-access', async (req, res) => {
+    try {
+        const addr = req.params.address.toLowerCase();
+        const email = (req.query.email || '').toLowerCase();
+        if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+
+        const metadata = await storage.getScrutin(addr);
+        if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
+
+        const resolveEmail = (m) => (typeof m === 'string' ? m : m?.email) || '';
+        const isModerator = (metadata.sessions || []).some(session =>
+            (session.moderators || []).some(m => resolveEmail(m).toLowerCase() === email)
+        );
+
+        if (!isModerator)
+            return res.status(403).json({ success: false, error: 'Accès refusé — vous n\'êtes pas modérateur de ce scrutin' });
+
+        const voterCount = metadata.voterCount || 0;
+        const votedCount = await storage.countVotersForScrutin(addr);
+
+        res.json({ success: true, scrutin: { title: metadata.title, address: addr, voterCount, votedCount } });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/scrutins/:address/results
 router.get('/:address/results', async (req, res) => {
     try {
@@ -470,7 +498,8 @@ router.get('/:address/results', async (req, res) => {
             return { address: sAddr, title: sessionMetadata.title, totalVotes, candidates };
         }));
 
-        res.json({ success: true, data: results });
+        const votedCount = await storage.countVotersForScrutin(address);
+        res.json({ success: true, data: results, voterCount: metadata.voterCount || 0, votedCount });
     } catch (error) {
         console.error('Error fetching results:', error);
         res.status(500).json({ success: false, error: error.message });

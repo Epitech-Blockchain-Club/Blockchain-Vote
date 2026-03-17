@@ -121,6 +121,11 @@ export const storage = {
         return scrutin.sessions.find(s => s.address?.toLowerCase() === addr) || null;
     },
 
+    getScrutinBySessionAddress: async (sessionAddress) => {
+        const addr = sessionAddress.toLowerCase();
+        return Scrutin.findOne({ 'sessions.address': addr }).lean();
+    },
+
     updateScrutin: async (address, updates) => {
         await Scrutin.findOneAndUpdate({ address: address.toLowerCase() }, { $set: updates });
     },
@@ -246,6 +251,10 @@ export const storage = {
     getVotersForScrutin: async (scrutinId) => {
         const records = await VoterRecord.find({ scrutinId: scrutinId.toLowerCase() }).lean();
         return records.map(r => r.email);
+    },
+
+    countVotersForScrutin: async (scrutinId) => {
+        return VoterRecord.countDocuments({ scrutinId: scrutinId.toLowerCase() });
     },
 
     // ── Vote requests ─────────────────────────────────────────────────────────

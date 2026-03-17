@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -18,7 +18,10 @@ import {
     ChevronUpIcon,
     TrophyIcon,
     DocumentCheckIcon,
-    InformationCircleIcon
+    InformationCircleIcon,
+    EyeIcon,
+    XMarkIcon,
+    UserCircleIcon
 } from '@heroicons/react/24/outline'
 
 const AdminElectionDetail = () => {
@@ -29,6 +32,7 @@ const AdminElectionDetail = () => {
     const navigate = useNavigate()
     const [isRefreshing, setIsRefreshing] = React.useState(false)
     const [togglingResults, setTogglingResults] = useState(false)
+    const [showPreview, setShowPreview] = useState(false)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
     const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -180,6 +184,14 @@ const AdminElectionDetail = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                     </button>
+                    <button
+                        onClick={() => setShowPreview(true)}
+                        className="p-2.5 sm:p-3 bg-white border border-slate-200 hover:bg-primary-50 hover:border-primary-200 hover:text-primary-600 rounded-2xl transition-colors shadow-sm shrink-0 text-slate-500"
+                        title="Prévisualiser côté votant"
+                    >
+                        <EyeIcon className="h-5 w-5" />
+                    </button>
+
                     {/* Title + Logo */}
                     <div className="flex flex-1 flex-wrap items-start gap-4 min-w-0">
                         {election.logoUrl && (
@@ -496,6 +508,85 @@ const AdminElectionDetail = () => {
                 </div>
 
             </div>
+
+            {/* Preview Modal */}
+            {showPreview && (
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex flex-col overflow-hidden">
+                    <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-primary-50 rounded-xl flex items-center justify-center">
+                                <EyeIcon className="w-4 h-4 text-primary-600" />
+                            </div>
+                            <div>
+                                <p className="font-black text-slate-900 text-sm">Prévisualisation votant</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lecture seule — vue telle que perçue par les électeurs</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                            <XMarkIcon className="w-5 h-5 text-slate-500" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto bg-[#F8FAFC] pb-16">
+                        <div className="max-w-5xl mx-auto px-4 py-10 space-y-12">
+                            {election.logoUrl && (
+                                <div className="flex items-center gap-4">
+                                    <img src={election.logoUrl} alt="Logo" className="h-14 w-14 object-contain rounded-2xl border border-slate-100 bg-white p-1" />
+                                    <div>
+                                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">{election.title}</h1>
+                                        <p className="text-slate-500 text-sm font-medium">{election.description}</p>
+                                    </div>
+                                </div>
+                            ) || (
+                                <div>
+                                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">{election.title}</h1>
+                                    <p className="text-slate-500 text-sm font-medium mt-1">{election.description}</p>
+                                </div>
+                            )}
+
+                            {(election.sessions || []).map((session, sIdx) => (
+                                <section key={sIdx} className="space-y-6">
+                                    <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                                        <span className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-base">{sIdx + 1}</span>
+                                        <div>
+                                            <h2 className="text-xl font-black text-slate-900 tracking-tight">{session.title}</h2>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sécurisé par smart contract</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        {(session.options || []).map((option, oIdx) => (
+                                            <div key={oIdx} className="bg-white rounded-[24px] border-2 border-slate-100 p-5 flex flex-col">
+                                                {option.imageUrl && (
+                                                    <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 mb-3">
+                                                        <img src={option.imageUrl} alt={option.title} className="w-full h-full object-cover" />
+                                                    </div>
+                                                )}
+                                                <h3 className="font-black text-slate-900 text-sm mb-1">{option.title}</h3>
+                                                {option.description && <p className="text-xs text-slate-400 font-medium mb-3 line-clamp-2">{option.description}</p>}
+                                                {option.members?.length > 0 && (
+                                                    <div className="mt-auto flex flex-wrap gap-1.5">
+                                                        {option.members.slice(0, 3).map((m, mi) => (
+                                                            <div key={mi} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1">
+                                                                <div className="w-4 h-4 rounded bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                                                                    {m.photoUrl ? <img src={m.photoUrl} alt="" className="w-full h-full object-cover" /> : <UserCircleIcon className="w-3 h-3 text-slate-400" />}
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-600">{m.name}</span>
+                                                            </div>
+                                                        ))}
+                                                        {option.members.length > 3 && <span className="text-[10px] font-bold text-slate-400 self-center">+{option.members.length - 3}</span>}
+                                                    </div>
+                                                )}
+                                                <div className="mt-3 w-full py-2 rounded-xl bg-slate-50 text-slate-400 font-black text-[10px] uppercase tracking-widest text-center">
+                                                    Choisir
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -80,21 +80,15 @@ const VoterPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 pb-20 font-sans">
-            {/* Header Section */}
-            <div className="text-center mb-10">
-                <h1 className="text-[44px] font-black text-[#0F172A] mb-3 tracking-tight">Voter Authentication</h1>
-                <p className="text-[#64748B] font-medium text-lg">Veuillez vous identifier pour accéder au scrutin en cours.</p>
-            </div>
-
             <div className="max-w-[480px] w-full bg-white rounded-[48px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden border border-slate-100 flex flex-col transition-all hover:shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
                 {/* Visual Header Section (Template Style) */}
-                <div className="h-[200px] bg-[#F1F5F9] relative flex flex-col items-center justify-center overflow-hidden">
+                <div className="hidden sm:flex h-[200px] bg-[#F1F5F9] relative flex-col items-center justify-center overflow-hidden">
                     <div className="absolute inset-0 opacity-[0.4] pointer-events-none"
                         style={{ backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
                     <div className="w-16 h-16 bg-white rounded-[24px] shadow-sm flex items-center justify-center mb-4 relative z-10">
                         <ShieldCheckIconSolid className="h-8 w-8 text-primary-600" />
                     </div>
-                    <h2 className="text-xl font-black text-[#334155] uppercase tracking-[0.1em] relative z-10">Portail de vote sécurisé</h2>
+                    <h2 className="hidden sm:block text-xl font-black text-[#334155] uppercase tracking-[0.1em] relative z-10">Portail de vote sécurisé</h2>
                 </div>
 
                 <div className="p-10">
@@ -103,7 +97,7 @@ const VoterPage = () => {
                             <div className="mb-0">
                                 <h3 className="text-2xl font-black text-[#0F172A] mb-2 leading-tight">Connectez-vous pour voter</h3>
                                 <p className="text-[#64748B] text-sm font-medium mb-10 leading-relaxed">
-                                    Choisissez votre méthode d'authentification préférée pour continuer.
+                                    Choisissez votre méthode d'authentification.
                                 </p>
                             </div>
 

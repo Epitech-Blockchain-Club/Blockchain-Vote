@@ -1,9 +1,22 @@
 import express from 'express';
 import { getVoteSessionContract, getNextNonce } from '../services/blockchain.js';
 import { storage } from '../services/storage.js';
-import { notifyAdminOfDecision } from '../services/email.js';
+import { notifyAdminOfDecision, sendModeratorMonitorLink } from '../services/email.js';
 
 const router = express.Router();
+
+const resolveEmail = (m) => (typeof m === 'string' ? m : m?.email) || '';
+
+const notifyModeratorsOnConsensus = async (sessionMetadata, sessionId) => {
+    const parentScrutin = await storage.getScrutinBySessionAddress(sessionId);
+    if (!parentScrutin) return;
+    const monitorLink = `${process.env.FRONTEND_URL}/monitor/${parentScrutin.address}`;
+    const emails = (sessionMetadata.moderators || []).map(resolveEmail).filter(Boolean);
+    Promise.all(emails.map(email =>
+        sendModeratorMonitorLink(email, parentScrutin.title, sessionMetadata.title, monitorLink)
+            .catch(err => console.error(`[EMAIL] Monitor link to ${email} failed:`, err))
+    ));
+};
 
 // POST /api/moderators/decision
 router.post('/decision', async (req, res) => {
@@ -23,9 +36,7 @@ router.post('/decision', async (req, res) => {
         if (!sessionMetadata)
             return res.status(404).json({ success: false, error: 'Session introuvable' });
 
-        const modEmails = (sessionMetadata.moderators || []).map(m =>
-            (typeof m === 'string' ? m : m?.email || '').toLowerCase()
-        );
+        const modEmails = (sessionMetadata.moderators || []).map(m => resolveEmail(m).toLowerCase());
         if (!modEmails.includes(moderatorEmail.toLowerCase()))
             return res.status(403).json({ success: false, error: "Vous n'êtes pas autorisé à modérer cette session." });
 
@@ -45,6 +56,8 @@ router.post('/decision', async (req, res) => {
             if (otherValidations + 1 >= totalRequired) {
                 console.log(`[CONSENSUS] 100% reached for session ${sessionId}. Validating on-chain...`);
                 tx = await sessionContract.validate({ nonce: await getNextNonce() });
+
+                notifyModeratorsOnConsensus(sessionMetadata, sessionId);
             } else {
                 console.log(`[CONSENSUS] ${otherValidations + 1}/${totalRequired} for session ${sessionId}.`);
             }
@@ -114,8 +127,10 @@ router.post('/batch-decision', async (req, res) => {
                     const otherValidations = allDecisions.filter(d =>
                         d.email.toLowerCase() !== moderatorEmail.toLowerCase() && d.decision === 'validate'
                     ).length;
-                    if (otherValidations + 1 >= (sessionMetadata.moderators?.length || 0)) {
+                    const totalRequired = sessionMetadata.moderators?.length || 0;
+                    if (otherValidations + 1 >= totalRequired) {
                         tx = await sessionContract.validate({ nonce: await getNextNonce() });
+                        notifyModeratorsOnConsensus(sessionMetadata, sessionId);
                     }
                 } else {
                     tx = await sessionContract.invalidate(reason || 'Aucune raison fournie', { nonce: await getNextNonce() });

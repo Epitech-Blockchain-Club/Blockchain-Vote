@@ -218,6 +218,54 @@ export const notifyAdminOfDecision = async (adminEmail, result, moderatorEmail, 
   }
 };
 
+// ─── sendModeratorMonitorLink ────────────────────────────────────────────
+export const sendModeratorMonitorLink = async (email, electionTitle, sessionTitle, monitorLink) => {
+  try {
+    const body = emailWrapper(`
+      <div style="margin-bottom:20px;">
+        ${badge('Consensus atteint ✓', '#ecfdf5', '#059669')}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};letter-spacing:-0.025em;">
+        Session validée — suivi en direct
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        L'ensemble des modérateurs ont validé la session ci-dessous. Le vote est maintenant ouvert.
+        Vous pouvez suivre l'avancement en temps réel via le lien sécurisé ci-dessous.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:28px;">
+        <tbody>
+          ${infoRow('Scrutin', electionTitle)}
+          ${infoRow('Session validée', `<span style="color:#059669;font-weight:800;">${sessionTitle}</span>`)}
+        </tbody>
+      </table>
+
+      ${ctaButton(monitorLink, 'Suivre le vote en direct')}
+
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px;margin-top:8px;">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#1e40af;">
+          Ce lien ne expire pas. Une authentification Google ou Office 365 est requise pour y accéder.
+        </p>
+      </div>
+    `);
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
+      to: email,
+      subject: `Suivi en direct — ${electionTitle}`,
+      text: `La session "${sessionTitle}" du scrutin "${electionTitle}" a atteint le consensus. Suivez le vote : ${monitorLink}`,
+      html: body,
+      headers: baseHeaders,
+    });
+    console.log("Monitor link sent to", email);
+    return true;
+  } catch (error) {
+    console.error("Error sending monitor link:", error);
+    return false;
+  }
+};
+
 // ─── sendCredentials ──────────────────────────────────────────────────────
 export const sendCredentials = async (email, name, password, role, orgName = null) => {
   try {

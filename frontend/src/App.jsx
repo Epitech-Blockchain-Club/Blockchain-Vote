@@ -21,6 +21,9 @@ import SuperAdminPage from './Pages/SuperAdminPage'
 import VoterPortalPage from './Pages/VoterPortalPage'
 import ModeratorPortalPage from './Pages/ModeratorPortalPage'
 import OAuthCallbackPage from './Pages/OAuthCallbackPage'
+import NotFoundPage from './Pages/NotFoundPage'
+import ModeratorReportPage from './Pages/ModeratorReportPage'
+import PrivacyPage from './Pages/PrivacyPage'
 
 function App() {
   return (
@@ -74,6 +77,9 @@ function App() {
                   <Route path="/moderate/:id" element={<ModeratorPortalPage />} />
                   <Route path="/moderate/:id/:sessionId" element={<ModeratorPortalPage />} />
                   <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
+                  <Route path="/monitor/:id" element={<ModeratorReportPage />} />
+                  <Route path="/confidentialite" element={<PrivacyPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </Layout>
             </BlockchainProvider>

@@ -39,7 +39,7 @@ const SuperAdminPage = () => {
                     <div className="flex flex-col h-full pt-24">
                         <div className="px-6 mb-6">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                {t({ fr: 'Menu Propriétaire', en: 'Owner Menu' })}
+                                {t({ fr: 'Super Administration', en: 'Super Administration' })}
                             </span>
                         </div>
 

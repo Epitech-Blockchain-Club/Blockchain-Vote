@@ -11,9 +11,10 @@ const Footer = () => {
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-primary-500/5 blur-[120px] pointer-events-none" />
 
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-12 gap-8 sm:gap-10 pb-10 border-b border-slate-200">
-          {/* Brand — spans 2 cols on mobile, 5 on md */}
-          <div className="col-span-2 md:col-span-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pb-10 border-b border-slate-200">
+
+          {/* Brand */}
+          <div className="col-span-2">
             <Link to={ROUTES.HOME} className="flex flex-col mb-5 group">
               <div className="flex items-center space-x-3 mb-3">
                 <img src={epitechLogo} alt="Epitech" className="h-8 sm:h-10 w-auto group-hover:scale-105 transition-transform" />
@@ -43,7 +44,7 @@ const Footer = () => {
           </div>
 
           {/* Plateforme */}
-          <div className="col-span-1 md:col-span-2">
+          <div className="col-span-1">
             <h4 className="text-slate-900 font-bold mb-4 text-sm">{t({ fr: 'Plateforme', en: 'Platform' })}</h4>
             <ul className="space-y-3">
               <li><Link to={ROUTES.HOME} className="text-slate-500 hover:text-primary-600 text-sm transition-colors">{t({ fr: 'Accueil', en: 'Home' })}</Link></li>
@@ -52,38 +53,18 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Ressources */}
-          <div className="col-span-1 md:col-span-2">
-            <h4 className="text-slate-900 font-bold mb-4 text-sm">{t({ fr: 'Ressources', en: 'Resources' })}</h4>
+          {/* Légal */}
+          <div className="col-span-1">
+            <h4 className="text-slate-900 font-bold mb-4 text-sm">{t({ fr: 'Légal', en: 'Legal' })}</h4>
             <ul className="space-y-3">
-              <li><Link to="#" className="text-slate-500 hover:text-primary-600 text-sm transition-colors">Smart Contracts</Link></li>
-              <li><Link to="#" className="text-slate-500 hover:text-primary-600 text-sm transition-colors">Documentation</Link></li>
-              <li><Link to="#" className="text-slate-500 hover:text-primary-600 text-sm transition-colors">{t({ fr: 'Confidentialité', en: 'Privacy' })}</Link></li>
+              <li><Link to="/confidentialite" className="text-slate-500 hover:text-primary-600 text-sm transition-colors">{t({ fr: 'Confidentialité', en: 'Privacy' })}</Link></li>
             </ul>
           </div>
 
-          {/* Status */}
-          <div className="col-span-2 md:col-span-3">
-            <h4 className="text-slate-900 font-bold mb-4 text-sm">Status System</h4>
-            <div className="p-4 rounded-xl bg-primary-50 border border-primary-100 shadow-sm">
-              <div className="flex items-center space-x-2 text-primary-600 text-xs font-bold uppercase tracking-wider mb-2">
-                <div className="h-2 w-2 bg-primary-500 rounded-full animate-pulse" />
-                <span>Mainnet Active</span>
-              </div>
-              <p className="text-slate-500 text-xs leading-tight font-medium">
-                {t({ fr: 'Tous les services sont opérationnels.', en: 'All services are operational.' })}
-              </p>
-            </div>
-          </div>
         </div>
 
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-slate-500 text-xs font-medium">&copy; {new Date().getFullYear()} Epitech Blockchain Club. Built with ❤️ by the community.</p>
-          <div className="flex items-center space-x-5 text-slate-400 text-xs font-bold uppercase tracking-widest">
-            <span className="hover:text-primary-600 cursor-pointer">Security</span>
-            <span className="hover:text-primary-600 cursor-pointer">Uptime</span>
-            <span className="hover:text-primary-600 cursor-pointer">API</span>
-          </div>
         </div>
       </div>
     </footer>
