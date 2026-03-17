@@ -56,7 +56,7 @@ if (!import.meta.env.VITE_API_URL) {
 
     if (submitted) {
         return (
-            <div className="min-h-screen pt-32 pb-20 px-4 bg-slate-50 flex items-center justify-center transition-colors duration-300">
+            <div className="min-h-screen pb-20 px-4 bg-slate-50 flex items-center justify-center transition-colors duration-300">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -83,7 +83,7 @@ if (!import.meta.env.VITE_API_URL) {
     }
 
     return (
-        <div className="min-h-screen pt-32 pb-20 px-4 bg-slate-50 transition-colors duration-300">
+        <div className="min-h-screen pb-20 px-4 bg-slate-50 transition-colors duration-300">
             <div className="max-w-2xl mx-auto">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tighter">

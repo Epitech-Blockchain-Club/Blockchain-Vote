@@ -184,6 +184,14 @@ export const storage = {
         );
     },
 
+    updateProfile: async (email, update) => {
+        return User.findOneAndUpdate(
+            { email: email.toLowerCase() },
+            { $set: update },
+            { new: true }
+        ).lean();
+    },
+
     getAllUsers: async () => {
         return User.find().lean();
     },

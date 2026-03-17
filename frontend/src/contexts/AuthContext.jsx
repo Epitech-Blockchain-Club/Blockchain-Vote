@@ -392,10 +392,28 @@ export function AuthProvider({ children }) {
     return true
   }
 
-  const updateUser = (newData) => {
-    const updatedUser = { ...user, ...newData }
-    setUser(updatedUser)
-    localStorage.setItem('user', JSON.stringify(updatedUser))
+  const updateUser = async (newData) => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify(newData)
+      })
+      const result = await res.json()
+      if (result.success) {
+        const updatedUser = { ...user, ...result.user }
+        setUser(updatedUser)
+        localStorage.setItem('user', JSON.stringify(updatedUser))
+        return updatedUser
+      } else {
+        throw new Error(result.error || 'Update failed')
+      }
+    } catch (error) {
+      throw error
+    }
   }
 
   return (

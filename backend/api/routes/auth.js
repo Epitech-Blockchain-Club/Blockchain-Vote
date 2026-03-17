@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { storage } from '../services/storage.js';
 import { sendCredentials } from '../services/email.js';
-import { requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -286,6 +286,27 @@ router.post('/verify-voter', async (req, res) => {
     } catch (error) {
         console.error('Voter verification error:', error);
         res.status(500).json({ success: false, error: 'Server error during voter verification' });
+    }
+});
+
+// PATCH /api/auth/profile — update current user's name, bio, avatar
+router.patch('/profile', requireAuth, async (req, res) => {
+    try {
+        const email = req.jwtUser.email;
+        const { name, bio, avatar } = req.body;
+        const update = {};
+        if (name !== undefined) update.name = name;
+        if (bio !== undefined) update.bio = bio;
+        if (avatar !== undefined) update.avatar = avatar;
+
+        const updated = await storage.updateProfile(email, update);
+        if (!updated) return res.status(404).json({ success: false, error: 'User not found' });
+
+        const { password: _, ...userData } = updated;
+        res.json({ success: true, user: userData });
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
     }
 });
 

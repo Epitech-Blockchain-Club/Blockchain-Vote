@@ -32,18 +32,22 @@ const ProfilePage = () => {
         }
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
-        updateUser({
-            name: formData.name,
-            bio: formData.bio,
-            avatar: avatarPreview
-        })
-        toast.success('Profil mis à jour avec succès')
+        try {
+            await updateUser({
+                name: formData.name,
+                bio: formData.bio,
+                avatar: avatarPreview
+            })
+            toast.success('Profil mis à jour avec succès')
+        } catch (err) {
+            toast.error(err.message || 'Erreur lors de la mise à jour')
+        }
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 pt-32 pb-20 px-4">
+        <div className="min-h-screen bg-slate-50 pb-20 px-4">
             <div className="max-w-4xl mx-auto">
                 <div className="mb-10">
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Mon Profil</h1>

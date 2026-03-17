@@ -85,7 +85,7 @@ if (!import.meta.env.VITE_API_URL) {
         <div className="flex items-center justify-between">
           <Link to={ROUTES.HOME} className="flex items-center space-x-3 group outline-none">
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary-400 to-secondary-400 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary-400 to-secondary-400 rounded-full blur opacity-5 group-hover:opacity-10 transition duration-500"></div>
               <img src={epitechLogo} alt="Epitech Logo" className="relative h-10 w-auto object-contain transition-transform group-hover:scale-110 z-10" />
             </div>
             <div className="flex flex-col">

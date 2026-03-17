@@ -13,7 +13,7 @@ import {
 const AdminPage = () => {
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-slate-50 pt-16 sm:pt-20 pb-20 px-4 sm:px-6">
+      <div className="min-h-screen bg-slate-50 pb-20 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <Routes>
             <Route index element={<AdminDashboard />} />
