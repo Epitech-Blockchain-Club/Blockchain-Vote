@@ -37,6 +37,7 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_MICROSOFT_CLIENT_ID: ${{ secrets.VITE_MICROSOFT_CLIENT_ID }}
           VITE_MICROSOFT_TENANT_ID: ${{ secrets.VITE_MICROSOFT_TENANT_ID }}
+          VITE_FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: npm run build
 
   # ──────────────────────────────────────────────────────────────
@@ -126,6 +127,7 @@ jobs:
             VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}
             VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}
             VITE_MICROSOFT_TENANT_ID=${{ secrets.VITE_MICROSOFT_TENANT_ID }}
+            VITE_FRONTEND_URL=${{ secrets.FRONTEND_URL }}
             ENVEOF
 
       - name: Pull code & rebuild containers

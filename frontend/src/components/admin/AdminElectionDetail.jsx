@@ -31,6 +31,7 @@ const AdminElectionDetail = () => {
     const [togglingResults, setTogglingResults] = useState(false)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
+    const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
     const downloadQR = () => {
         const canvas = qrRef.current?.querySelector('canvas')
@@ -389,7 +390,7 @@ const AdminElectionDetail = () => {
                                 <div className="flex flex-col items-center gap-3 shrink-0">
                                     <div ref={qrRef} className="p-4 bg-white rounded-3xl shadow-2xl">
                                         <QRCodeCanvas
-                                            value={`${window.location.origin}/vote/${election.id}`}
+                                            value={`${PUBLIC_URL}/vote/${election.id}`}
                                             size={160}
                                             level="H"
                                             includeMargin={false}
@@ -410,12 +411,12 @@ const AdminElectionDetail = () => {
                                     </p>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/10 backdrop-blur-md rounded-2xl p-1.5 border border-white/20">
                                         <div className="flex-1 px-3 py-2 font-mono text-[10px] overflow-hidden text-ellipsis whitespace-nowrap min-w-0 opacity-80">
-                                            {window.location.origin}/vote/{election.id}
+                                            {PUBLIC_URL}/vote/{election.id}
                                         </div>
                                         <Button
                                             variant="secondary"
                                             onClick={() => {
-                                                navigator.clipboard.writeText(`${window.location.origin}/vote/${election.id}`)
+                                                navigator.clipboard.writeText(`${PUBLIC_URL}/vote/${election.id}`)
                                                 toast.success('Lien de vote copié !')
                                             }}
                                             className="bg-white text-primary-600 hover:bg-slate-50 border-none px-6 py-2.5 font-black uppercase text-[10px] shrink-0"

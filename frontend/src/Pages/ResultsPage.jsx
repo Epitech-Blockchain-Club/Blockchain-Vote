@@ -102,7 +102,7 @@ const ResultsPage = () => {
         {election && (
           <button
             onClick={() => {
-              const url = `${window.location.origin}/results/${election.id}`
+              const url = `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/results/${election.id}`
               navigator.clipboard.writeText(url)
               toast.success('Lien copié !')
             }}

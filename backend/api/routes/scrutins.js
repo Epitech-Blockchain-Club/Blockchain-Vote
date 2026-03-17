@@ -343,6 +343,27 @@ router.get('/authorized', async (req, res) => {
     }
 });
 
+// GET /api/scrutins/:address — fetch a single scrutin by address (no org filter)
+router.get('/:address', async (req, res) => {
+    try {
+        const addr = req.params.address.toLowerCase();
+        const metadata = await storage.getScrutin(addr);
+        if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
+
+        const contract = getScrutinContract(addr);
+        const sessionAddrs = await contract.getSessions();
+
+        const sessions = (metadata.sessions || []).map((s, idx) => ({
+            ...s,
+            address: (sessionAddrs[idx] || s.address || '').toLowerCase(),
+        }));
+
+        res.json({ success: true, data: { ...metadata, sessions } });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/scrutins/:address/vote
 router.post('/:address/vote', async (req, res) => {
     try {

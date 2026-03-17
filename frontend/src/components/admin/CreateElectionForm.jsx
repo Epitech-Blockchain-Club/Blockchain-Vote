@@ -421,7 +421,7 @@ const CreateElectionForm = () => {
       }
       const result = await addElection(payload)
       if (result && result.address) {
-        setGeneratedLink(`${window.location.origin}/vote/${result.address}`)
+        setGeneratedLink(`${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/vote/${result.address}`)
         setIsSubmitted(true)
         toast.success('Scrutin déployé ! Invitations envoyées aux modérateurs.', { duration: 6000, icon: '📧' })
         setTimeout(() => navigate(`/election/${result.address}`), 4000)

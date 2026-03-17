@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useElections } from '../contexts/ElectionContext';
 import VoterInterface from '../components/voter/VoterInterface';
 import Button from '../components/common/Button';
 import toast from 'react-hot-toast';
@@ -10,7 +9,7 @@ const VoterPortalPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, loginWithGoogle, loginWithOffice365 } = useAuth();
-    const { getElectionById, loading: electionsLoading } = useElections();
+    const API_BASE = import.meta.env.VITE_API_URL;
     const [election, setElection] = useState(null);
     const [authorizedSessions, setAuthorizedSessions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,15 +20,26 @@ const VoterPortalPage = () => {
                 setLoading(false);
                 return;
             }
-            // Wait for the elections list to finish loading before searching
-            if (electionsLoading) return;
 
-            const el = await getElectionById(id);
-            if (!el) {
+            // Fetch scrutin directly by address — bypasses org filter so any
+            // admin can vote in scrutins from other organizations
+            const res = await fetch(`${API_BASE}/scrutins/${id}`);
+            const result = await res.json();
+            if (!result.success || !result.data) {
                 toast.error("Scrutin introuvable.");
                 navigate('/');
                 return;
             }
+            const scrutin = result.data;
+            const el = {
+                id: scrutin.address,
+                title: scrutin.title,
+                description: scrutin.description,
+                startDate: scrutin.startDate,
+                endDate: scrutin.endDate,
+                sessions: scrutin.sessions || [],
+                logoUrl: scrutin.logoUrl || '',
+            };
 
             // Filter sessions where the user's email is present
             const userEmail = user.email.toLowerCase();
@@ -48,7 +58,7 @@ const VoterPortalPage = () => {
         };
 
         checkAccess();
-    }, [id, user, electionsLoading, getElectionById, navigate]);
+    }, [id, user, API_BASE, navigate]);
 
     if (loading) return <div className="py-20 text-center font-black animate-pulse">Vérification des accès...</div>;
 
