@@ -89,7 +89,7 @@ services:
     container_name: epivote-frontend
     restart: always
     ports:
-      - "80:80"
+      - "5001:80"
     depends_on:
       backend:
         condition: service_healthy
