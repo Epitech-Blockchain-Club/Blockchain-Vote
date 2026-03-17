@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { getFactoryContract, getScrutinContract, getVoteSessionContract, getNextNonce } from '../services/blockchain.js';
 import { storage } from '../services/storage.js';
 import { sendModeratorInvitation } from '../services/email.js';
-import { requireSuperAdmin, requireAuth } from '../middleware/auth.js';
+import { requireSuperAdmin, requireAdmin } from '../middleware/auth.js';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -385,8 +385,8 @@ router.post('/:address/vote', async (req, res) => {
     }
 });
 
-// PATCH /api/scrutins/:address/settings — any authenticated admin
-router.patch('/:address/settings', requireAuth, async (req, res) => {
+// PATCH /api/scrutins/:address/settings — admin or superadmin only
+router.patch('/:address/settings', requireAdmin, async (req, res) => {
     try {
         const address = req.params.address.toLowerCase();
         const allowed = ['showResultsToVoters'];
@@ -407,6 +407,24 @@ router.get('/:address/results', async (req, res) => {
         const address  = req.params.address;
         const metadata = await storage.getScrutin(address);
         if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
+
+        // Check if results are restricted — allow bypass only for admins (via JWT)
+        if (metadata.showResultsToVoters === false) {
+            const authHeader = req.headers.authorization;
+            if (authHeader?.startsWith('Bearer ')) {
+                try {
+                    const jwt = await import('jsonwebtoken');
+                    const decoded = jwt.default.verify(authHeader.slice(7), process.env.JWT_SECRET);
+                    if (!['admin', 'superadmin'].includes(decoded.role)) {
+                        return res.status(403).json({ success: false, error: 'Results not available' });
+                    }
+                } catch {
+                    return res.status(403).json({ success: false, error: 'Results not available' });
+                }
+            } else {
+                return res.status(403).json({ success: false, error: 'Results not available' });
+            }
+        }
 
         const contract     = getScrutinContract(address);
         const sessionAddrs = await contract.getSessions();

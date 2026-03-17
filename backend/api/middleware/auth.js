@@ -14,6 +14,14 @@ export const requireAuth = (req, res, next) => {
     }
 };
 
+export const requireAdmin = (req, res, next) => {
+    requireAuth(req, res, () => {
+        if (!['admin', 'superadmin'].includes(req.jwtUser?.role))
+            return res.status(403).json({ success: false, error: 'Admin access required' });
+        next();
+    });
+};
+
 export const requireSuperAdmin = (req, res, next) => {
     requireAuth(req, res, () => {
         if (req.jwtUser?.role !== 'superadmin')
