@@ -260,8 +260,11 @@ if (!import.meta.env.VITE_API_URL) {
           </div>
         </div>
 
-        {/* Notifications Sidebar */}
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+
+          {/* Notifications Sidebar */}
+          <div>
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -303,6 +306,8 @@ if (!import.meta.env.VITE_API_URL) {
               )}
             </div>
           </Card>
+          </div>
+
         </div>
       </div>
     </div>

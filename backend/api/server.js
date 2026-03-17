@@ -13,6 +13,7 @@ import moderatorRoutes   from './routes/moderators.js';
 import authRoutes        from './routes/auth.js';
 import requestVoteRoutes from './routes/request-votes.js';
 import superadminRoutes  from './routes/superadmin.js';
+import settingsRoutes    from './routes/settings.js';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +36,7 @@ app.use('/api/moderators',   moderatorRoutes);
 app.use('/api/auth',         authRoutes);
 app.use('/api/request-vote', requestVoteRoutes);
 app.use('/api/superadmin',   superadminRoutes);
+app.use('/api/settings',     settingsRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

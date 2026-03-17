@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { getFactoryContract, getScrutinContract, getVoteSessionContract, getNextNonce } from '../services/blockchain.js';
 import { storage } from '../services/storage.js';
 import { sendModeratorInvitation } from '../services/email.js';
+import { requireSuperAdmin, requireAuth } from '../middleware/auth.js';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -380,6 +381,22 @@ router.post('/:address/vote', async (req, res) => {
         res.json({ success: true, txHashes });
     } catch (error) {
         console.error('Error submitting vote:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PATCH /api/scrutins/:address/settings — any authenticated admin
+router.patch('/:address/settings', requireAuth, async (req, res) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        const allowed = ['showResultsToVoters'];
+        const updates = {};
+        for (const key of allowed) {
+            if (key in req.body) updates[key] = req.body[key];
+        }
+        await storage.updateScrutin(address, updates);
+        res.json({ success: true });
+    } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });

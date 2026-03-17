@@ -13,6 +13,7 @@ import ModeratorToken   from '../models/ModeratorToken.js';
 import ModeratorDecision from '../models/ModeratorDecision.js';
 import VoteRequest      from '../models/VoteRequest.js';
 import Notification     from '../models/Notification.js';
+import Settings        from '../models/Settings.js';
 
 // ── Seed initial users/org on first run ──────────────────────────────────────
 
@@ -262,6 +263,24 @@ export const storage = {
 
     deleteNotification: async (id) => {
         await Notification.findByIdAndDelete(id);
+    },
+
+    // ── Platform settings ─────────────────────────────────────────────────────
+
+    getSettings: async () => {
+        return Settings.findOneAndUpdate(
+            { key: 'platform' },
+            { $setOnInsert: { key: 'platform' } },
+            { upsert: true, new: true }
+        ).lean();
+    },
+
+    updateSettings: async (updates) => {
+        return Settings.findOneAndUpdate(
+            { key: 'platform' },
+            { $set: updates },
+            { upsert: true, new: true }
+        ).lean();
     },
 
     // ── Init seed ─────────────────────────────────────────────────────────────

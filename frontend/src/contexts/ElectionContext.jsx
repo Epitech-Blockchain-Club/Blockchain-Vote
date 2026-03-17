@@ -65,7 +65,8 @@ export function ElectionProvider({ children }) {
             voters: scrutin.voters || [],
             voterCount: scrutin.voters?.length || sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0),
             status: allValidated ? 'active' : 'pending_validation',
-            isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated)
+            isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated),
+            showResultsToVoters: scrutin.showResultsToVoters ?? true
           }
         })
         setElections(mapped)

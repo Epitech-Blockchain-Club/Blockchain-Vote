@@ -39,9 +39,10 @@ const scrutinSchema = new mongoose.Schema({
     startDate:  { type: String },
     endDate:    { type: String },
     type:       { type: String },
-    logoUrl:    { type: String },
-    voters:     [{ type: String, lowercase: true }],
-    sessions:   [sessionSchema],
+    logoUrl:             { type: String },
+    showResultsToVoters: { type: Boolean, default: true },
+    voters:              [{ type: String, lowercase: true }],
+    sessions:            [sessionSchema],
 }, { timestamps: true });
 
 export default mongoose.model('Scrutin', scrutinSchema);

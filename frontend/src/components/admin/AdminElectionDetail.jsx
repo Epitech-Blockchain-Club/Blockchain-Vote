@@ -1,8 +1,9 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useElections } from '../../contexts/ElectionContext'
+import { useAuth } from '../../contexts/AuthContext'
 import Button from '../common/Button'
 import Card from '../common/Card'
 import CountdownTimer from '../common/CountdownTimer'
@@ -24,9 +25,12 @@ const AdminElectionDetail = () => {
     const { id } = useParams()
     const { elections, loading, refreshElections } = useElections()
     const { t } = useSettings()
+    const { authToken } = useAuth()
     const navigate = useNavigate()
     const [isRefreshing, setIsRefreshing] = React.useState(false)
+    const [togglingResults, setTogglingResults] = useState(false)
     const qrRef = useRef(null)
+    const API_BASE = import.meta.env.VITE_API_URL
 
     const downloadQR = () => {
         const canvas = qrRef.current?.querySelector('canvas')
@@ -35,6 +39,29 @@ const AdminElectionDetail = () => {
         a.download = `epivote-qrcode-${election?.id?.slice(0, 8) || 'vote'}.png`
         a.href = canvas.toDataURL('image/png')
         a.click()
+    }
+
+    const toggleResultsVisibility = async () => {
+        if (!election) return
+        setTogglingResults(true)
+        try {
+            const res = await fetch(`${API_BASE}/scrutins/${election.id}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ showResultsToVoters: !election.showResultsToVoters })
+            })
+            const result = await res.json()
+            if (result.success) {
+                await refreshElections()
+                toast.success(election.showResultsToVoters ? 'Résultats masqués aux votants' : 'Résultats visibles aux votants')
+            } else {
+                toast.error('Erreur lors de la mise à jour')
+            }
+        } catch {
+            toast.error('Erreur réseau')
+        } finally {
+            setTogglingResults(false)
+        }
     }
 
     const handleRefresh = async () => {
@@ -450,6 +477,19 @@ const AdminElectionDetail = () => {
                             <p className="text-[10px] text-primary-800 font-bold leading-relaxed uppercase tracking-wider">
                                 Données certifiées Blockchain
                             </p>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                            <div>
+                                <p className="text-xs font-black text-slate-900 mb-0.5">Résultats visibles</p>
+                                <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Les votants peuvent consulter les résultats</p>
+                            </div>
+                            <button
+                                onClick={toggleResultsVisibility}
+                                disabled={togglingResults}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${election.showResultsToVoters ? 'bg-primary-600' : 'bg-slate-200'}`}
+                            >
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ${election.showResultsToVoters ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
                         </div>
                     </Card>
                 </div>

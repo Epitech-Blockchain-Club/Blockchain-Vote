@@ -1,18 +1,24 @@
 import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useElections } from '../contexts/ElectionContext'
+import { useAuth } from '../contexts/AuthContext'
 import ResultsChart from '../components/elections/ResultsChart'
-import { DocumentArrowDownIcon } from '@heroicons/react/24/outline'
+import { DocumentArrowDownIcon, LockClosedIcon, LinkIcon } from '@heroicons/react/24/outline'
 import Button from '../components/common/Button'
+import toast from 'react-hot-toast'
 
 const ResultsPage = () => {
   const { id } = useParams()
   const { elections, getResults } = useElections()
+  const { user } = useAuth()
   const [selectedElection, setSelectedElection] = useState(id || '')
   const [backendResults, setBackendResults] = useState(null)
   const [loadingResults, setLoadingResults] = useState(false)
 
-  const election = elections.find(e => e.id === selectedElection)
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const visibleElections = isAdmin ? elections : elections.filter(e => e.showResultsToVoters !== false)
+
+  const election = elections.find(e => e.id?.toLowerCase() === selectedElection?.toLowerCase())
   const now = new Date()
   const isEnded = election && new Date(election.endDate) < now
 
@@ -56,6 +62,22 @@ const ResultsPage = () => {
     a.click()
   }
 
+  if (!isAdmin && election && !election.showResultsToVoters) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-32 text-center">
+        <div className="bg-slate-50 border border-slate-200 rounded-[40px] p-12">
+          <div className="w-16 h-16 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center justify-center mx-auto mb-6">
+            <LockClosedIcon className="w-8 h-8 text-slate-400" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Résultats non disponibles</h2>
+          <p className="text-slate-500 font-medium text-sm leading-relaxed">
+            L'administrateur a restreint l'accès aux résultats. Ils seront publiés à l'issue du scrutin.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="mb-10">
@@ -64,19 +86,32 @@ const ResultsPage = () => {
       </div>
 
       {/* Sélecteur d'élection */}
-      <div className="mb-10">
+      <div className="mb-10 flex flex-col sm:flex-row gap-3">
         <select
           value={selectedElection}
           onChange={(e) => setSelectedElection(e.target.value)}
-          className="w-full md:w-96 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-medium appearance-none cursor-pointer shadow-sm"
+          className="flex-1 md:max-w-96 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 transition-all font-medium appearance-none cursor-pointer shadow-sm"
         >
           <option value="">Sélectionnez un scrutin pour voir les chiffres</option>
-          {elections.map(e => (
+          {visibleElections.map(e => (
             <option key={e.id} value={e.id}>
               {e.title} • {new Date(e.endDate).toLocaleDateString()}
             </option>
           ))}
         </select>
+        {election && (
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/results/${election.id}`
+              navigator.clipboard.writeText(url)
+              toast.success('Lien copié !')
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 hover:border-primary-200 hover:text-primary-600 transition-all font-bold text-sm shadow-sm shrink-0"
+          >
+            <LinkIcon className="w-4 h-4" />
+            Copier le lien
+          </button>
+        )}
       </div>
 
       {election ? (
@@ -129,7 +164,14 @@ const ResultsPage = () => {
 
           {/* Graphique des résultats */}
           <div className="h-96 mb-8">
-            <ResultsChart sessions={backendResults} />
+            {loadingResults ? (
+              <div className="h-full flex flex-col items-center justify-center gap-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Chargement des résultats...</p>
+              </div>
+            ) : (
+              <ResultsChart sessions={backendResults} />
+            )}
           </div>
 
           {/* Tableau détaillé (multi-session) */}
@@ -186,8 +228,8 @@ const ResultsPage = () => {
             ))}
           </div>
 
-          {/* Lien de vérification blockchain */}
-          <div className="p-6 bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/40 relative overflow-hidden group">
+          {/* Lien de vérification blockchain — admins only */}
+          {isAdmin && <div className="p-6 bg-slate-900 rounded-3xl shadow-2xl shadow-slate-900/40 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700">
               <svg className="w-32 h-32 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -207,7 +249,7 @@ const ResultsPage = () => {
                 </Button>
               </Link>
             </div>
-          </div>
+          </div>}
         </div>
       ) : (
         <div className="text-center py-32 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
