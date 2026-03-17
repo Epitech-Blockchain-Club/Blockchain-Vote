@@ -10,12 +10,9 @@ import CountdownTimer from '../common/CountdownTimer'
 import { useSettings } from '../../contexts/SettingsContext'
 import {
     ArrowLeftIcon,
-    PencilSquareIcon,
     ShieldCheckIcon,
     ChartBarIcon,
     UserGroupIcon,
-    ChevronDownIcon,
-    ChevronUpIcon,
     TrophyIcon,
     DocumentCheckIcon,
     InformationCircleIcon,
@@ -33,6 +30,9 @@ const AdminElectionDetail = () => {
     const [isRefreshing, setIsRefreshing] = React.useState(false)
     const [togglingResults, setTogglingResults] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
+    const [addingVotersIdx, setAddingVotersIdx] = useState(null)
+    const [voterInput, setVoterInput] = useState('')
+    const [submittingVoters, setSubmittingVoters] = useState(false)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
     const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -76,10 +76,6 @@ const AdminElectionDetail = () => {
     }
 
     const election = elections.find(e => e.id === id)
-    const [expandedPart, setExpandedPart] = React.useState(null)
-
-    console.log('⚡ [RENDER] AdminElectionDetail. ID:', id, 'Found:', !!election);
-    if (election) console.log('🗳️ [STATS] Election Votes in Detail:', election.votes);
 
     const exportToCSV = (voters, sessionTitle) => {
         if (!voters || voters.length === 0) {
@@ -97,27 +93,44 @@ const AdminElectionDetail = () => {
         toast.success("CSV exporté avec succès !");
     }
 
-    // Log consensus and detailed stats
-    React.useEffect(() => {
-        if (election) {
-            const total = election.sessions?.reduce((acc, s) => acc + (s.moderatorCount || 0), 0) || 0
-            const validated = election.sessions?.reduce((acc, s) => acc + (s.validationCount || 0), 0) || 0
-            const percentage = total > 0 ? Math.round((validated / total) * 100) : 0
+    const handleAddVoters = async (sessionIdx) => {
+        const emails = [...new Set(
+            voterInput
+                .split(/[\n,;]+/)
+                .map(e => e.trim().toLowerCase())
+                .filter(e => e.includes('@'))
+        )]
 
-            const totalVotes = Object.values(election.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0)
-            const participation = ((totalVotes / (election.voterCount || 1)) * 100).toFixed(1)
-
-            console.log(`🛡️ [ADMIN] Moderator Consensus: ${validated}/${total} validations (${percentage}%)`);
-            console.log(`📊 [ADMIN] Election Detail Stats:`, {
-                id: election.id,
-                title: election.title,
-                votes: election.votes,
-                totalVotes,
-                participation: `${participation}%`,
-                voterCount: election.voterCount
-            });
+        if (emails.length === 0) {
+            toast.error('Aucun email valide trouvé')
+            return
         }
-    }, [election])
+        setSubmittingVoters(true)
+        try {
+            const res = await fetch(`${API_BASE}/scrutins/${id}/sessions/${sessionIdx}/voters`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ emails })
+            })
+            const result = await res.json()
+            if (result.success) {
+                const msg = result.skipped > 0
+                    ? `${result.added} ajouté(s), ${result.skipped} déjà présent(s)`
+                    : `${result.added} électeur(s) ajouté(s)`
+                result.added > 0 ? toast.success(msg) : toast(msg, { icon: 'ℹ️' })
+                setVoterInput('')
+                setAddingVotersIdx(null)
+                await refreshElections()
+            } else {
+                toast.error(result.error || 'Erreur lors de l\'ajout')
+            }
+        } catch {
+            toast.error('Erreur réseau')
+        } finally {
+            setSubmittingVoters(false)
+        }
+    }
+
 
     if (loading && !election) return (
         <div className="flex flex-col items-center justify-center py-40">
@@ -228,7 +241,7 @@ const AdminElectionDetail = () => {
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Nombre d'inscrits</p>
-                                <p className="text-sm font-black text-slate-900">{election.voters?.length || 0} électeurs</p>
+                                <p className="text-sm font-black text-slate-900">{election.voterCount || 0} électeurs</p>
                             </div>
                         </div>
                         <CountdownTimer startDate={election.startDate} endDate={election.endDate} />
@@ -267,7 +280,7 @@ const AdminElectionDetail = () => {
 
                                     {/* Per-Session Stats & Consensus */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-4">
-                                        <Card className="bg-slate-900 text-white p-6 rounded-[24px] border-none relative overflow-hidden">
+                                        <Card className="bg-slate-900 text-white p-6 rounded-3xl border-none relative overflow-hidden">
                                             <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-32 h-32 bg-secondary-500/10 blur-2xl rounded-full"></div>
                                             <h2 className="text-[9px] font-black text-secondary-400 uppercase tracking-[0.2em] mb-4 flex items-center">
                                                 <ShieldCheckIcon className="w-3.5 h-3.5 mr-2" /> Consensus Modérateurs
@@ -287,7 +300,7 @@ const AdminElectionDetail = () => {
                                             </div>
                                         </Card>
 
-                                        <Card className="bg-white border-slate-100 p-6 rounded-[24px] shadow-sm">
+                                        <Card className="bg-white border-slate-100 p-6 rounded-3xl shadow-sm">
                                             <h2 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
                                                 <ChartBarIcon className="w-3.5 h-3.5 mr-2" /> Statistiques Live
                                             </h2>
@@ -296,13 +309,13 @@ const AdminElectionDetail = () => {
                                                     <div className="flex justify-between items-end mb-1">
                                                         <span className="text-[8px] font-bold text-slate-500 uppercase">Participation</span>
                                                         <span className="text-sm font-black text-primary-600">
-                                                            {session.voterCount > 0 ? ((session.voters?.length || 0) / session.voterCount * 100).toFixed(1) : 0}%
+                                                            {session.voters?.length > 0 ? Math.round(Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) / session.voters.length * 100) : 0}%
                                                         </span>
                                                     </div>
                                                     <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden border border-slate-100">
                                                         <div
                                                             className="bg-primary-500 h-full rounded-full transition-all duration-1000"
-                                                            style={{ width: `${session.voterCount > 0 ? ((session.voters?.length || 0) / session.voterCount * 100) : 0}%` }}
+                                                            style={{ width: `${session.voters?.length > 0 ? (Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) / session.voters.length * 100) : 0}%` }}
                                                         ></div>
                                                     </div>
                                                 </div>
@@ -322,7 +335,7 @@ const AdminElectionDetail = () => {
                                             const sessionVotes = session.votes || {}
                                             const voteCount = sessionVotes[candidateIdx] || 0
                                             const totalVotesInSession = Object.values(sessionVotes).reduce((a, b) => a + (parseInt(b) || 0), 0)
-                                            const percentage = totalVotesInSession > 0 ? ((voteCount / totalVotesInSession) * 100).toFixed(1) : 0
+                                            const percentage = totalVotesInSession > 0 ? Math.round((voteCount / totalVotesInSession) * 100) : 0
 
                                             return (
                                                 <div key={candidateIdx} className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4">
@@ -354,7 +367,7 @@ const AdminElectionDetail = () => {
                                                 {session.moderators?.length > 0 ? session.moderators.map((mod, mIdx) => (
                                                     <div key={mIdx} className="flex items-center justify-between text-xs bg-white p-2 rounded-xl border border-slate-100">
                                                         <span className="font-medium text-slate-600 truncate max-w-[150px]">{mod.email}</span>
-                                                        <span className={`font-black uppercase tracking-tighter px-2 py-0.5 rounded-md text-[9px] ${mod.status === 'Validé' ? 'bg-emerald-100 text-emerald-700' : mod.status === 'Invalidé' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'
+                                                        <span className={`font-black uppercase tracking-tighter px-2 py-0.5 rounded-lg text-[9px] ${mod.status === 'Validé' ? 'bg-emerald-100 text-emerald-700' : mod.status === 'Invalidé' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'
                                                             }`}>
                                                             {mod.status}
                                                         </span>
@@ -366,14 +379,31 @@ const AdminElectionDetail = () => {
                                         <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5">
                                             <div className="flex justify-between items-center mb-4">
                                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                    <UserGroupIcon className="w-3 h-3" /> Liste des Électeurs
+                                                    <UserGroupIcon className="w-3 h-3" /> Électeurs ({session.voters?.length || 0})
                                                 </h4>
-                                                <button
-                                                    onClick={() => exportToCSV(session.voters, session.title)}
-                                                    className="text-[9px] font-black text-primary-600 hover:text-white hover:bg-primary-600 border border-primary-200 px-2 py-1 rounded-lg transition-all"
-                                                >
-                                                    Exporter CSV
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    {now > end ? (
+                                                        <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-2 py-1 rounded-lg cursor-not-allowed" title="Scrutin clôturé">
+                                                            Clôturé
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => {
+                                                                setAddingVotersIdx(addingVotersIdx === sIdx ? null : sIdx)
+                                                                setVoterInput('')
+                                                            }}
+                                                            className="text-[9px] font-black text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 px-2 py-1 rounded-lg transition-all"
+                                                        >
+                                                            + Ajouter
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => exportToCSV(session.voters, session.title)}
+                                                        className="text-[9px] font-black text-primary-600 hover:text-white hover:bg-primary-600 border border-primary-200 px-2 py-1 rounded-lg transition-all"
+                                                    >
+                                                        Exporter CSV
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="max-h-[120px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                                                 {session.voters?.length > 0 ? session.voters.map((voter, vIdx) => (
@@ -382,6 +412,40 @@ const AdminElectionDetail = () => {
                                                     </div>
                                                 )) : <p className="text-[10px] text-slate-400 italic">Aucun électeur importé.</p>}
                                             </div>
+                                            {addingVotersIdx === sIdx && (
+                                                <div className="mt-4 border-t border-slate-100 pt-4 space-y-2">
+                                                    {now < start && (
+                                                        <p className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+                                                            Le scrutin n'a pas encore commencé — les électeurs pourront voter à partir du {start.toLocaleDateString('fr-FR')}.
+                                                        </p>
+                                                    )}
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                        Emails à ajouter (un par ligne, virgule ou point-virgule)
+                                                    </p>
+                                                    <textarea
+                                                        value={voterInput}
+                                                        onChange={e => setVoterInput(e.target.value)}
+                                                        placeholder={"email1@example.com\nemail2@example.com"}
+                                                        rows={4}
+                                                        className="w-full text-xs font-mono border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                                                    />
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => { setAddingVotersIdx(null); setVoterInput('') }}
+                                                            className="text-[9px] font-black text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
+                                                        >
+                                                            Annuler
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleAddVoters(sIdx)}
+                                                            disabled={submittingVoters || !voterInput.trim()}
+                                                            className="text-[9px] font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                                                        >
+                                                            {submittingVoters ? 'Ajout...' : 'Confirmer'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -445,7 +509,7 @@ const AdminElectionDetail = () => {
                                 <ShieldCheckIcon className="h-16 w-16 text-slate-300 mx-auto mb-6" />
                                 <h3 className="text-xl font-black text-slate-900 mb-3">Accès Électeurs Suspendu</h3>
                                 <p className="text-slate-500 font-medium leading-relaxed">
-                                    Le lien de vote et le QR Code ne seront générés qu'une fois que **100% des sessions** auront été validées par les modérateurs.
+                                    Le lien de vote et le QR Code ne seront générés qu'une fois que <strong>100% des sessions</strong> auront été validées par les modérateurs.
                                 </p>
                                 <div className="mt-8 pt-8 border-t border-slate-200">
                                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">État actuel</p>
@@ -478,7 +542,7 @@ const AdminElectionDetail = () => {
                             <div>
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Participation Moyenne</p>
                                 <p className="text-2xl font-black text-primary-400">
-                                    {((election.voters?.length || 0) / (election.voterCount || 1) * 100).toFixed(1)}%
+                                    {election.voterCount > 0 ? Math.round(election.votedCount / election.voterCount * 100) : 0}%
                                 </p>
                             </div>
                         </div>
@@ -528,7 +592,7 @@ const AdminElectionDetail = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto bg-[#F8FAFC] pb-16">
                         <div className="max-w-5xl mx-auto px-4 py-10 space-y-12">
-                            {election.logoUrl && (
+                            {election.logoUrl ? (
                                 <div className="flex items-center gap-4">
                                     <img src={election.logoUrl} alt="Logo" className="h-14 w-14 object-contain rounded-2xl border border-slate-100 bg-white p-1" />
                                     <div>
@@ -536,7 +600,7 @@ const AdminElectionDetail = () => {
                                         <p className="text-slate-500 text-sm font-medium">{election.description}</p>
                                     </div>
                                 </div>
-                            ) || (
+                            ) : (
                                 <div>
                                     <h1 className="text-2xl font-black text-slate-900 tracking-tight">{election.title}</h1>
                                     <p className="text-slate-500 text-sm font-medium mt-1">{election.description}</p>
@@ -554,7 +618,7 @@ const AdminElectionDetail = () => {
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         {(session.options || []).map((option, oIdx) => (
-                                            <div key={oIdx} className="bg-white rounded-[24px] border-2 border-slate-100 p-5 flex flex-col">
+                                            <div key={oIdx} className="bg-white rounded-3xl border-2 border-slate-100 p-5 flex flex-col">
                                                 {option.imageUrl && (
                                                     <div className="aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 mb-3">
                                                         <img src={option.imageUrl} alt={option.title} className="w-full h-full object-cover" />

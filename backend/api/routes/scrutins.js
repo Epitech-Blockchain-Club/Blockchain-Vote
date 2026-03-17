@@ -406,6 +406,42 @@ router.post('/:address/vote', async (req, res) => {
     }
 });
 
+// PATCH /api/scrutins/:address/sessions/:sessionIdx/voters — admin only
+router.patch('/:address/sessions/:sessionIdx/voters', requireAdmin, async (req, res) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        const sessionIdx = parseInt(req.params.sessionIdx);
+        const { emails } = req.body;
+
+        if (!Array.isArray(emails) || emails.length === 0)
+            return res.status(400).json({ success: false, error: 'emails array is required' });
+
+        const metadata = await storage.getScrutin(address);
+        if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
+        if (!metadata.sessions?.[sessionIdx])
+            return res.status(404).json({ success: false, error: 'Session not found' });
+
+        // A — Refuse if scrutin is already ended
+        if (metadata.endDate && new Date() > new Date(metadata.endDate))
+            return res.status(400).json({ success: false, error: 'Ce scrutin est terminé, impossible d\'ajouter des électeurs.' });
+
+        // D — Identify which emails are new vs already present
+        const existing = new Set((metadata.sessions[sessionIdx].voters || []).map(e => e.toLowerCase()));
+        const cleanEmails = [...new Set(emails.map(e => e.trim().toLowerCase()).filter(e => e.includes('@')))];
+        const newOnly = cleanEmails.filter(e => !existing.has(e));
+        const skipped = cleanEmails.length - newOnly.length;
+
+        if (newOnly.length > 0)
+            await storage.appendSessionVoters(address, sessionIdx, newOnly);
+
+        const updatedVoters = await storage.getSessionVoters(address, sessionIdx);
+        res.json({ success: true, added: newOnly.length, skipped, voters: updatedVoters });
+    } catch (error) {
+        console.error('Error appending voters:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // PATCH /api/scrutins/:address/settings — admin or superadmin only
 router.patch('/:address/settings', requireAdmin, async (req, res) => {
     try {

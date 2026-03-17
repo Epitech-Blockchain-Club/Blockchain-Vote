@@ -11,9 +11,10 @@ import Vote             from '../models/Vote.js';
 import VoterRecord      from '../models/VoterRecord.js';
 import ModeratorToken   from '../models/ModeratorToken.js';
 import ModeratorDecision from '../models/ModeratorDecision.js';
-import VoteRequest      from '../models/VoteRequest.js';
-import Notification     from '../models/Notification.js';
-import Settings        from '../models/Settings.js';
+import VoteRequest            from '../models/VoteRequest.js';
+import Notification           from '../models/Notification.js';
+import Settings               from '../models/Settings.js';
+import VoterAdditionRequest   from '../models/VoterAdditionRequest.js';
 
 // ── Seed initial users/org on first run ──────────────────────────────────────
 
@@ -149,6 +150,32 @@ export const storage = {
             { $set: { [`sessions.${sessionIdx}.voters`]: voters } }
         );
         console.log(`[STORAGE] Saved ${voters.length} voters for ${address} session ${sessionIdx}`);
+    },
+
+    appendSessionVoters: async (address, sessionIdx, newEmails) => {
+        const emails = newEmails.map(e => e.toLowerCase().trim()).filter(Boolean);
+        const addr = address.toLowerCase();
+
+        // $addToSet prevents duplicates at session level and global level
+        await Scrutin.findOneAndUpdate(
+            { address: addr },
+            {
+                $addToSet: {
+                    [`sessions.${sessionIdx}.voters`]: { $each: emails },
+                    voters: { $each: emails },   // keep global scrutin.voters in sync
+                }
+            }
+        );
+
+        // Sync session voterCount from actual array length
+        const updated = await Scrutin.findOne({ address: addr }).lean();
+        const actualCount = updated?.sessions?.[sessionIdx]?.voters?.length || 0;
+        await Scrutin.findOneAndUpdate(
+            { address: addr },
+            { $set: { [`sessions.${sessionIdx}.voterCount`]: actualCount } }
+        );
+
+        console.log(`[STORAGE] Appended to ${addr} session ${sessionIdx}: ${actualCount} total voters`);
     },
 
     getSessionVoters: async (address, sessionIdx) => {
@@ -298,6 +325,44 @@ export const storage = {
             { $set: updates },
             { upsert: true, new: true }
         ).lean();
+    },
+
+    // ── VoterAdditionRequests ─────────────────────────────────────────────────
+
+    createVoterAdditionRequest: async (data) => {
+        const req = await VoterAdditionRequest.create(data);
+        return req;
+    },
+
+    getVoterAdditionRequests: async (scrutinAddress) => {
+        return VoterAdditionRequest.find({ scrutinAddress: scrutinAddress.toLowerCase() }).sort({ createdAt: -1 }).lean();
+    },
+
+    getVoterAdditionRequest: async (requestId) => {
+        return VoterAdditionRequest.findById(requestId).lean();
+    },
+
+    recordVoterAdditionDecision: async (requestId, email, decision, reason = '') => {
+        const req = await VoterAdditionRequest.findById(requestId);
+        if (!req) throw new Error('Request not found');
+
+        // Remove any prior decision from same moderator (idempotent)
+        req.decisions = req.decisions.filter(d => d.email !== email.toLowerCase());
+        req.decisions.push({ email: email.toLowerCase(), decision, reason, decidedAt: new Date() });
+
+        const totalMods = req.moderators.length;
+        const validates = req.decisions.filter(d => d.decision === 'validate').length;
+        const invalidates = req.decisions.filter(d => d.decision === 'invalidate').length;
+
+        if (invalidates > 0) {
+            req.status = 'rejected';
+        } else if (validates === totalMods) {
+            req.status = 'approved';
+            req.appliedAt = new Date();
+        }
+
+        await req.save();
+        return req;
     },
 
     // ── Init seed ─────────────────────────────────────────────────────────────

@@ -99,7 +99,7 @@ const LeaderboardRow = ({ candidate, rank, voteCount, totalVotes, color, isExpan
             />
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-[10px] font-bold text-slate-400">{pct.toFixed(1)}% des votes</span>
+            <span className="text-[10px] font-bold text-slate-400">{Math.round(pct)}% des votes</span>
           </div>
         </div>
 
@@ -156,7 +156,7 @@ const Statistics = () => {
     voterCount: election.voterCount || 0,
     votedCount: election.votedCount || 0,
     participation: election.voterCount > 0
-      ? parseFloat(((election.votedCount / election.voterCount) * 100).toFixed(1))
+      ? Math.round((election.votedCount / election.voterCount) * 100)
       : 0,
     abstentions: Math.max(0, (election.voterCount || 0) - (election.votedCount || 0))
   } : null
@@ -279,7 +279,7 @@ const Statistics = () => {
                 />
               </div>
               <p className="text-xs text-slate-400 font-bold mt-1">
-                {electionStats.voterCount > 0 ? ((electionStats.abstentions / electionStats.voterCount) * 100).toFixed(1) : 0}% du collège
+                {electionStats.voterCount > 0 ? Math.round((electionStats.abstentions / electionStats.voterCount) * 100) : 0}% du collège
               </p>
             </div>
           </Card>

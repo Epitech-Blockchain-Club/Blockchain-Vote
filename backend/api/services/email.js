@@ -266,6 +266,208 @@ export const sendModeratorMonitorLink = async (email, electionTitle, sessionTitl
   }
 };
 
+// ─── sendVoterAdditionRequest ─────────────────────────────────────────────
+export const sendVoterAdditionRequest = async (moderatorEmail, scrutinTitle, sessionTitle, emails, reviewLink) => {
+  try {
+    const emailList = emails.slice(0, 10).map(e =>
+      `<li style="font-size:12px;font-family:monospace;color:#475569;padding:4px 0;border-bottom:1px solid #f1f5f9;">${e}</li>`
+    ).join('');
+    const more = emails.length > 10 ? `<li style="font-size:11px;color:#94a3b8;padding:4px 0;">… et ${emails.length - 10} autre(s)</li>` : '';
+
+    const body = emailWrapper(`
+      <div style="margin-bottom:20px;">
+        ${badge('Demande en attente', '#fef3c7', '#92400e')}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};letter-spacing:-0.025em;">
+        Ajout d'électeurs — validation requise
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Un administrateur demande l'ajout de <strong>${emails.length} électeur(s)</strong> à la session ci-dessous. Votre validation est requise.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:20px;">
+        <tbody>
+          ${infoRow('Scrutin', scrutinTitle)}
+          ${infoRow('Session', `<span style="color:${BRAND_COLOR};font-weight:800;">${sessionTitle}</span>`)}
+          ${infoRow('Nombre d\'emails', `<strong>${emails.length}</strong>`)}
+        </tbody>
+      </table>
+
+      <p style="margin:0 0 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Emails à ajouter</p>
+      <ul style="margin:0 0 28px;padding:12px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;list-style:none;">
+        ${emailList}${more}
+      </ul>
+
+      ${ctaButton(reviewLink, 'Examiner et répondre')}
+
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-top:8px;">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
+          Le consensus de 100% des modérateurs est requis pour que l'ajout soit effectif.
+        </p>
+      </div>
+    `);
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
+      to: moderatorEmail,
+      subject: `Validation requise — Ajout d'électeurs · ${scrutinTitle}`,
+      text: `Demande d'ajout de ${emails.length} électeur(s) à la session "${sessionTitle}" du scrutin "${scrutinTitle}".\n\nExaminer la demande : ${reviewLink}`,
+      html: body,
+      headers: baseHeaders,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error sending voter addition request email:', error);
+    return false;
+  }
+};
+
+// ─── notifyAdminOfVoterAdditionDecision ──────────────────────────────────────
+export const notifyAdminOfVoterAdditionDecision = async (adminEmail, moderatorEmail, decision, reason, scrutinTitle, sessionTitle, pendingCount, totalCount) => {
+  try {
+    const isApproved = decision === 'validate';
+    const statusColor = isApproved ? '#059669' : '#dc2626';
+    const statusBg = isApproved ? '#ecfdf5' : '#fef2f2';
+    const statusLabel = isApproved ? 'Validé ✓' : 'Invalidé ✗';
+
+    const body = emailWrapper(`
+      <div style="margin-bottom:20px;">
+        ${badge(statusLabel, statusBg, statusColor)}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
+        Décision sur l'ajout d'électeurs
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Un modérateur a rendu son verdict sur votre demande d'ajout d'électeurs.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:28px;">
+        <tbody>
+          ${infoRow('Scrutin', scrutinTitle)}
+          ${infoRow('Session', sessionTitle)}
+          ${infoRow('Modérateur', moderatorEmail)}
+          ${infoRow('Décision', `<span style="color:${statusColor};font-weight:900;">${statusLabel}</span>`)}
+          ${reason ? infoRow('Raison', `<em style="color:#dc2626;">${reason}</em>`) : ''}
+          ${infoRow('Validations reçues', `${pendingCount} / ${totalCount}`)}
+          ${infoRow('Date & heure', new Date().toLocaleString('fr-FR'))}
+        </tbody>
+      </table>
+
+      <p style="font-size:14px;color:#475569;line-height:1.7;">
+        Consultez le tableau de bord pour suivre l'état de la demande en temps réel.
+      </p>
+    `);
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
+      to: adminEmail,
+      subject: `Décision modérateur — Ajout d'électeurs · ${scrutinTitle}`,
+      text: `Le modérateur ${moderatorEmail} a ${isApproved ? 'validé' : 'invalidé'} l'ajout d'électeurs pour la session "${sessionTitle}".${reason ? `\nRaison : ${reason}` : ''}`,
+      html: body,
+      headers: baseHeaders,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error notifying admin of voter addition decision:', error);
+    return false;
+  }
+};
+
+// ─── notifyAdminVoterAdditionApproved ────────────────────────────────────────
+export const notifyAdminVoterAdditionApproved = async (adminEmail, emails, scrutinTitle, sessionTitle) => {
+  try {
+    const emailList = emails.slice(0, 10).map(e =>
+      `<li style="font-size:12px;font-family:monospace;color:#059669;padding:4px 0;border-bottom:1px solid #f0fdf4;">${e}</li>`
+    ).join('');
+    const more = emails.length > 10 ? `<li style="font-size:11px;color:#94a3b8;padding:4px 0;">… et ${emails.length - 10} autre(s)</li>` : '';
+
+    const body = emailWrapper(`
+      <div style="margin-bottom:20px;">
+        ${badge('Ajout approuvé ✓', '#ecfdf5', '#059669')}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
+        Électeurs ajoutés avec succès
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Le consensus de 100% des modérateurs a été atteint. <strong>${emails.length} électeur(s)</strong> ont été ajoutés à la session et peuvent désormais voter.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:20px;">
+        <tbody>
+          ${infoRow('Scrutin', scrutinTitle)}
+          ${infoRow('Session', `<span style="color:#059669;font-weight:800;">${sessionTitle}</span>`)}
+          ${infoRow('Électeurs ajoutés', `<strong style="color:#059669;">${emails.length}</strong>`)}
+        </tbody>
+      </table>
+
+      <p style="margin:0 0 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;">Emails ajoutés</p>
+      <ul style="margin:0;padding:12px 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;list-style:none;">
+        ${emailList}${more}
+      </ul>
+    `);
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
+      to: adminEmail,
+      subject: `✓ Électeurs ajoutés — ${scrutinTitle}`,
+      text: `${emails.length} électeur(s) ont été ajoutés à la session "${sessionTitle}" du scrutin "${scrutinTitle}" suite au consensus des modérateurs.`,
+      html: body,
+      headers: baseHeaders,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error sending voter addition approved email:', error);
+    return false;
+  }
+};
+
+// ─── notifyAdminVoterAdditionRejected ────────────────────────────────────────
+export const notifyAdminVoterAdditionRejected = async (adminEmail, moderatorEmail, reason, scrutinTitle, sessionTitle) => {
+  try {
+    const body = emailWrapper(`
+      <div style="margin-bottom:20px;">
+        ${badge('Ajout rejeté ✗', '#fef2f2', '#dc2626')}
+      </div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
+        Demande d'ajout d'électeurs rejetée
+      </h2>
+      <p style="margin:0 0 28px;font-size:14px;color:#64748b;">
+        Un modérateur a invalidé votre demande d'ajout d'électeurs. L'ajout n'a pas été effectué.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:6px 20px;margin-bottom:28px;">
+        <tbody>
+          ${infoRow('Scrutin', scrutinTitle)}
+          ${infoRow('Session', sessionTitle)}
+          ${infoRow('Modérateur ayant invalidé', moderatorEmail)}
+          ${reason ? infoRow('Raison fournie', `<em style="color:#dc2626;">${reason}</em>`) : ''}
+        </tbody>
+      </table>
+
+      <p style="font-size:14px;color:#475569;line-height:1.7;">
+        Vous pouvez soumettre une nouvelle demande depuis le tableau de bord si nécessaire.
+      </p>
+    `);
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
+      to: adminEmail,
+      subject: `✗ Ajout d'électeurs rejeté — ${scrutinTitle}`,
+      text: `Votre demande d'ajout d'électeurs à la session "${sessionTitle}" a été rejetée par ${moderatorEmail}.${reason ? `\nRaison : ${reason}` : ''}`,
+      html: body,
+      headers: baseHeaders,
+    });
+    return true;
+  } catch (error) {
+    console.error('Error sending voter addition rejected email:', error);
+    return false;
+  }
+};
+
 // ─── sendCredentials ──────────────────────────────────────────────────────
 export const sendCredentials = async (email, name, password, role, orgName = null) => {
   try {

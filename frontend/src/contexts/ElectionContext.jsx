@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import axios from 'axios'
 import { useAuth } from './AuthContext'
 
 const ElectionContext = createContext()
@@ -20,7 +19,6 @@ export function ElectionProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const fetchElections = async () => {
-    console.log('🏁 [CONTEXT] fetchElections triggered');
     try {
       setLoading(true)
       let url = `${API_BASE}/scrutins`
@@ -63,15 +61,13 @@ export function ElectionProvider({ children }) {
             votedCount: scrutin.votedCount || 0,
             timeSeries: scrutin.timeSeries || [],
             voters: scrutin.voters || [],
-            voterCount: scrutin.voters?.length || sessions.reduce((acc, s) => acc + (s.voterCount || 0), 0),
+            voterCount: new Set([...(scrutin.voters || []), ...sessions.flatMap(s => s.voters || [])]).size || 0,
             status: allValidated ? 'active' : 'pending_validation',
             isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated),
             showResultsToVoters: scrutin.showResultsToVoters ?? true
           }
         })
         setElections(mapped)
-        console.log('[CONTEXT] Stats Check:', mapped.map(e => ({ id: e.id, votes: e.votes, ts: e.timeSeries })));
-        console.log('[CONTEXT] Elections fetched and mapped:', mapped.length);
       }
     } catch (error) {
       console.error('Fetch elections error:', error)

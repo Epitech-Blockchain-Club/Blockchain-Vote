@@ -24,6 +24,7 @@ import OAuthCallbackPage from './Pages/OAuthCallbackPage'
 import NotFoundPage from './Pages/NotFoundPage'
 import ModeratorReportPage from './Pages/ModeratorReportPage'
 import PrivacyPage from './Pages/PrivacyPage'
+import VoterAdditionDecisionPage from './Pages/VoterAdditionDecisionPage'
 
 function App() {
   return (
@@ -78,6 +79,7 @@ function App() {
                   <Route path="/moderate/:id/:sessionId" element={<ModeratorPortalPage />} />
                   <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
                   <Route path="/monitor/:id" element={<ModeratorReportPage />} />
+                  <Route path="/voter-addition/:id" element={<VoterAdditionDecisionPage />} />
                   <Route path="/confidentialite" element={<PrivacyPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>

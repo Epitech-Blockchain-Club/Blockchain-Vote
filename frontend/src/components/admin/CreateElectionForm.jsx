@@ -274,7 +274,7 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
                   <div className="h-12 w-12 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden">
                     {part.imageUrl ? <img src={part.imageUrl} alt="Logo" className="h-full w-full object-cover" /> : <CameraIcon className="w-5 h-5 text-slate-300" />}
                   </div>
-                  <label className="absolute -bottom-1.5 -right-1.5 h-5 w-5 bg-primary-600 rounded-md flex items-center justify-center cursor-pointer shadow hover:bg-primary-700">
+                  <label className="absolute -bottom-1.5 -right-1.5 h-5 w-5 bg-primary-600 rounded-lg flex items-center justify-center cursor-pointer shadow hover:bg-primary-700">
                     <PlusIcon className="w-3 h-3 text-white" />
                     <input type="file" className="hidden" accept="image/*" onChange={e => setPartPhoto(pi, e)} />
                   </label>
@@ -286,7 +286,7 @@ const VoteSessionForm = ({ session, sessionNumber, totalSessions, onChange, onRe
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Membres</label>
-                  <button type="button" onClick={() => addMember(pi)} className="flex items-center gap-1 text-[10px] font-black text-primary-600 border border-primary-200 px-2 py-0.5 rounded-md hover:bg-primary-50">
+                  <button type="button" onClick={() => addMember(pi)} className="flex items-center gap-1 text-[10px] font-black text-primary-600 border border-primary-200 px-2 py-0.5 rounded-lg hover:bg-primary-50">
                     <PlusIcon className="w-3 h-3" /> + membre
                   </button>
                 </div>
@@ -410,15 +410,15 @@ const CreateElectionForm = () => {
     try {
       const allVoters = new Set()
       formData.voteSessions.forEach(session => {
-        session.votersText.split(/[\n,;]/).map(s => s.trim()).filter(Boolean).forEach(v => allVoters.add(v))
+        session.votersText.split(/[\n,;]/).map(s => s.trim().toLowerCase()).filter(Boolean).forEach(v => allVoters.add(v))
       })
       const payload = {
         ...formData,
         voters: Array.from(allVoters),
         voteSessions: formData.voteSessions.map(session => ({
           ...session,
-          moderators: session.moderatorsText ? session.moderatorsText.split(/[\n,;]/).map(e => e.trim()).filter(Boolean) : [],
-          voters: session.votersText ? session.votersText.split(/[\n,;]/).map(e => e.trim()).filter(Boolean) : []
+          moderators: [...new Set((session.moderatorsText || '').split(/[\n,;]/).map(e => e.trim().toLowerCase()).filter(Boolean))],
+          voters:    [...new Set((session.votersText    || '').split(/[\n,;]/).map(e => e.trim().toLowerCase()).filter(Boolean))]
         }))
       }
       const result = await addElection(payload)
@@ -620,7 +620,7 @@ const CreateElectionForm = () => {
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-500 font-medium">Électeurs totaux</span>
                   <span className="text-sm font-black text-slate-900">
-                    {new Set(formData.voteSessions.flatMap(s => s.votersText.split(/[\n,;]/).map(v => v.trim()).filter(Boolean))).size}
+                    {new Set(formData.voteSessions.flatMap(s => s.votersText.split(/[\n,;]/).map(v => v.trim().toLowerCase()).filter(Boolean))).size}
                   </span>
                 </div>
               </div>
@@ -629,8 +629,8 @@ const CreateElectionForm = () => {
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Résumé des Sessions</h3>
               <div className="space-y-4">
                 {formData.voteSessions.map((s, i) => {
-                  const voters = s.votersText ? s.votersText.split(/[\n,;]/).map(v => v.trim()).filter(Boolean) : [];
-                  const mods = (s.moderators || []).filter(Boolean);
+                  const voters = [...new Set((s.votersText || '').split(/[\n,;]/).map(v => v.trim().toLowerCase()).filter(Boolean))];
+                  const mods = [...new Set((s.moderatorsText || '').split(/[\n,;]/).map(e => e.trim().toLowerCase()).filter(Boolean))];
                   return (
                     <div key={s.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                       <div className="flex items-center gap-3">

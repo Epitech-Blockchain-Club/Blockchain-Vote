@@ -198,7 +198,7 @@ if (!import.meta.env.VITE_API_URL) {
                   </>
                 ) : (
                   <>
-                    <div className="w-16 h-16 bg-primary-50 rounded-[20px] flex items-center justify-center mx-auto mb-5 border border-primary-100">
+                    <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-primary-100">
                       <DocumentCheckIcon className="w-8 h-8 text-primary-400" />
                     </div>
                     <p className="text-slate-900 font-black text-xl mb-2 tracking-tight">Aucun scrutin pour l'instant</p>

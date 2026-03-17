@@ -85,7 +85,7 @@ const VoterInterface = ({ election, authorizedSessions, user }) => {
                 <motion.div
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="w-20 h-20 bg-emerald-100 rounded-[28px] flex items-center justify-center mb-6 border border-emerald-200"
+                    className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mb-6 border border-emerald-200"
                 >
                     <CheckBadgeIcon className="h-10 w-10 text-emerald-600" />
                 </motion.div>

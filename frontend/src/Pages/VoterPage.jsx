@@ -85,7 +85,7 @@ const VoterPage = () => {
                 <div className="hidden sm:flex h-[200px] bg-[#F1F5F9] relative flex-col items-center justify-center overflow-hidden">
                     <div className="absolute inset-0 opacity-[0.4] pointer-events-none"
                         style={{ backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
-                    <div className="w-16 h-16 bg-white rounded-[24px] shadow-sm flex items-center justify-center mb-4 relative z-10">
+                    <div className="w-16 h-16 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-4 relative z-10">
                         <ShieldCheckIconSolid className="h-8 w-8 text-primary-600" />
                     </div>
                     <h2 className="hidden sm:block text-xl font-black text-[#334155] uppercase tracking-[0.1em] relative z-10">Portail de vote sécurisé</h2>
@@ -182,7 +182,7 @@ const VoterPage = () => {
             </div>
 
             {/* Bottom Info Section (Blockchain Badge) */}
-            <div className="mt-8 max-w-[440px] w-full bg-[#F1F5F9]/50 backdrop-blur-sm border border-slate-200 rounded-[28px] p-5 flex items-center gap-4">
+            <div className="mt-8 max-w-[440px] w-full bg-[#F1F5F9]/50 backdrop-blur-sm border border-slate-200 rounded-3xl p-5 flex items-center gap-4">
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
                     <ShieldCheckIcon className="w-6 h-6 text-primary-600" />
                 </div>

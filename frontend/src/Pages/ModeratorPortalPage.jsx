@@ -550,10 +550,10 @@ if (!import.meta.env.VITE_API_URL) {
                                             <div className="mt-1 flex gap-2">
                                                 <StatusBadge status={decision.status} />
                                                 {!userIsModerator && (
-                                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">Non assigné</span>
+                                                    <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">Non assigné</span>
                                                 )}
                                                 {decision.status !== 'pending' && !isSubmitted && (
-                                                    <span className="text-[8px] font-black uppercase text-secondary-500 bg-secondary-50 px-2 py-0.5 rounded-md border border-secondary-100">Brouillon</span>
+                                                    <span className="text-[8px] font-black uppercase text-secondary-500 bg-secondary-50 px-2 py-0.5 rounded-lg border border-secondary-100">Brouillon</span>
                                                 )}
                                             </div>
                                         </div>
@@ -657,7 +657,7 @@ if (!import.meta.env.VITE_API_URL) {
                                                                 <div className="flex flex-wrap gap-2 ml-14 text-left">
                                                                     {part.members.map(m => (
                                                                         <div key={m.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-left">
-                                                                            <div className="h-5 w-5 rounded-md bg-slate-100 overflow-hidden flex items-center justify-center text-center">
+                                                                            <div className="h-5 w-5 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center text-center">
                                                                                 {m.photoUrl
                                                                                     ? <img src={m.photoUrl} alt={m.name} className="h-full w-full object-cover" />
                                                                                     : <UserCircleIcon className="w-4 h-4 text-slate-400" />}

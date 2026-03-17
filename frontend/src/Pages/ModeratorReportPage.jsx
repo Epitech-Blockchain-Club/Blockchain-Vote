@@ -109,7 +109,7 @@ const ModeratorReportPage = () => {
     // ── PDF Export ─────────────────────────────────────────────────────────────
     const handleExportPDF = () => {
         const totalVotesAll = results?.reduce((acc, s) => acc + (s.totalVotes || 0), 0) ?? 0
-        const participation = voterCount > 0 ? ((votedCount / voterCount) * 100).toFixed(1) : 0
+        const participation = voterCount > 0 ? Math.round((votedCount / voterCount) * 100) : 0
         const abstentions = Math.max(0, voterCount - votedCount)
 
         const sessionsHtml = (results || []).map(session => `
@@ -249,7 +249,7 @@ const ModeratorReportPage = () => {
 
     // ── Live report ────────────────────────────────────────────────────────
     const totalVotes = results?.reduce((acc, s) => acc + (s.totalVotes || 0), 0) ?? 0
-    const participation = voterCount > 0 ? parseFloat(((votedCount / voterCount) * 100).toFixed(1)) : 0
+    const participation = voterCount > 0 ? Math.round((votedCount / voterCount) * 100) : 0
     const abstentions = Math.max(0, voterCount - votedCount)
 
     return (
@@ -298,7 +298,7 @@ const ModeratorReportPage = () => {
                             />
                         </div>
                         <p className="text-xs text-slate-400 font-bold mt-1">
-                            {voterCount > 0 ? ((abstentions / voterCount) * 100).toFixed(1) : 0}% du collège
+                            {voterCount > 0 ? Math.round((abstentions / voterCount) * 100) : 0}% du collège
                         </p>
                     </div>
                 </div>

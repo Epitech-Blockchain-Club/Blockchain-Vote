@@ -199,7 +199,7 @@ if (!import.meta.env.VITE_API_URL) {
                     <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
                 </button>
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-[20px] bg-primary-100 flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-primary-100 flex items-center justify-center shrink-0">
                         <BuildingOfficeIcon className="h-6 w-6 sm:h-7 sm:w-7 text-primary-600" />
                     </div>
                     <div className="min-w-0">
