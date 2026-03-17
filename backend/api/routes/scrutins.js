@@ -315,6 +315,15 @@ router.get('/authorized', async (req, res) => {
             }
 
             if (voterSessions.length > 0) {
+                const now   = new Date();
+                const start = metadata.startDate ? new Date(metadata.startDate) : null;
+                const end   = metadata.endDate   ? new Date(metadata.endDate)   : null;
+                const isActive = (!start || now >= start) && (!end || now <= end);
+                if (!isActive) continue;
+
+                const alreadyVoted = await storage.hasVoterVoted(email, laddr);
+                if (alreadyVoted) continue;
+
                 authorizedScrutins.push({
                     address:   laddr,
                     title:     metadata.title,
@@ -347,6 +356,12 @@ router.post('/:address/vote', async (req, res) => {
 
         const metadata = await storage.getScrutin(scrutinAddress);
         if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
+
+        const now   = new Date();
+        const start = metadata.startDate ? new Date(metadata.startDate) : null;
+        const end   = metadata.endDate   ? new Date(metadata.endDate)   : null;
+        if ((start && now < start) || (end && now > end))
+            return res.status(403).json({ success: false, error: 'Ce scrutin n\'est pas en cours.' });
 
         const txHashes = [];
         for (const [sAddr, optionIdx] of Object.entries(selections)) {

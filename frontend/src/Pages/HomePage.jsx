@@ -145,7 +145,7 @@ const HomePage = () => {
                       <ShieldCheckIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Status</p>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Statut</p>
                       <p className="text-lg font-black text-slate-900">{t({ fr: '100% Immuable', en: '100% Immutable' })}</p>
                     </div>
                   </div>

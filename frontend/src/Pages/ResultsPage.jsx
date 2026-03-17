@@ -31,14 +31,20 @@ const ResultsPage = () => {
   }, [selectedElection, getResults])
 
   const handleExport = () => {
-    if (!election) return
+    if (!election || !backendResults) return
 
     const data = {
       election: election.title,
+      address: election.id,
       date: new Date().toLocaleString(),
-      results: election.candidates.map(c => ({
-        candidat: c.name,
-        votes: election.votes?.[c.id] || 0
+      sessions: backendResults.map(session => ({
+        session: session.title,
+        totalVotes: session.totalVotes,
+        results: session.candidates.map(c => ({
+          candidat: c.title || c.label,
+          votes: c.voteCount,
+          pourcentage: `${c.percentage}%`
+        }))
       }))
     }
 
@@ -123,7 +129,7 @@ const ResultsPage = () => {
 
           {/* Graphique des résultats */}
           <div className="h-96 mb-8">
-            <ResultsChart election={election} />
+            <ResultsChart sessions={backendResults} />
           </div>
 
           {/* Tableau détaillé (multi-session) */}
@@ -132,7 +138,11 @@ const ResultsPage = () => {
               <div className="flex items-center justify-center py-10">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
               </div>
-            ) : backendResults?.map((session, sIdx) => (
+            ) : !backendResults || backendResults.length === 0 ? (
+              <div className="py-10 text-center border-2 border-dashed border-slate-100 rounded-3xl">
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aucun résultat disponible pour ce scrutin</p>
+              </div>
+            ) : backendResults.map((session, sIdx) => (
               <div key={session.address}>
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 text-[10px] font-black flex items-center justify-center italic">#{sIdx + 1}</span>
@@ -189,7 +199,7 @@ const ResultsPage = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="flex-1 w-full bg-slate-800 p-3 rounded-xl border border-slate-700 font-mono text-[10px] text-primary-400 break-all">
-                0x742d35Cc6634C0532925a3b844BcAc4e4f3e6e5a
+                {election.id}
               </div>
               <Link to="/verify" className="w-full sm:w-auto">
                 <Button size="sm" className="w-full bg-white text-slate-900 hover:bg-slate-100 h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest">

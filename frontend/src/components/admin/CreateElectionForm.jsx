@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -12,6 +12,7 @@ import Button from '../common/Button'
 import Card from '../common/Card'
 import { useElections } from '../../contexts/ElectionContext'
 import { COUNTRIES } from '../../constants/countries'
+import { QRCodeCanvas } from 'qrcode.react'
 
 // ─── factories ────────────────────────────────────────────────────────────────
 const makeMember = () => ({ id: Date.now() + Math.random(), name: '', photoUrl: '' })
@@ -330,6 +331,17 @@ const CreateElectionForm = () => {
   const [loading, setLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [generatedLink, setGeneratedLink] = useState('')
+  const qrRef = useRef(null)
+
+  const downloadQR = () => {
+    const canvas = qrRef.current?.querySelector('canvas')
+    if (!canvas) return
+    const url = canvas.toDataURL('image/png')
+    const a = document.createElement('a')
+    a.download = 'epivote-qrcode.png'
+    a.href = url
+    a.click()
+  }
 
   const [formData, setFormData] = useState({
     title: '', description: '', scope: 'international', country: '',
@@ -446,8 +458,17 @@ const CreateElectionForm = () => {
                 Copier
               </button>
             </div>
-            <div className="mt-4 mx-auto w-fit">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatedLink)}`} alt="QR Code" className="w-28 h-28 rounded-xl" />
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <div ref={qrRef} className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <QRCodeCanvas value={generatedLink} size={140} level="H" includeMargin={false} />
+              </div>
+              <button
+                onClick={downloadQR}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-black transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Télécharger le QR Code
+              </button>
             </div>
           </div>
           <Button size="lg" onClick={() => navigate('/admin')} className="h-14 px-12 rounded-2xl">Retour au Dashboard</Button>

@@ -1,11 +1,13 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-const ResultsChart = ({ election }) => {
-  const data = election.candidates.map(candidate => ({
-    name: candidate.name,
-    votes: election.votes?.[candidate.id] || 0
-  }))
+const ResultsChart = ({ sessions }) => {
+  const data = (sessions || []).flatMap(session =>
+    (session.candidates || []).map(c => ({
+      name: c.title || c.label || `Option ${c.id}`,
+      votes: c.voteCount || 0
+    }))
+  )
 
   return (
     <ResponsiveContainer width="100%" height="100%">

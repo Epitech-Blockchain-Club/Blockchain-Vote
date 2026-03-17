@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/common/Button';
@@ -16,12 +16,19 @@ if (!import.meta.env.VITE_API_URL) {
 
 const VoterPage = () => {
     const navigate = useNavigate();
-    const { loginWithGoogle, loginWithOffice365 } = useAuth();
+    const { loginWithGoogle, loginWithOffice365, user } = useAuth();
     const [email, setEmail] = useState('');
     const [searching, setSearching] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [availableElections, setAvailableElections] = useState([]);
     const [selectedElection, setSelectedElection] = useState('');
+
+    // Si l'admin/superadmin est déjà connecté, chercher directement ses scrutins
+    useEffect(() => {
+        if (user?.email && ['admin', 'superadmin'].includes(user.role) && !isAuthenticated) {
+            autoSearch(user.email);
+        }
+    }, [user]);
 
     const autoSearch = async (userEmail) => {
         if (!userEmail) return;

@@ -8,12 +8,29 @@ const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: smtpPort,
-  secure: smtpPort === 465, // true for 465 (Implicit TLS), false for other ports (STARTTLS)
+  secure: smtpPort === 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: true,
+    minVersion: 'TLSv1.2',
+  },
 });
+
+// From doit correspondre exactement au compte SMTP pour éviter le spam
+const SMTP_FROM = process.env.SMTP_USER
+  ? `"EpiVote" <${process.env.SMTP_USER}>`
+  : (process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>');
+const REPLY_TO = process.env.SMTP_FROM || 'noreply@epivote.epitech.eu';
+
+const baseHeaders = {
+  'List-Unsubscribe': `<mailto:${process.env.SMTP_USER || 'noreply@epivote.epitech.eu'}?subject=unsubscribe>`,
+  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  'X-Mailer': 'EpiVote Mailer',
+  'Precedence': 'bulk',
+};
 
 transporter.verify(function (error, success) {
   if (error) {
@@ -130,17 +147,19 @@ export const sendModeratorInvitation = async (email, electionTitle, sessionTitle
 
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-top:8px;">
         <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
-          ⚠️ Lien à usage unique. Une fois votre décision soumise, ce lien sera désactivé.
+          Lien à usage unique. Une fois votre décision soumise, ce lien sera désactivé.
         </p>
       </div>
     `);
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
       to: email,
-      subject: `[Modération] Invitation — ${electionTitle}`,
-      text: `Bonjour,\n\nVous avez été désigné modérateur pour la session "${sessionTitle}" du scrutin "${electionTitle}".\n\nPortal: ${portalLink}\n\nCordialement,\nL'équipe EpiVote`,
+      subject: `Invitation à modérer — ${electionTitle}`,
+      text: `Bonjour,\n\nVous avez été désigné modérateur pour la session "${sessionTitle}" du scrutin "${electionTitle}".\n\nAccédez au portail : ${portalLink}\n\nCordialement,\nL'équipe EpiVote`,
       html: body,
+      headers: baseHeaders,
     });
     console.log("Moderator invitation sent to", email, "MessageId:", info.messageId);
     return true;
@@ -184,11 +203,13 @@ export const notifyAdminOfDecision = async (adminEmail, result, moderatorEmail, 
     `);
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
       to: adminEmail,
-      subject: `[EpiVote] Verdict modérateur — ${sessionTitle}`,
+      subject: `Verdict modérateur — ${sessionTitle}`,
       text: `Le modérateur ${moderatorEmail} a ${isApproved ? 'validé' : 'invalidé'} la session "${sessionTitle}".`,
       html: body,
+      headers: baseHeaders,
     });
     return true;
   } catch (error) {
@@ -211,7 +232,7 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
 
     const body = emailWrapper(`
       <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:${BRAND_DARK};">
-        Bienvenue sur EpiVote 🎉
+        Bienvenue sur EpiVote
       </h2>
       <p style="margin:0 0 6px;font-size:14px;color:#64748b;">Bonjour <strong style="color:${BRAND_DARK};">${name || email}</strong>,</p>
       <div style="margin-bottom:24px;">
@@ -243,16 +264,19 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
 
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;">
         <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
-          🔒 Sécurité : Veuillez changer votre mot de passe dès votre première connexion. Ne partagez jamais ces identifiants.
+          Securite : Veuillez changer votre mot de passe des votre premiere connexion. Ne partagez jamais ces identifiants.
         </p>
       </div>
     `);
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"EpiVote" <noreply@epivote.epitech.eu>',
+      from: SMTP_FROM,
+      replyTo: REPLY_TO,
       to: email,
-      subject: `[EpiVote] Vos identifiants ${roleLabel}${orgName ? ` — ${orgName}` : ''}`,
+      subject: `Vos identifiants EpiVote — ${roleLabel}${orgName ? ` (${orgName})` : ''}`,
+      text: `Bonjour ${name || email},\n\nUn compte ${roleLabel} a été créé pour vous sur EpiVote.\n\nEmail : ${email}\nMot de passe temporaire : ${password}\n\nConnectez-vous ici : ${loginUrl}\n\nChangez votre mot de passe dès la première connexion.\n\nCordialement,\nL'équipe EpiVote`,
       html: body,
+      headers: baseHeaders,
     });
     console.log("Credentials email sent to", email, "role:", role, "MessageId:", info.messageId);
     return true;

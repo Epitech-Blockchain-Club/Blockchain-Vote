@@ -92,10 +92,8 @@ const ElectionPage = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           {[
-            { icon: <CalendarIcon className="h-6 w-6 text-primary-500" />, label: "Ouverture", value: new Date(election.startDate).toLocaleDateString() },
-            { icon: <CalendarIcon className="h-6 w-6 text-primary-500" />, label: "Fermeture", value: new Date(election.endDate).toLocaleDateString() },
             { icon: <MapPinIcon className="h-6 w-6 text-secondary-500" />, label: "Territoire", value: COUNTRY_NAMES[election.country] || "Global" },
             { icon: <UserGroupIcon className="h-6 w-6 text-primary-500" />, label: "Participation", value: `${election.voters?.length || 0} inscrits` }
           ].map((stat, i) => (
@@ -110,7 +108,7 @@ const ElectionPage = () => {
         </div>
 
         <div className="mb-16">
-          <CountdownTimer targetDate={election.endDate} />
+          <CountdownTimer startDate={election.startDate} endDate={election.endDate} />
         </div>
 
         <div className="mt-20 mb-8 flex justify-between items-end">

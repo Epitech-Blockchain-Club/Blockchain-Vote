@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ShieldCheckIcon as ShieldCheckIconSolid } from '@heroicons/react/24/solid';
 import Button from '../common/Button';
+import CountdownTimer from '../common/CountdownTimer';
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const VoterInterface = ({ election, authorizedSessions, user }) => {
@@ -150,6 +151,7 @@ const VoterInterface = ({ election, authorizedSessions, user }) => {
             </div>
 
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-12 sm:space-y-16">
+                <CountdownTimer startDate={election.startDate} endDate={election.endDate} />
                 {authorizedSessions.map((session, sIdx) => (
                     <section key={session.address || sIdx} className="space-y-6 sm:space-y-8 animate-slide-up">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
