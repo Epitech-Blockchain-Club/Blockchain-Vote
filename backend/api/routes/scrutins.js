@@ -538,7 +538,7 @@ router.get('/:address/monitor-access', async (req, res) => {
         if (!isModerator)
             return res.status(403).json({ success: false, error: 'Accès refusé — vous n\'êtes pas modérateur de ce scrutin' });
 
-        const voterCount = metadata.voterCount || 0;
+        const voterCount = (metadata.voters || []).length;
         const votedCount = await storage.countVotersForScrutin(addr);
 
         res.json({ success: true, scrutin: { title: metadata.title, address: addr, voterCount, votedCount } });
@@ -596,7 +596,7 @@ router.get('/:address/results', async (req, res) => {
         }));
 
         const votedCount = await storage.countVotersForScrutin(address);
-        res.json({ success: true, data: results, voterCount: metadata.voterCount || 0, votedCount });
+        res.json({ success: true, data: results, voterCount: (metadata.voters || []).length, votedCount });
     } catch (error) {
         console.error('Error fetching results:', error);
         res.status(500).json({ success: false, error: error.message });
