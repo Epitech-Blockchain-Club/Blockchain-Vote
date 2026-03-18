@@ -220,7 +220,7 @@ router.get('/', async (req, res) => {
                                 timestamp: d ? d.createdAt : null,
                             };
                         }),
-                        voterCount: (sessionMetadata.voters || []).length,
+                        voterCount: new Set((sessionMetadata.voters || []).map(e => e.toLowerCase())).size,
                         votes: sessionVotes.reduce((acc, v) => {
                             acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
                             return acc;
@@ -265,7 +265,7 @@ router.get('/', async (req, res) => {
                 votes:      aggregatedVotes,
                 votedCount,
                 timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
-                voterCount: (metadata.voters || []).length,
+                voterCount: new Set((metadata.voters || []).map(e => e.toLowerCase())).size,
             };
         }));
 
@@ -383,11 +383,12 @@ router.get('/:address', async (req, res) => {
                 });
             });
 
+            const dedupedVoters = [...new Set((s.voters || []).map(e => e.toLowerCase()))];
             return {
                 ...s,
                 address: sAddr,
-                voters: s.voters || [],
-                voterCount: (s.voters || []).length,
+                voters: dedupedVoters,
+                voterCount: dedupedVoters.length,
                 votes: sessionVotes.reduce((acc, v) => {
                     acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
                     return acc;
@@ -409,13 +410,19 @@ router.get('/:address', async (req, res) => {
         const timeSeries = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         const votedCount = (await storage.getVotersForScrutin(addr)).length;
 
+        // Global voterCount = union dédupliquée de tous les voters (sessions + global)
+        const allVotersSet = new Set([
+            ...(metadata.voters || []).map(e => e.toLowerCase()),
+            ...sessions.flatMap(s => (s.voters || []).map(e => e.toLowerCase())),
+        ]);
+
         res.json({
             success: true,
             data: {
                 ...metadata,
                 sessions,
-                voters:     metadata.voters || [],
-                voterCount: (metadata.voters || []).length,
+                voters:     [...allVotersSet],
+                voterCount: allVotersSet.size,
                 votedCount,
                 timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
             },
@@ -538,7 +545,7 @@ router.get('/:address/monitor-access', async (req, res) => {
         if (!isModerator)
             return res.status(403).json({ success: false, error: 'Accès refusé — vous n\'êtes pas modérateur de ce scrutin' });
 
-        const voterCount = (metadata.voters || []).length;
+        const voterCount = new Set((metadata.voters || []).map(e => e.toLowerCase())).size;
         const votedCount = await storage.countVotersForScrutin(addr);
 
         res.json({ success: true, scrutin: { title: metadata.title, address: addr, voterCount, votedCount } });
@@ -596,7 +603,7 @@ router.get('/:address/results', async (req, res) => {
         }));
 
         const votedCount = await storage.countVotersForScrutin(address);
-        res.json({ success: true, data: results, voterCount: (metadata.voters || []).length, votedCount });
+        res.json({ success: true, data: results, voterCount: new Set((metadata.voters || []).map(e => e.toLowerCase())).size, votedCount });
     } catch (error) {
         console.error('Error fetching results:', error);
         res.status(500).json({ success: false, error: error.message });
