@@ -3,17 +3,17 @@ import { ethers } from 'ethers';
 import { getFactoryContract, getScrutinContract, getVoteSessionContract, getNextNonce } from '../services/blockchain.js';
 import { storage } from '../services/storage.js';
 import { sendModeratorInvitation } from '../services/email.js';
-import { requireSuperAdmin, requireAdmin } from '../middleware/auth.js';
+import { requireSuperAdmin, requireAdmin, requireAuth, requireStaff } from '../middleware/auth.js';
 import crypto from 'crypto';
 
 const router = express.Router();
 
-// GET /api/scrutins/available
-router.get('/available', async (req, res) => {
+// GET /api/scrutins/available — voter auth required
+router.get('/available', requireAuth, async (req, res) => {
     try {
-        const { email } = req.query;
+        const email = req.jwtUser.email.toLowerCase();
         if (!email)
-            return res.status(400).json({ success: false, error: 'Email parameter is required' });
+            return res.status(400).json({ success: false, error: 'Email is required in token' });
 
         const voterEmail = email.toLowerCase();
         const allScrutins = await storage.getAllScrutins();
@@ -49,15 +49,15 @@ router.get('/available', async (req, res) => {
     }
 });
 
-// POST /api/scrutins
-router.post('/', async (req, res) => {
+// POST /api/scrutins — admin only
+router.post('/', requireAdmin, async (req, res) => {
     try {
         const { title, description, scope, country, timingMode, startDate, endDate, voteSessions, voters, logoUrl } = req.body;
         console.log(`[SCRUTIN] Creating new scrutin`);
 
         const factory = getFactoryContract();
         const startTime = Math.floor(new Date(startDate || Date.now()).getTime() / 1000);
-        const endTime   = Math.floor(new Date(endDate   || Date.now() + 86400000).getTime() / 1000);
+        const endTime = Math.floor(new Date(endDate || Date.now() + 86400000).getTime() / 1000);
 
         const tx = await factory.createScrutin(
             title, description || '', scope || '', country || '', startTime, endTime,
@@ -148,18 +148,18 @@ router.post('/', async (req, res) => {
     }
 });
 
-// GET /api/scrutins
-router.get('/', async (req, res) => {
+// GET /api/scrutins - Staff only (Admin/Moderator)
+router.get('/', requireStaff, async (req, res) => {
     try {
         const orgFilter = req.query.org?.toLowerCase();
-        const factory   = getFactoryContract();
+        const factory = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
 
         const scrutins = await Promise.all(addresses.map(async (addr) => {
             const metadata = await storage.getScrutin(addr) || {};
             const contract = getScrutinContract(addr);
 
-            let sessions     = [];
+            let sessions = [];
             let sessionAddrs = [];
 
             try {
@@ -179,8 +179,8 @@ router.get('/', async (req, res) => {
                             ]);
 
                             if ((isValidated || isInvalidated) && metadata.sessions?.[idx]) {
-                                metadata.sessions[idx].isValidated        = isValidated;
-                                metadata.sessions[idx].isInvalidated      = isInvalidated;
+                                metadata.sessions[idx].isValidated = isValidated;
+                                metadata.sessions[idx].isInvalidated = isInvalidated;
                                 metadata.sessions[idx].invalidationReason = invalidationReason;
                                 await storage.saveScrutin(addr, metadata);
                             }
@@ -194,28 +194,28 @@ router.get('/', async (req, res) => {
                         await storage.saveScrutin(addr, metadata);
                     }
 
-                    const decisions    = await storage.getSessionDecisions(sAddr);
-                    const validations  = decisions.filter(d => d.decision === 'validate').length;
-                    const totalMods    = (sessionMetadata.moderators || []).length;
+                    const decisions = await storage.getSessionDecisions(sAddr);
+                    const validations = decisions.filter(d => d.decision === 'validate').length;
+                    const totalMods = (sessionMetadata.moderators || []).length;
                     const sessionVotes = await storage.getVotesLog(sAddr);
 
                     return {
-                        title:              sessionMetadata.title,
-                        description:        sessionMetadata.description,
-                        options:            sessionMetadata.options || [],
-                        txHash:             sessionMetadata.txHash,
-                        address:            sAddr,
+                        title: sessionMetadata.title,
+                        description: sessionMetadata.description,
+                        options: sessionMetadata.options || [],
+                        txHash: sessionMetadata.txHash,
+                        address: sAddr,
                         isValidated,
                         isInvalidated,
                         invalidationReason,
                         consensusPercentage: totalMods > 0 ? Math.round((validations / totalMods) * 100) : 0,
-                        validationCount:    validations,
-                        moderatorCount:     totalMods,
+                        validationCount: validations,
+                        moderatorCount: totalMods,
                         moderators: (sessionMetadata.moderators || []).map(email => {
                             const d = decisions.find(dec => dec.email.toLowerCase() === email.toLowerCase());
                             return {
                                 email,
-                                status:    d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
+                                status: d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
                                 timestamp: d ? d.createdAt : null,
                             };
                         }),
@@ -232,8 +232,8 @@ router.get('/', async (req, res) => {
             }
 
             // Aggregate votes + time series
-            const aggregatedVotes  = {};
-            const timeSeriesArray  = [];
+            const aggregatedVotes = {};
+            const timeSeriesArray = [];
 
             await Promise.all(sessions.map(async s => {
                 if (!s.address || s.address === 'unknown') return;
@@ -246,22 +246,22 @@ router.get('/', async (req, res) => {
                 });
             }));
 
-            const timeSeries  = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            const votedCount  = (await storage.getVotersForScrutin(addr)).length;
+            const timeSeries = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const votedCount = (await storage.getVotersForScrutin(addr)).length;
 
             return {
                 address: addr,
-                title:       metadata.title,
+                title: metadata.title,
                 description: metadata.description,
-                scope:       metadata.scope,
-                country:     metadata.country,
-                logoUrl:     metadata.logoUrl,
-                startDate:   metadata.startDate,
-                endDate:     metadata.endDate,
-                type:        metadata.type,
+                scope: metadata.scope,
+                country: metadata.country,
+                logoUrl: metadata.logoUrl,
+                startDate: metadata.startDate,
+                endDate: metadata.endDate,
+                type: metadata.type,
                 showResultsToVoters: metadata.showResultsToVoters,
                 sessions,
-                votes:      aggregatedVotes,
+                votes: aggregatedVotes,
                 votedCount,
                 timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
                 voterCount: new Set((metadata.voters || []).map(e => e.toLowerCase())).size,
@@ -278,23 +278,23 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET /api/scrutins/authorized
-router.get('/authorized', async (req, res) => {
+// GET /api/scrutins/authorized — voter auth required
+router.get('/authorized', requireAuth, async (req, res) => {
     try {
-        const email = req.query.email?.toLowerCase();
+        const email = req.jwtUser.email.toLowerCase();
         if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
-        const factory   = getFactoryContract();
+        const factory = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
 
         const authorizedScrutins = [];
 
         for (const addr of addresses) {
-            const laddr    = addr.toLowerCase();
+            const laddr = addr.toLowerCase();
             const metadata = await storage.getScrutin(laddr) || {};
             if (!metadata.sessions?.length) continue;
 
-            const contract     = getScrutinContract(laddr);
+            const contract = getScrutinContract(laddr);
             const sessionAddrs = await contract.getSessions();
             if (sessionAddrs.length > 0) {
                 await storage.updateSessionAddresses(laddr, sessionAddrs);
@@ -324,9 +324,9 @@ router.get('/authorized', async (req, res) => {
             }
 
             if (voterSessions.length > 0) {
-                const now   = new Date();
+                const now = new Date();
                 const start = metadata.startDate ? new Date(metadata.startDate) : null;
-                const end   = metadata.endDate   ? new Date(metadata.endDate)   : null;
+                const end = metadata.endDate ? new Date(metadata.endDate) : null;
                 const isActive = (!start || now >= start) && (!end || now <= end);
                 if (!isActive) continue;
 
@@ -334,12 +334,12 @@ router.get('/authorized', async (req, res) => {
                 if (alreadyVoted) continue;
 
                 authorizedScrutins.push({
-                    address:   laddr,
-                    title:     metadata.title,
-                    country:   metadata.country || 'International',
+                    address: laddr,
+                    title: metadata.title,
+                    country: metadata.country || 'International',
                     startDate: metadata.startDate,
-                    endDate:   metadata.endDate,
-                    sessions:  voterSessions,
+                    endDate: metadata.endDate,
+                    sessions: voterSessions,
                 });
             }
         }
@@ -351,10 +351,13 @@ router.get('/authorized', async (req, res) => {
     }
 });
 
-// GET /api/scrutins/:address — full detail with voters, decisions, votes, timeSeries
-router.get('/:address', async (req, res) => {
+// GET /api/scrutins/:address — authenticated users
+router.get('/:address', requireAuth, async (req, res) => {
     try {
         const addr = req.params.address.toLowerCase();
+        const isStaff = ['admin', 'superadmin', 'moderator'].includes(req.jwtUser?.role);
+        const userEmail = req.jwtUser.email.toLowerCase();
+
         const metadata = await storage.getScrutin(addr);
         if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
 
@@ -365,10 +368,10 @@ router.get('/:address', async (req, res) => {
 
         const sessions = await Promise.all((metadata.sessions || []).map(async (s, idx) => {
             const sAddr = (sessionAddrs[idx] || s.address || '').toLowerCase();
-            const decisions   = await storage.getSessionDecisions(sAddr);
+            const decisions = await storage.getSessionDecisions(sAddr);
             const sessionVotes = await storage.getVotesLog(sAddr);
             const validations = decisions.filter(d => d.decision === 'validate').length;
-            const totalMods   = (s.moderators || []).length;
+            const totalMods = (s.moderators || []).length;
 
             sessionVotes.forEach(v => {
                 const t = new Date(v.createdAt || v.timestamp);
@@ -384,22 +387,22 @@ router.get('/:address', async (req, res) => {
             return {
                 ...s,
                 address: sAddr,
-                voters: dedupedVoters,
+                voters: isStaff ? dedupedVoters : (dedupedVoters.includes(userEmail) ? [userEmail] : []),
                 voterCount: dedupedVoters.length,
-                votes: sessionVotes.reduce((acc, v) => {
+                votes: isStaff ? sessionVotes.reduce((acc, v) => {
                     acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
                     return acc;
-                }, {}),
-                moderators: (s.moderators || []).map(email => {
+                }, {}) : undefined,
+                moderators: isStaff ? (s.moderators || []).map(email => {
                     const d = decisions.find(dec => dec.email.toLowerCase() === email.toLowerCase());
                     return {
                         email,
-                        status:    d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
+                        status: d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
                         timestamp: d ? d.createdAt : null,
                     };
-                }),
-                validationCount:     validations,
-                moderatorCount:      totalMods,
+                }) : undefined,
+                validationCount: validations,
+                moderatorCount: totalMods,
                 consensusPercentage: totalMods > 0 ? Math.round((validations / totalMods) * 100) : 0,
             };
         }));
@@ -417,11 +420,11 @@ router.get('/:address', async (req, res) => {
             success: true,
             data: {
                 ...metadata,
+                voters: undefined, // Ensure global voters list is explicitly hidden
                 sessions,
-                voters:     [...allVotersSet],
                 voterCount: allVotersSet.size,
                 votedCount,
-                timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
+                timeSeries: isStaff ? (timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }]) : undefined,
             },
         });
     } catch (error) {
@@ -429,8 +432,8 @@ router.get('/:address', async (req, res) => {
     }
 });
 
-// POST /api/scrutins/:address/vote
-router.post('/:address/vote', async (req, res) => {
+// POST /api/scrutins/:address/vote — Voter auth required
+router.post('/:address/vote', requireAuth, async (req, res) => {
     try {
         const scrutinAddress = req.params.address;
         const { email, selections } = req.body;
@@ -438,15 +441,20 @@ router.post('/:address/vote', async (req, res) => {
         if (!email || !selections)
             return res.status(400).json({ success: false, error: 'Email and selections required' });
 
+        // Security check: ensure the voter is voting as themselves
+        if (req.jwtUser.email.toLowerCase() !== email.toLowerCase()) {
+            return res.status(403).json({ success: false, error: 'Identity mismatch - you can only vote as yourself' });
+        }
+
         if (await storage.hasVoterVoted(email, scrutinAddress))
             return res.status(401).json({ success: false, error: 'Vous avez déjà voté pour ce scrutin.' });
 
         const metadata = await storage.getScrutin(scrutinAddress);
         if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
 
-        const now   = new Date();
+        const now = new Date();
         const start = metadata.startDate ? new Date(metadata.startDate) : null;
-        const end   = metadata.endDate   ? new Date(metadata.endDate)   : null;
+        const end = metadata.endDate ? new Date(metadata.endDate) : null;
         if ((start && now < start) || (end && now > end))
             return res.status(403).json({ success: false, error: 'Ce scrutin n\'est pas en cours.' });
 
@@ -455,8 +463,8 @@ router.post('/:address/vote', async (req, res) => {
             console.log(`[VOTE] Recording vote for session ${sAddr}`);
 
             await storage.logVote({
-                sessionId:   sAddr,
-                voterEmail:  email,
+                sessionId: sAddr,
+                voterEmail: email,
                 optionIndex: parseInt(optionIdx),
             });
 
@@ -554,12 +562,12 @@ router.get('/:address/monitor-access', async (req, res) => {
 // GET /api/scrutins/:address/results
 router.get('/:address/results', async (req, res) => {
     try {
-        const address  = req.params.address;
+        const address = req.params.address;
         const metadata = await storage.getScrutin(address);
         if (!metadata) return res.status(404).json({ success: false, error: 'Scrutin not found' });
 
         // Check if results are restricted — allow bypass only for admins (via JWT)
-        if (metadata.showResultsToVoters === false) {
+        if (metadata.showResultsToVoters !== true) {
             const authHeader = req.headers.authorization;
             if (authHeader?.startsWith('Bearer ')) {
                 try {
@@ -576,7 +584,7 @@ router.get('/:address/results', async (req, res) => {
             }
         }
 
-        const contract     = getScrutinContract(address);
+        const contract = getScrutinContract(address);
         const sessionAddrs = await contract.getSessions();
 
         const results = await Promise.all(sessionAddrs.map(async (sAddr, idx) => {
@@ -590,7 +598,7 @@ router.get('/:address/results', async (req, res) => {
                 const voteCount = counts[oIdx] || 0;
                 return {
                     ...opt,
-                    id:         oIdx,
+                    id: oIdx,
                     voteCount,
                     percentage: totalVotes > 0 ? parseFloat(((voteCount / totalVotes) * 100).toFixed(1)) : 0,
                 };

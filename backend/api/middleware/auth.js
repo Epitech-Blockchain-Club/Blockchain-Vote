@@ -22,6 +22,14 @@ export const requireAdmin = (req, res, next) => {
     });
 };
 
+export const requireStaff = (req, res, next) => {
+    requireAuth(req, res, () => {
+        if (!['admin', 'superadmin', 'moderator'].includes(req.jwtUser?.role))
+            return res.status(403).json({ success: false, error: 'Staff access required' });
+        next();
+    });
+};
+
 export const requireSuperAdmin = (req, res, next) => {
     requireAuth(req, res, () => {
         if (req.jwtUser?.role !== 'superadmin')

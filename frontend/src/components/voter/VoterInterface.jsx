@@ -57,9 +57,13 @@ const VoterInterface = ({ election, authorizedSessions, user }) => {
         setIsSubmitting(true);
         try {
             const scrutinAddr = election.id || election.address;
+            const token = localStorage.getItem('authToken');
             const res = await fetch(`${API_URL}/scrutins/${scrutinAddr}/vote`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ email: user.email, selections }),
             });
             const result = await res.json();

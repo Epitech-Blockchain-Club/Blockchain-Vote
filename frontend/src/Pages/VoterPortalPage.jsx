@@ -21,9 +21,11 @@ const VoterPortalPage = () => {
                 return;
             }
 
-            // Fetch scrutin directly by address — bypasses org filter so any
             // admin can vote in scrutins from other organizations
-            const res = await fetch(`${API_BASE}/scrutins/${id}`);
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE}/scrutins/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const result = await res.json();
             if (!result.success || !result.data) {
                 toast.error("Scrutin introuvable.");

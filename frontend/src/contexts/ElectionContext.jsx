@@ -6,7 +6,7 @@ const ElectionContext = createContext()
 
 const API_BASE = import.meta.env.VITE_API_URL;
 if (!import.meta.env.VITE_API_URL) {
-    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+  console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
 }
 
 // Données réelles chargées via l'API
@@ -26,7 +26,7 @@ export function ElectionProvider({ children }) {
       if (user && user.role === 'admin' && user.org) {
         url += `?org=${encodeURIComponent(user.org)}`
       }
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: authHeaders() })
       const result = await res.json()
       if (result.success) {
         // Map backend scrutin to frontend election model
@@ -103,11 +103,19 @@ export function ElectionProvider({ children }) {
       // Add a max-timeout so loading never spinns indefinitely
       const timeout = setTimeout(() => setLoading(false), 8000)
       try {
+        const isStaff = ['admin', 'superadmin', 'moderator'].includes(user?.role)
         const isSuperAdmin = user?.role === 'superadmin'
-        await Promise.all([
-          fetchElections(),
-          ...(isSuperAdmin ? [fetchUsers(), fetchOrganizations()] : [])
-        ])
+
+        const tasks = []
+        if (isStaff) tasks.push(fetchElections())
+        if (isSuperAdmin) {
+          tasks.push(fetchUsers())
+          tasks.push(fetchOrganizations())
+        }
+
+        if (tasks.length > 0) {
+          await Promise.all(tasks)
+        }
       } catch (err) {
         console.error('Init error:', err)
       } finally {
@@ -118,13 +126,16 @@ export function ElectionProvider({ children }) {
     init()
 
     // Auto-refresh every 45 seconds to pick up blockchain state changes
-    const interval = setInterval(() => fetchElections(), 45000)
-    return () => clearInterval(interval)
+    const isStaff = ['admin', 'superadmin', 'moderator'].includes(user?.role)
+    if (isStaff) {
+      const interval = setInterval(() => fetchElections(), 45000)
+      return () => clearInterval(interval)
+    }
   }, [user?.email, user?.role, user?.org])
 
   const getResults = async (address) => {
     try {
-      const res = await fetch(`${API_BASE}/scrutins/${address}/results`)
+      const res = await fetch(`${API_BASE}/scrutins/${address}/results`, { headers: authHeaders() })
       const result = await res.json()
       if (result.success) return result.data
       throw new Error(result.error)
@@ -138,7 +149,10 @@ export function ElectionProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/votes/cast`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
         body: JSON.stringify({
           sessionId: electionId, // In this simplified model, electionId is the session address
           voterEmail: email,
@@ -163,7 +177,10 @@ export function ElectionProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/scrutins`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
         body: JSON.stringify({
           title: newElection.title,
           description: newElection.description,
@@ -222,7 +239,10 @@ export function ElectionProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders()
+        },
         body: JSON.stringify(userData)
       })
       const result = await res.json()

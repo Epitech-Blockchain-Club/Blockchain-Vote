@@ -358,40 +358,40 @@ const ModeratorReportPage = () => {
                                 </div>
                             </div>
                             {(() => {
-                                    const maxVotes = Math.max(0, ...(session.candidates || []).map(c => c.voteCount || 0))
-                                    return (
-                                        <div className="divide-y divide-slate-50">
-                                            {(session.candidates || []).map((candidate, cIdx) => {
-                                                const pct = candidate.percentage || 0
-                                                const isLeading = session.totalVotes > 0 && candidate.voteCount === maxVotes && maxVotes > 0
-                                                return (
-                                                    <div key={candidate.id ?? cIdx} className="px-6 py-4">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <div className="flex items-center gap-2">
-                                                                {isLeading && (
-                                                                    <ShieldSolid className="w-3.5 h-3.5 text-primary-500 shrink-0" />
-                                                                )}
-                                                                <span className="text-sm font-black text-slate-900">{candidate.title}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-xs font-black text-slate-700">{candidate.voteCount || 0} voix</span>
-                                                                <span className="text-xs font-bold text-slate-400 w-10 text-right">{pct}%</span>
-                                                            </div>
+                                const maxVotes = Math.max(0, ...(session.candidates || []).map(c => c.voteCount || 0))
+                                return (
+                                    <div className="divide-y divide-slate-50">
+                                        {(session.candidates || []).map((candidate, cIdx) => {
+                                            const pct = candidate.percentage || 0
+                                            const isLeading = session.totalVotes > 0 && candidate.voteCount === maxVotes && maxVotes > 0
+                                            return (
+                                                <div key={candidate.id ?? cIdx} className="px-6 py-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            {isLeading && (
+                                                                <ShieldSolid className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                                                            )}
+                                                            <span className="text-sm font-black text-slate-900">{candidate.title}</span>
                                                         </div>
-                                                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                            <motion.div
-                                                                initial={{ width: 0 }}
-                                                                animate={{ width: `${pct}%` }}
-                                                                transition={{ duration: 0.8, ease: 'easeOut' }}
-                                                                className="h-full bg-primary-500 rounded-full"
-                                                            />
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-black text-slate-700">{candidate.voteCount || 0} voix</span>
+                                                            <span className="text-xs font-bold text-slate-400 w-10 text-right">{pct}%</span>
                                                         </div>
                                                     </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )
-                                })()}
+                                                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${pct}%` }}
+                                                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                                                            className="h-full bg-primary-500 rounded-full"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })()}
                         </div>
                     ))}
                 </div>

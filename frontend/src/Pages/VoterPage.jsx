@@ -35,7 +35,12 @@ const VoterPage = () => {
         setEmail(userEmail);
         setSearching(true);
         try {
-            const res = await fetch(`${API_URL}/scrutins/authorized?email=${encodeURIComponent(userEmail)}`);
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_URL}/scrutins/authorized?email=${encodeURIComponent(userEmail)}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             const result = await res.json();
             if (result.success) {
                 // Backend already returns ONLY scrutins with at least one

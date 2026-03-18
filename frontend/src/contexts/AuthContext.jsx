@@ -5,7 +5,7 @@ const AuthContext = createContext()
 
 const API_BASE = import.meta.env.VITE_API_URL;
 if (!import.meta.env.VITE_API_URL) {
-    console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
+  console.error("[\x1b[31mCONFIG ERROR\x1b[0m] VITE_API_URL environment variable is missing!");
 }
 
 export function AuthProvider({ children }) {
@@ -136,6 +136,10 @@ export function AuthProvider({ children }) {
             const result = await res.json();
             if (result.success) {
               userData = { ...userData, ...result.user };
+              if (result.token) {
+                setAuthToken(result.token);
+                localStorage.setItem('authToken', result.token);
+              }
             } else {
               userData.role = 'voter'; // Fallback for pure voters
             }
@@ -215,6 +219,10 @@ export function AuthProvider({ children }) {
             const result = await res.json();
             if (result.success) {
               userData = { ...userData, ...result.user };
+              if (result.token) {
+                setAuthToken(result.token);
+                localStorage.setItem('authToken', result.token);
+              }
             } else {
               userData.role = 'voter';
             }
@@ -264,6 +272,10 @@ export function AuthProvider({ children }) {
         const userData = result.user
         setUser(userData)
         localStorage.setItem('user', JSON.stringify(userData))
+        if (result.token) {
+          setAuthToken(result.token)
+          localStorage.setItem('authToken', result.token)
+        }
         toast.success(`Identification réussie : ${userData.email}`)
         return userData
       } else {
@@ -342,7 +354,11 @@ export function AuthProvider({ children }) {
 
   const getAvailableScrutins = async (email) => {
     try {
-      const res = await fetch(`${API_BASE}/scrutins/available?email=${encodeURIComponent(email)}`)
+      const res = await fetch(`${API_BASE}/scrutins/available`, {
+        headers: {
+          'Authorization': `Bearer ${voterAuth.oauthToken || authToken}`
+        }
+      })
       const result = await res.json()
 
       if (result.success) {

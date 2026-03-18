@@ -193,7 +193,12 @@ router.post('/oauth-login', async (req, res) => {
 
         if (user) {
             const { password: _, ...userData } = user;
-            res.json({ success: true, user: { ...userData, provider } });
+            const token = jwt.sign(
+                { email: userData.email, role: userData.role },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            res.json({ success: true, user: { ...userData, provider }, token });
         } else {
             res.status(401).json({ success: false, error: "Votre compte n'est pas enregistré dans le système de vote." });
         }
@@ -212,14 +217,24 @@ router.all('/moderator/verify', async (req, res) => {
         const tokenData = await storage.getModeratorToken(token);
         if (!tokenData) return res.status(401).json({ success: false, error: 'Invalid or expired token' });
 
+        const { password: _, ...userData } = {
+            email: tokenData.email,
+            role: tokenData.type || 'moderator',
+            scrutinId: tokenData.scrutinId
+        };
+        const signedToken = jwt.sign(
+            { email: userData.email, role: userData.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
         res.json({
             success: true,
             user: {
-                email: tokenData.email,
-                role: tokenData.type || 'moderator',
+                ...userData,
                 name: tokenData.type === 'voter' ? 'Électeur' : 'Modérateur',
-                scrutinId: tokenData.scrutinId,
             },
+            token: signedToken
         });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Server error' });
@@ -231,18 +246,23 @@ router.get('/oauth-config', (req, res) => {
     res.json({
         success: true,
         version: '1.0.1-tenant-fix',
-        googleClientId:    process.env.GOOGLE_CLIENT_ID || '',
+        googleClientId: process.env.GOOGLE_CLIENT_ID || '',
         microsoftClientId: process.env.MICROSOFT_CLIENT_ID || '',
         microsoftTenantId: process.env.MICROSOFT_TENANT_ID || 'common',
     });
 });
 
-// POST /api/auth/verify-voter
-router.post('/verify-voter', async (req, res) => {
+// POST /api/auth/verify-voter — voter auth required
+router.post('/verify-voter', requireAuth, async (req, res) => {
     try {
         const { email, scrutinId } = req.body;
         if (!email || !scrutinId)
             return res.status(400).json({ success: false, error: 'Email and scrutinId are required' });
+
+        // Security check: ensure the voter is verification for themselves
+        if (req.jwtUser.email.toLowerCase() !== email.toLowerCase()) {
+            return res.status(403).json({ success: false, error: 'Identity mismatch - you can only verify for yourself' });
+        }
 
         const voterEmail = email.toLowerCase();
         const scrutinMetadata = await storage.getScrutin(scrutinId);
