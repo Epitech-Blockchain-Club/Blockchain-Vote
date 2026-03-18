@@ -66,7 +66,7 @@ export const storage = {
             { email: email.toLowerCase(), sessionAddress: sessionAddress.toLowerCase(), decision, reason },
             { upsert: true, new: true }
         );
-        console.log(`[STORAGE] Decision '${decision}' saved — ${email} → ${sessionAddress}`);
+        console.log(`[STORAGE] Moderator decision saved.`);
     },
 
     hasModeratorDecided: async (email, sessionAddress) => {
@@ -265,7 +265,7 @@ export const storage = {
             { hasVoted: true, votedAt: new Date(), txHash: transactionHash },
             { upsert: true, new: true }
         );
-        console.log(`[STORAGE] Voter ${email} marked as voted for ${scrutinId}`);
+        console.log(`[STORAGE] Voter marked as voted.`);
     },
 
     getVoterRecord: async (email, scrutinId) => {

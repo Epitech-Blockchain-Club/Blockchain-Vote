@@ -17,7 +17,7 @@ router.post('/notifications', async (req, res) => {
         };
 
         await storage.addNotification(notif);
-        console.log(`[SuperAdmin] New notification from ${email}`);
+        console.log(`[SuperAdmin] New notification received.`);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

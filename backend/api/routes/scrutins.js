@@ -53,7 +53,7 @@ router.get('/available', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { title, description, scope, country, timingMode, startDate, endDate, voteSessions, voters, logoUrl } = req.body;
-        console.log(`[SCRUTIN] Creating: "${title}" — ${voters?.length || 0} global voters`);
+        console.log(`[SCRUTIN] Creating new scrutin`);
 
         const factory = getFactoryContract();
         const startTime = Math.floor(new Date(startDate || Date.now()).getTime() / 1000);
@@ -137,7 +137,7 @@ router.post('/', async (req, res) => {
                 const portalLink = `${baseUrl}/moderate/${scrutinAddress}?token=${token}`;
                 const sent = await sendModeratorInvitation(mod, title, 'Toutes vos sessions assignées', portalLink);
                 emailResults.push({ email: mod, sent });
-                console.log(`[SCRUTIN] Invitation to ${mod}: ${sent ? 'sent' : 'FAILED'}`);
+                console.log(`[SCRUTIN] Moderator invitation: ${sent ? 'sent' : 'FAILED'}`);
             }
         }
 
@@ -156,7 +156,6 @@ router.get('/', async (req, res) => {
         const addresses = await factory.getDeployedScrutins();
 
         const scrutins = await Promise.all(addresses.map(async (addr) => {
-            console.log(`[API] Processing scrutin: ${addr}`);
             const metadata = await storage.getScrutin(addr) || {};
             const contract = getScrutinContract(addr);
 
@@ -285,10 +284,8 @@ router.get('/authorized', async (req, res) => {
         const email = req.query.email?.toLowerCase();
         if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
-        console.log(`[AUTHORIZED] Searching for voter: ${email}`);
         const factory   = getFactoryContract();
         const addresses = await factory.getDeployedScrutins();
-        console.log(`[AUTHORIZED] ${addresses.length} deployed scrutin(s)`);
 
         const authorizedScrutins = [];
 
@@ -455,7 +452,7 @@ router.post('/:address/vote', async (req, res) => {
 
         const txHashes = [];
         for (const [sAddr, optionIdx] of Object.entries(selections)) {
-            console.log(`[VOTE] Session: ${sAddr} | Voter: ${email} | Choice: ${optionIdx}`);
+            console.log(`[VOTE] Recording vote for session ${sAddr}`);
 
             await storage.logVote({
                 sessionId:   sAddr,

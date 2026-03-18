@@ -14,7 +14,7 @@ const notifyModeratorsOnConsensus = async (sessionMetadata, sessionId) => {
     const emails = (sessionMetadata.moderators || []).map(resolveEmail).filter(Boolean);
     Promise.all(emails.map(email =>
         sendModeratorMonitorLink(email, parentScrutin.title, sessionMetadata.title, monitorLink)
-            .catch(err => console.error(`[EMAIL] Monitor link to ${email} failed:`, err))
+            .catch(err => console.error(`[EMAIL] Monitor link delivery failed:`, err.message))
     ));
 };
 
@@ -54,15 +54,15 @@ router.post('/decision', async (req, res) => {
             const totalRequired = sessionMetadata.moderators?.length || 0;
 
             if (otherValidations + 1 >= totalRequired) {
-                console.log(`[CONSENSUS] 100% reached for session ${sessionId}. Validating on-chain...`);
+                console.log(`[CONSENSUS] 100% reached. Validating on-chain...`);
                 tx = await sessionContract.validate({ nonce: await getNextNonce() });
 
                 notifyModeratorsOnConsensus(sessionMetadata, sessionId);
             } else {
-                console.log(`[CONSENSUS] ${otherValidations + 1}/${totalRequired} for session ${sessionId}.`);
+                console.log(`[CONSENSUS] ${otherValidations + 1}/${totalRequired} validations.`);
             }
         } else {
-            console.log(`[CONSENSUS] Moderator ${moderatorEmail} invalidated session ${sessionId}.`);
+            console.log(`[CONSENSUS] Session invalidated by moderator.`);
             tx = await sessionContract.invalidate(reason || 'Aucune raison fournie', { nonce: await getNextNonce() });
         }
 

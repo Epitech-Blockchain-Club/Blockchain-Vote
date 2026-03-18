@@ -140,14 +140,14 @@ router.post('/add-admin-to-org', requireSuperAdmin, async (req, res) => {
             role: 'admin',
             org: orgId,
         });
-        console.log(`[ADD-ADMIN] ${existing ? 'Updated' : 'Created'} admin ${normalizedEmail} for org ${orgId}`);
+        console.log(`[ADD-ADMIN] Admin account ${existing ? 'updated' : 'created'}.`);
 
         await storage.assignAdminToOrg(orgId, normalizedEmail);
 
         try {
             await sendCredentials(normalizedEmail, displayName, password, 'admin', orgName || orgId);
         } catch (mailErr) {
-            console.warn(`[ADD-ADMIN] Email failed (account still created): ${mailErr.message}`);
+            console.warn(`[ADD-ADMIN] Credentials email failed (account still created).`);
         }
 
         res.json({ success: true, message: `Admin ${normalizedEmail} created/updated and linked to ${orgId}` });

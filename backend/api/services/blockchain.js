@@ -13,7 +13,7 @@ const loadABI = (contractName) => {
     const fileData = fs.readFileSync(filePath, 'utf8');
     const json = JSON.parse(fileData);
     if (!json.abi) throw new Error(`ABI not found in ${contractName}.json`);
-    console.log(`Loaded ABI for ${contractName}: ${json.abi.length} methods`);
+    console.log(`[BLOCKCHAIN] ABI loaded for ${contractName}.`);
     return json.abi;
 };
 
@@ -51,7 +51,7 @@ export const getNextNonce = async () => {
             currentNonce++;
         }
 
-        console.log(`[NONCE] Allocated nonce: ${currentNonce} (network: ${networkNonce})`);
+        console.log(`[NONCE] Nonce allocated.`);
         return currentNonce;
     } finally {
         resolveNonce();
@@ -67,10 +67,8 @@ export const resetNonce = async () => {
 export const getFactoryContract = (address) => {
     const addr = address || process.env.FACTORY_ADDRESS;
     if (!addr) throw new Error("FACTORY_ADDRESS not defined");
-    console.log(`Connecting to Factory at ${addr}`);
     const contract = new ethers.Contract(addr, ScrutinFactoryABI, wallet);
     if (!contract.createScrutin) {
-        console.error("Contract object methods:", Object.keys(contract));
         throw new Error("createScrutin method not found on contract object");
     }
     return contract;

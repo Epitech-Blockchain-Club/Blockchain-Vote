@@ -161,7 +161,7 @@ export const sendModeratorInvitation = async (email, electionTitle, sessionTitle
       html: body,
       headers: baseHeaders,
     });
-    console.log("Moderator invitation sent to", email, "MessageId:", info.messageId);
+    console.log("Moderator invitation sent.");
     return true;
   } catch (error) {
     console.error("Error sending email:", error);
@@ -258,7 +258,7 @@ export const sendModeratorMonitorLink = async (email, electionTitle, sessionTitl
       html: body,
       headers: baseHeaders,
     });
-    console.log("Monitor link sent to", email);
+    console.log("Monitor link sent.");
     return true;
   } catch (error) {
     console.error("Error sending monitor link:", error);
@@ -528,7 +528,7 @@ export const sendCredentials = async (email, name, password, role, orgName = nul
       html: body,
       headers: baseHeaders,
     });
-    console.log("Credentials email sent to", email, "role:", role, "MessageId:", info.messageId);
+    console.log("Credentials email sent.");
     return true;
   } catch (error) {
     console.error("Error sending credentials:", error);
