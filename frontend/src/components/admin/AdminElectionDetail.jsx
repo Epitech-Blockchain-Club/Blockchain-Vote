@@ -33,9 +33,25 @@ const AdminElectionDetail = () => {
     const [addingVotersIdx, setAddingVotersIdx] = useState(null)
     const [voterInput, setVoterInput] = useState('')
     const [submittingVoters, setSubmittingVoters] = useState(false)
+    const [detailData, setDetailData] = useState(null)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
     const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
+
+    // Fetch full detail (with voters lists) from the dedicated endpoint
+    const fetchDetail = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/scrutins/${id}`, {
+                headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+            })
+            const result = await res.json()
+            if (result.success) setDetailData(result.data)
+        } catch { /* non-blocking */ }
+    }
+
+    useEffect(() => {
+        if (id && API_BASE) fetchDetail()
+    }, [id, API_BASE])
 
     const downloadQR = () => {
         const canvas = qrRef.current?.querySelector('canvas')
@@ -93,6 +109,9 @@ const AdminElectionDetail = () => {
         toast.success("CSV exporté avec succès !");
     }
 
+    // Merge context election (for live stats) with detailData (for voter lists)
+    const getSessionDetail = (sIdx) => detailData?.sessions?.[sIdx] || {}
+
     const handleAddVoters = async (sessionIdx) => {
         const emails = [...new Set(
             voterInput
@@ -120,7 +139,7 @@ const AdminElectionDetail = () => {
                 result.added > 0 ? toast.success(msg) : toast(msg, { icon: 'ℹ️' })
                 setVoterInput('')
                 setAddingVotersIdx(null)
-                await refreshElections()
+                await Promise.all([refreshElections(), fetchDetail()])
             } else {
                 toast.error(result.error || 'Erreur lors de l\'ajout')
             }
@@ -309,13 +328,13 @@ const AdminElectionDetail = () => {
                                                     <div className="flex justify-between items-end mb-1">
                                                         <span className="text-[8px] font-bold text-slate-500 uppercase">Participation</span>
                                                         <span className="text-sm font-black text-primary-600">
-                                                            {session.voters?.length > 0 ? Math.round(Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) / session.voters.length * 100) : 0}%
+                                                            {(() => { const vc = getSessionDetail(sIdx).voters?.length || session.voterCount || 0; const cast = Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0); return vc > 0 ? Math.round(cast / vc * 100) : 0 })()}%
                                                         </span>
                                                     </div>
                                                     <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden border border-slate-100">
                                                         <div
                                                             className="bg-primary-500 h-full rounded-full transition-all duration-1000"
-                                                            style={{ width: `${session.voters?.length > 0 ? (Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0) / session.voters.length * 100) : 0}%` }}
+                                                            style={{ width: `${(() => { const vc = getSessionDetail(sIdx).voters?.length || session.voterCount || 0; const cast = Object.values(session.votes || {}).reduce((a, b) => a + (parseInt(b) || 0), 0); return vc > 0 ? Math.round(cast / vc * 100) : 0 })()}%` }}
                                                         ></div>
                                                     </div>
                                                 </div>
@@ -379,7 +398,7 @@ const AdminElectionDetail = () => {
                                         <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5">
                                             <div className="flex justify-between items-center mb-4">
                                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                    <UserGroupIcon className="w-3 h-3" /> Électeurs ({session.voters?.length || 0})
+                                                    <UserGroupIcon className="w-3 h-3" /> Électeurs ({getSessionDetail(sIdx).voters?.length ?? session.voterCount ?? 0})
                                                 </h4>
                                                 <div className="flex gap-2">
                                                     {now > end ? (
@@ -398,7 +417,7 @@ const AdminElectionDetail = () => {
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={() => exportToCSV(session.voters, session.title)}
+                                                        onClick={() => exportToCSV(getSessionDetail(sIdx).voters || [], session.title)}
                                                         className="text-[9px] font-black text-primary-600 hover:text-white hover:bg-primary-600 border border-primary-200 px-2 py-1 rounded-lg transition-all"
                                                     >
                                                         Exporter CSV
@@ -406,11 +425,11 @@ const AdminElectionDetail = () => {
                                                 </div>
                                             </div>
                                             <div className="max-h-[120px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                                                {session.voters?.length > 0 ? session.voters.map((voter, vIdx) => (
+                                                {(getSessionDetail(sIdx).voters || []).length > 0 ? (getSessionDetail(sIdx).voters).map((voter, vIdx) => (
                                                     <div key={vIdx} className="text-[10px] font-medium text-slate-500 bg-white p-2 rounded-lg border border-slate-100/50">
                                                         {voter}
                                                     </div>
-                                                )) : <p className="text-[10px] text-slate-400 italic">Aucun électeur importé.</p>}
+                                                )) : <p className="text-[10px] text-slate-400 italic">{detailData ? 'Aucun électeur importé.' : 'Chargement…'}</p>}
                                             </div>
                                             {addingVotersIdx === sIdx && (
                                                 <div className="mt-4 border-t border-slate-100 pt-4 space-y-2">

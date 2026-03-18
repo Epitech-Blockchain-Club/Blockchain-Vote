@@ -61,7 +61,7 @@ export function ElectionProvider({ children }) {
             votedCount: scrutin.votedCount || 0,
             timeSeries: scrutin.timeSeries || [],
             voters: scrutin.voters || [],
-            voterCount: new Set([...(scrutin.voters || []), ...sessions.flatMap(s => s.voters || [])]).size || 0,
+            voterCount: scrutin.voterCount || 0,
             status: allValidated ? 'active' : 'pending_validation',
             isInvalidated: sessions.length > 0 && sessions.every(s => s.isInvalidated),
             showResultsToVoters: scrutin.showResultsToVoters ?? true

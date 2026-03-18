@@ -201,14 +201,17 @@ router.get('/', async (req, res) => {
                     const sessionVotes = await storage.getVotesLog(sAddr);
 
                     return {
-                        ...sessionMetadata,
-                        address: sAddr,
+                        title:              sessionMetadata.title,
+                        description:        sessionMetadata.description,
+                        options:            sessionMetadata.options || [],
+                        txHash:             sessionMetadata.txHash,
+                        address:            sAddr,
                         isValidated,
                         isInvalidated,
                         invalidationReason,
                         consensusPercentage: totalMods > 0 ? Math.round((validations / totalMods) * 100) : 0,
-                        validationCount: validations,
-                        moderatorCount:  totalMods,
+                        validationCount:    validations,
+                        moderatorCount:     totalMods,
                         moderators: (sessionMetadata.moderators || []).map(email => {
                             const d = decisions.find(dec => dec.email.toLowerCase() === email.toLowerCase());
                             return {
@@ -217,8 +220,8 @@ router.get('/', async (req, res) => {
                                 timestamp: d ? d.createdAt : null,
                             };
                         }),
-                        voters: sessionMetadata.voters || [],
-                        votes:  sessionVotes.reduce((acc, v) => {
+                        voterCount: (sessionMetadata.voters || []).length,
+                        votes: sessionVotes.reduce((acc, v) => {
                             acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
                             return acc;
                         }, {}),
@@ -249,12 +252,20 @@ router.get('/', async (req, res) => {
 
             return {
                 address: addr,
-                ...metadata,
+                title:       metadata.title,
+                description: metadata.description,
+                scope:       metadata.scope,
+                country:     metadata.country,
+                logoUrl:     metadata.logoUrl,
+                startDate:   metadata.startDate,
+                endDate:     metadata.endDate,
+                type:        metadata.type,
+                showResultsToVoters: metadata.showResultsToVoters,
                 sessions,
                 votes:      aggregatedVotes,
                 votedCount,
                 timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
-                voters:     metadata.voters || [],
+                voterCount: (metadata.voters || []).length,
             };
         }));
 
@@ -343,7 +354,7 @@ router.get('/authorized', async (req, res) => {
     }
 });
 
-// GET /api/scrutins/:address — fetch a single scrutin by address (no org filter)
+// GET /api/scrutins/:address — full detail with voters, decisions, votes, timeSeries
 router.get('/:address', async (req, res) => {
     try {
         const addr = req.params.address.toLowerCase();
@@ -353,12 +364,62 @@ router.get('/:address', async (req, res) => {
         const contract = getScrutinContract(addr);
         const sessionAddrs = await contract.getSessions();
 
-        const sessions = (metadata.sessions || []).map((s, idx) => ({
-            ...s,
-            address: (sessionAddrs[idx] || s.address || '').toLowerCase(),
+        const timeSeriesArray = [];
+
+        const sessions = await Promise.all((metadata.sessions || []).map(async (s, idx) => {
+            const sAddr = (sessionAddrs[idx] || s.address || '').toLowerCase();
+            const decisions   = await storage.getSessionDecisions(sAddr);
+            const sessionVotes = await storage.getVotesLog(sAddr);
+            const validations = decisions.filter(d => d.decision === 'validate').length;
+            const totalMods   = (s.moderators || []).length;
+
+            sessionVotes.forEach(v => {
+                const t = new Date(v.createdAt || v.timestamp);
+                timeSeriesArray.push({
+                    time: `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`,
+                    timestamp: v.createdAt || v.timestamp,
+                    optionIndex: v.optionIndex,
+                    sessionId: sAddr,
+                });
+            });
+
+            return {
+                ...s,
+                address: sAddr,
+                voters: s.voters || [],
+                voterCount: (s.voters || []).length,
+                votes: sessionVotes.reduce((acc, v) => {
+                    acc[v.optionIndex] = (acc[v.optionIndex] || 0) + 1;
+                    return acc;
+                }, {}),
+                moderators: (s.moderators || []).map(email => {
+                    const d = decisions.find(dec => dec.email.toLowerCase() === email.toLowerCase());
+                    return {
+                        email,
+                        status:    d ? (d.decision === 'validate' ? 'Validé' : 'Invalidé') : 'En cours',
+                        timestamp: d ? d.createdAt : null,
+                    };
+                }),
+                validationCount:     validations,
+                moderatorCount:      totalMods,
+                consensusPercentage: totalMods > 0 ? Math.round((validations / totalMods) * 100) : 0,
+            };
         }));
 
-        res.json({ success: true, data: { ...metadata, sessions } });
+        const timeSeries = timeSeriesArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const votedCount = (await storage.getVotersForScrutin(addr)).length;
+
+        res.json({
+            success: true,
+            data: {
+                ...metadata,
+                sessions,
+                voters:     metadata.voters || [],
+                voterCount: (metadata.voters || []).length,
+                votedCount,
+                timeSeries: timeSeries.length > 0 ? timeSeries : [{ time: '00:00', votes: 0 }],
+            },
+        });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
