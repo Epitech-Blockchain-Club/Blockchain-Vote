@@ -34,9 +34,9 @@ const AdminElectionDetail = () => {
     const [voterInput, setVoterInput] = useState('')
     const [submittingVoters, setSubmittingVoters] = useState(false)
     const [detailData, setDetailData] = useState(null)
-    const [showExtendModal, setShowExtendModal] = useState(false)
-    const [newEndDate, setNewEndDate] = useState('')
     const [extendingDate, setExtendingDate] = useState(false)
+    const [newEndDate, setNewEndDate] = useState('')
+    const [submittingExtend, setSubmittingExtend] = useState(false)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
     const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -94,12 +94,12 @@ const AdminElectionDetail = () => {
         setIsRefreshing(false)
     }
 
-    const handleExtend = async () => {
+    const handleExtendDate = async () => {
         if (!newEndDate) { toast.error('Veuillez sélectionner une nouvelle date.'); return }
-        setExtendingDate(true)
+        setSubmittingExtend(true)
         try {
-            // Convert the datetime-local string (interpreted as LOCAL time by browser)
-            // to a proper UTC ISO string so Node.js (UTC) stores the correct time.
+            // Convert the datetime-local string (local time in browser) to UTC ISO
+            // so Node.js (running in UTC) stores the correct absolute time.
             const isoDate = new Date(newEndDate).toISOString()
             const res = await fetch(`${API_BASE}/scrutins/${id}/settings`, {
                 method: 'PATCH',
@@ -109,7 +109,7 @@ const AdminElectionDetail = () => {
             const result = await res.json()
             if (result.success) {
                 toast.success('Scrutin prolongé avec succès !')
-                setShowExtendModal(false)
+                setExtendingDate(false)
                 setNewEndDate('')
                 await Promise.all([refreshElections(), fetchDetail()])
             } else {
@@ -118,7 +118,7 @@ const AdminElectionDetail = () => {
         } catch {
             toast.error('Erreur réseau')
         } finally {
-            setExtendingDate(false)
+            setSubmittingExtend(false)
         }
     }
 
@@ -254,22 +254,6 @@ const AdminElectionDetail = () => {
                     >
                         <EyeIcon className="h-5 w-5" />
                     </button>
-                    <button
-                        onClick={() => {
-                            // Default to +30 min from NOW (not from old endDate, which could be in the past)
-                            const base = Math.max(Date.now(), new Date(election.endDate || Date.now()).getTime())
-                            const suggested = new Date(base + 30 * 60000)
-                            // Format as local datetime-local value (YYYY-MM-DDTHH:mm) so the input shows local time
-                            const offset = suggested.getTimezoneOffset() * 60000
-                            const local = new Date(suggested.getTime() - offset).toISOString().slice(0, 16)
-                            setNewEndDate(local)
-                            setShowExtendModal(true)
-                        }}
-                        className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-2xl transition-colors shadow-sm text-[10px] sm:text-xs font-black uppercase tracking-wider whitespace-nowrap"
-                        title="Prolonger le scrutin"
-                    >
-                        ⏰ Prolonger
-                    </button>
 
                     {/* Title + Logo */}
                     <div className="flex flex-1 flex-wrap items-start gap-4 min-w-0">
@@ -310,7 +294,61 @@ const AdminElectionDetail = () => {
                                 <p className="text-sm font-black text-slate-900">{election.voterCount || 0} électeurs</p>
                             </div>
                         </div>
-                        <CountdownTimer startDate={election.startDate} endDate={election.endDate} />
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Date de fin</p>
+                                    <p className="text-sm font-black text-slate-900">{end.toLocaleString('fr-FR')}</p>
+                                </div>
+                                {!extendingDate && (
+                                    <button
+                                        onClick={() => {
+                                            // Default to now + 30 min in local time
+                                            const base = Math.max(Date.now(), end.getTime())
+                                            const suggested = new Date(base + 30 * 60000)
+                                            const offset = suggested.getTimezoneOffset() * 60000
+                                            setNewEndDate(new Date(suggested.getTime() - offset).toISOString().slice(0, 16))
+                                            setExtendingDate(true)
+                                        }}
+                                        className="text-[9px] font-black text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 px-3 py-1.5 rounded-xl transition-all uppercase tracking-widest"
+                                    >
+                                        Prolonger
+                                    </button>
+                                )}
+                            </div>
+                            {extendingDate && (
+                                <div className="space-y-3 mt-3">
+                                    {status === 'Terminé' && (
+                                        <p className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                            Ce scrutin est terminé — le prolonger le remettra en cours.
+                                        </p>
+                                    )}
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nouvelle date de fin</p>
+                                    <input
+                                        type="datetime-local"
+                                        value={newEndDate}
+                                        onChange={e => setNewEndDate(e.target.value)}
+                                        min={(() => { const n = new Date(Date.now() + 60000); return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 16) })()}
+                                        className="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button
+                                            onClick={() => { setExtendingDate(false); setNewEndDate('') }}
+                                            className="text-[9px] font-black text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={handleExtendDate}
+                                            disabled={submittingExtend || !newEndDate}
+                                            className="text-[9px] font-black text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                                        >
+                                            {submittingExtend ? 'Enregistrement...' : 'Confirmer'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </Card>
 
                     <Card className="bg-white border-slate-100 shadow-sm p-8">
@@ -635,6 +673,7 @@ const AdminElectionDetail = () => {
                             </button>
                         </div>
                     </Card>
+
                 </div>
 
             </div>

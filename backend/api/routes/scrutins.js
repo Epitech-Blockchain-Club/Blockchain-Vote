@@ -526,7 +526,7 @@ router.patch('/:address/settings', requireAdmin, async (req, res) => {
         }
 
         // Allow extending the end date
-        if (req.body.endDate) {
+        if ('endDate' in req.body) {
             const newEnd = new Date(req.body.endDate);
             if (isNaN(newEnd.getTime())) {
                 return res.status(400).json({ success: false, error: 'Date de fin invalide.' });
