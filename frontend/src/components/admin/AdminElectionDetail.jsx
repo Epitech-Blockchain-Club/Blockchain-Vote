@@ -34,6 +34,9 @@ const AdminElectionDetail = () => {
     const [voterInput, setVoterInput] = useState('')
     const [submittingVoters, setSubmittingVoters] = useState(false)
     const [detailData, setDetailData] = useState(null)
+    const [extendingDate, setExtendingDate] = useState(false)
+    const [newEndDate, setNewEndDate] = useState('')
+    const [submittingExtend, setSubmittingExtend] = useState(false)
     const qrRef = useRef(null)
     const API_BASE = import.meta.env.VITE_API_URL
     const PUBLIC_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -89,6 +92,31 @@ const AdminElectionDetail = () => {
         setIsRefreshing(true)
         await refreshElections()
         setIsRefreshing(false)
+    }
+
+    const handleExtendDate = async () => {
+        if (!newEndDate) return
+        setSubmittingExtend(true)
+        try {
+            const res = await fetch(`${API_BASE}/scrutins/${id}/settings`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                body: JSON.stringify({ endDate: new Date(newEndDate).toISOString() })
+            })
+            const result = await res.json()
+            if (result.success) {
+                await refreshElections()
+                toast.success('Date de fin mise à jour')
+                setExtendingDate(false)
+                setNewEndDate('')
+            } else {
+                toast.error(result.error || 'Erreur lors de la mise à jour')
+            }
+        } catch {
+            toast.error('Erreur réseau')
+        } finally {
+            setSubmittingExtend(false)
+        }
     }
 
     const election = elections.find(e => e.id === id)
@@ -264,6 +292,54 @@ const AdminElectionDetail = () => {
                             </div>
                         </div>
                         <CountdownTimer startDate={election.startDate} endDate={election.endDate} />
+                        <div className="mt-6 pt-6 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Date de fin</p>
+                                    <p className="text-sm font-black text-slate-900">{end.toLocaleString('fr-FR')}</p>
+                                </div>
+                                {!extendingDate && (
+                                    <button
+                                        onClick={() => { setNewEndDate(''); setExtendingDate(true) }}
+                                        className="text-[9px] font-black text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 px-3 py-1.5 rounded-xl transition-all uppercase tracking-widest"
+                                    >
+                                        Prolonger
+                                    </button>
+                                )}
+                            </div>
+                            {extendingDate && (
+                                <div className="space-y-3 mt-3">
+                                    {status === 'Terminé' && (
+                                        <p className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                            Ce scrutin est terminé — le prolonger le remettra en cours.
+                                        </p>
+                                    )}
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nouvelle date de fin</p>
+                                    <input
+                                        type="datetime-local"
+                                        value={newEndDate}
+                                        onChange={e => setNewEndDate(e.target.value)}
+                                        min={new Date(end.getTime() + 60000).toISOString().slice(0, 16)}
+                                        className="w-full text-xs border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button
+                                            onClick={() => { setExtendingDate(false); setNewEndDate('') }}
+                                            className="text-[9px] font-black text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={handleExtendDate}
+                                            disabled={submittingExtend || !newEndDate}
+                                            className="text-[9px] font-black text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all"
+                                        >
+                                            {submittingExtend ? 'Enregistrement...' : 'Confirmer'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </Card>
 
                     <Card className="bg-white border-slate-100 shadow-sm p-8">
@@ -588,6 +664,7 @@ const AdminElectionDetail = () => {
                             </button>
                         </div>
                     </Card>
+
                 </div>
 
             </div>
