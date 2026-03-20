@@ -757,57 +757,7 @@ const AdminElectionDetail = () => {
                 </div>
             )}
 
-            {/* Extend Date Modal */}
-            {showExtendModal && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center border border-amber-100">
-                                <svg className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </div>
-                            <div>
-                                <h3 className="font-black text-slate-900 text-lg tracking-tight">Prolonger le scrutin</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nouvelle date de clôture</p>
-                            </div>
-                        </div>
 
-                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Date de fin actuelle</p>
-                            <p className="text-sm font-bold text-slate-700">
-                                {new Date(election.endDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                        </div>
-
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nouvelle date de fin</label>
-                        <input
-                            type="datetime-local"
-                            value={newEndDate}
-                            onChange={e => setNewEndDate(e.target.value)}
-                            min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                            className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300 mb-6 bg-white"
-                        />
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => { setShowExtendModal(false); setNewEndDate('') }}
-                                className="flex-1 h-12 rounded-2xl border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all"
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                onClick={handleExtend}
-                                disabled={extendingDate || !newEndDate}
-                                className="flex-1 h-12 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {extendingDate
-                                    ? <><div className="animate-spin h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full" /> Prolongation...</>
-                                    : 'Confirmer la prolongation'
-                                }
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
