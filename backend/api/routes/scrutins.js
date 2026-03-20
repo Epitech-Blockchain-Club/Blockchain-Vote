@@ -524,8 +524,21 @@ router.patch('/:address/settings', requireAdmin, async (req, res) => {
         for (const key of allowed) {
             if (key in req.body) updates[key] = req.body[key];
         }
+
+        // Allow extending the end date
+        if (req.body.endDate) {
+            const newEnd = new Date(req.body.endDate);
+            if (isNaN(newEnd.getTime())) {
+                return res.status(400).json({ success: false, error: 'Date de fin invalide.' });
+            }
+            if (newEnd <= new Date()) {
+                return res.status(400).json({ success: false, error: 'La nouvelle date de fin doit être dans le futur.' });
+            }
+            updates.endDate = newEnd.toISOString();
+        }
+
         await storage.updateScrutin(address, updates);
-        res.json({ success: true });
+        res.json({ success: true, updates });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
